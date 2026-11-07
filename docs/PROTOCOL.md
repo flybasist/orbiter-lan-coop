@@ -1,7 +1,7 @@
 # Сетевой протокол OLC
 
-> **Статус: черновик на согласовании** (вопрос В2 в [QUESTIONS.md](QUESTIONS.md)).
-> Кода пока нет. После этапа 1 документ уточняется по реальным замерам.
+> **Статус: согласованный рабочий черновик** (решение 13 в [DECISIONS.md](DECISIONS.md)).
+> Кода пока нет. Документ уточняется по модели сглаживания и замерам этапа 1.
 
 Как устроен плагин в целом — [ARCHITECTURE.md](ARCHITECTURE.md). Какие функции SDK стоят за
 полями — [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md).
@@ -88,7 +88,8 @@
 |---|---|---|
 | `HELLO` | клиент → хост | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `plugin_version: str`, `player: str` |
 | `WELCOME` | хост → клиент | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (имя планетной системы) |
-| `REJECT` | хост → клиент | `reason: u8` (1 — версия протокола, 2 — версия Orbiter, 3 — другая система, 4 — нет мест), `text: str` |
+| `REJECT` | хост → клиент | `reason: u8` (1 — версия протокола, 2 — версия Orbiter, 3 — другая система, 4 — нет мест: достигнут предел игроков, по умолчанию 4, не больше 8), `text: str` |
+| `SCENARIO` | хост → клиент | `name: str`, `size: u32`, затем `size` байт файла сценария (этап 2; до 1 МБ) |
 | `BODIES` | хост → клиент | `count: u16`, затем `net_id: u16`, `name: str` |
 | `VESSELS` | хост → клиент | `count: u16`, затем `net_id: u16`, `name: str`, `class: str` |
 | `VESSEL_ADDED` | хост → клиент | `net_id: u16`, `name: str`, `class: str`, полное состояние как в `WORLD_STATE` |

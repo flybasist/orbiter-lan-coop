@@ -7,7 +7,7 @@ orbiter-lan-coop распространяется под лицензией GPLv
 
 - **Что это:** заголовки и библиотеки для дополнений Orbiter (`Orbitersdk/include`,
   `orbiter.lib`, `Orbitersdk.lib`).
-- **Откуда:** https://github.com/orbitersim/orbiter, базовый коммит `9721ab8d`.
+- **Откуда:** https://github.com/orbitersim/orbiter, базовый коммит `b9bd0785`.
 - **Условия:** MIT License, © Martin Schweiger. `Orbitersdk.lib` статическая, её код входит
   в DLL плагина, поэтому в релиз кладётся текст MIT-лицензии Orbiter с уведомлением об
   авторских правах.
