@@ -4,12 +4,21 @@
 #include <random>
 
 std::vector<Packet> simulateNetwork(const Trajectory& truth, const Config& config) {
-    std::mt19937 generator(config.seed);
+    // seed_seq перемешивает начальное число: если завести mt19937 напрямую маленьким
+    // числом (1, 2, 3...), первые случайные значения у разных seed получаются похожими.
+    std::seed_seq seedSequence{config.seed};
+    std::mt19937 generator(seedSequence);
     std::uniform_real_distribution<double> unit(0.0, 1.0);
+
+    // Хост начинает отправку не точно в момент 0, а со случайным сдвигом в пределах
+    // одного интервала. Иначе моменты отправки совпадают с началом и концом импульсов
+    // двигателей (целые и половинные секунды), и экстраполяция с интерполяцией
+    // получают нечестное преимущество: в настоящей игре пилот не ждёт пакета.
+    double phase = unit(generator);
 
     std::vector<Packet> packets;
     for (long k = 0;; k++) {
-        double sendWall = k / config.rate;
+        double sendWall = (k + phase) / config.rate;
         double simTime = sendWall * config.warp;
         if (simTime > config.duration) {
             break;

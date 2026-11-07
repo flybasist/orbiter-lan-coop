@@ -149,8 +149,11 @@ bool runClient(const Config& config, const Trajectory& truth, const std::vector<
         shown[2] = interpLinear(buffer, shownTime[2]);
         shown[3] = interpHermite(buffer, shownTime[3]);
 
+        // Кадры прогрева и кадры, где показываемое время раньше первого пакета, не считаем:
+        // настоящий клиент начинает показ, только когда у него есть данные за это время.
+        // Без этого при редких пакетах (×100, 10 Гц) в ошибку попадает запуск клиента.
         for (int m = 0; m < kMethodCount; m++) {
-            if (shownTime[m] < kWarmupSim) {
+            if (shownTime[m] < kWarmupSim || shownTime[m] < buffer.front().time) {
                 accumulators[m].skipFrame();
             } else {
                 accumulators[m].addFrame(shown[m], truth.at(shownTime[m]));

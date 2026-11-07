@@ -16,7 +16,12 @@ else()
     add_compile_options(-Wall -Wextra)
 endif()
 
+# Тесты запускаются через ctest --test-dir orbiter-lan-coop.out
+enable_testing()
+
+# Сетевое ядро (не зависит от Orbiter) и его тесты
+add_subdirectory(core)
+add_subdirectory(tests)
+
 # Симуляция сглаживания движения (измерения до написания сетевого плагина)
 add_subdirectory(tools/smoothing)
-
-# Позже здесь же появится библиотека сетевого ядра.
