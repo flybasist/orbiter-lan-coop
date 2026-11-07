@@ -10,8 +10,9 @@ orbiter-lan-coop распространяется под лицензией GPLv
 - **Откуда:** https://github.com/orbitersim/orbiter, базовый коммит `b9bd0785`.
 - **Условия:** MIT License, © Martin Schweiger. `Orbitersdk.lib` статическая, её код входит
   в DLL плагина, поэтому в релиз кладётся текст MIT-лицензии Orbiter с уведомлением об
-  авторских правах.
-- **Входит в репозиторий:** нет.
+  авторских правах. В `Orbitersdk.lib` собраны также Dear ImGui (MIT, © Omar Cornut) и
+  ImPlot (MIT, © Evan Pezent) — их уведомления кладутся в релиз так же.
+- **Входит в репозиторий:** нет; сборка в GitHub Actions собирает его из базового коммита.
 
 ## Orbiter
 

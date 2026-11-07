@@ -135,11 +135,33 @@ void testBrokenString() {
 
 }  // namespace
 
+void testBytes() {
+    olc::Writer w;
+    w.writeBytes({1, 2, 3});
+    w.writeU8(9);
+    CHECK(w.bytes() == std::vector<uint8_t>({1, 2, 3, 9}));
+
+    olc::Reader r(w.bytes().data(), w.bytes().size());
+    std::vector<uint8_t> value = {7, 7, 7, 7, 7};  // старое содержимое должно замениться
+    CHECK(r.readBytes(value, 3));
+    CHECK(value == std::vector<uint8_t>({1, 2, 3}));
+
+    // Нуль байтов читается всегда.
+    CHECK(r.readBytes(value, 0) && value.empty());
+
+    // Байтов не хватает: значение не меняется, ошибка запоминается.
+    value = {5};
+    CHECK(!r.readBytes(value, 2));
+    CHECK(value == std::vector<uint8_t>({5}));
+    CHECK(!r.ok());
+}
+
 int main() {
     testByteOrder();
     testRoundTrip();
     testStrings();
     testTruncated();
     testBrokenString();
+    testBytes();
     return checkResult();
 }

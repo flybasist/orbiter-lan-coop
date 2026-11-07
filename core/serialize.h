@@ -28,6 +28,9 @@ public:
     // Если строка длиннее kMaxStringLength, ничего не пишет и возвращает false.
     bool writeString(const std::string& value);
 
+    // Байты как есть, без длины: длину сообщение пишет отдельным полем.
+    void writeBytes(const std::vector<uint8_t>& value);
+
     const std::vector<uint8_t>& bytes() const { return bytes_; }
 
 private:
@@ -49,6 +52,9 @@ public:
     bool readF32(float& value);
     bool readF64(double& value);
     bool readString(std::string& value);
+
+    // Ровно count байтов как есть (пара к Writer::writeBytes).
+    bool readBytes(std::vector<uint8_t>& value, size_t count);
 
     // Сколько байтов ещё не прочитано.
     size_t remaining() const { return size_ - position_; }

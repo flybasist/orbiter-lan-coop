@@ -239,4 +239,240 @@ bool readBye(Reader& reader, std::string& reason) {
     return finished(reader);
 }
 
+namespace {
+
+void writeVec3(Writer& writer, const Vec3& value) {
+    writer.writeF64(value.x);
+    writer.writeF64(value.y);
+    writer.writeF64(value.z);
+}
+
+void readVec3(Reader& reader, Vec3& value) {
+    reader.readF64(value.x);
+    reader.readF64(value.y);
+    reader.readF64(value.z);
+}
+
+}  // namespace
+
+bool writeVesselState(Writer& writer, const VesselState& state) {
+    if (state.thrusters.size() > kMaxThrusters) {
+        return false;
+    }
+    writer.writeU16(state.netId);
+    writer.writeU8(state.status);
+    writer.writeU16(state.refBody);
+    // Положение и ориентацию стоящего на поверхности корабля не передаём.
+    if (state.status == static_cast<uint8_t>(VesselStatus::Flying)) {
+        writeVec3(writer, state.rpos);
+        writeVec3(writer, state.rvel);
+        writeVec3(writer, state.arot);
+        writeVec3(writer, state.vrot);
+    }
+    writer.writeU8(static_cast<uint8_t>(state.thrusters.size()));
+    for (uint8_t level : state.thrusters) {
+        writer.writeU8(level);
+    }
+    return true;
+}
+
+bool readVesselState(Reader& reader, VesselState& state) {
+    reader.readU16(state.netId);
+    reader.readU8(state.status);
+    reader.readU16(state.refBody);
+    if (!reader.ok()) {
+        return false;
+    }
+
+    if (state.status == static_cast<uint8_t>(VesselStatus::Flying)) {
+        readVec3(reader, state.rpos);
+        readVec3(reader, state.rvel);
+        readVec3(reader, state.arot);
+        readVec3(reader, state.vrot);
+    } else if (state.status == static_cast<uint8_t>(VesselStatus::Landed)) {
+        // Полей положения нет: обнуляем, чтобы не осталось значений от прошлого пакета.
+        state.rpos = Vec3();
+        state.rvel = Vec3();
+        state.arot = Vec3();
+        state.vrot = Vec3();
+    } else {
+        return false;  // неизвестный status: непонятно, какие поля дальше
+    }
+
+    uint8_t count = 0;
+    reader.readU8(count);
+    state.thrusters.assign(count, 0);
+    for (uint8_t& level : state.thrusters) {
+        reader.readU8(level);
+    }
+    return reader.ok();
+}
+
+bool writeWorldState(Writer& writer, const WorldState& message) {
+    if (message.vessels.size() > kMaxVesselsPerPacket) {
+        return false;
+    }
+    writer.writeF64(message.simTime);
+    writer.writeF64(message.mjd);
+    writer.writeF64(message.warp);
+    writer.writeU8(message.paused);
+    writer.writeU8(static_cast<uint8_t>(message.vessels.size()));
+    for (const VesselState& state : message.vessels) {
+        if (!writeVesselState(writer, state)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool readWorldState(Reader& reader, WorldState& message) {
+    reader.readF64(message.simTime);
+    reader.readF64(message.mjd);
+    reader.readF64(message.warp);
+    reader.readU8(message.paused);
+    uint8_t count = 0;
+    reader.readU8(count);
+    if (!reader.ok()) {
+        return false;
+    }
+    // Число кораблей пришло из сети, поэтому место не резервируем заранее, а добавляем
+    // корабли по одному, пока они действительно читаются.
+    message.vessels.clear();
+    for (int i = 0; i < count; i++) {
+        VesselState state;
+        if (!readVesselState(reader, state)) {
+            return false;
+        }
+        message.vessels.push_back(state);
+    }
+    return finished(reader);
+}
+
+// ---------- FUEL ----------
+
+bool writeFuel(Writer& writer, const Fuel& message) {
+    if (message.vessels.size() > kMaxVesselsPerPacket) {
+        return false;
+    }
+    writer.writeU8(static_cast<uint8_t>(message.vessels.size()));
+    for (const VesselFuel& fuel : message.vessels) {
+        if (fuel.tankLevels.size() > kMaxTanks) {
+            return false;
+        }
+        writer.writeU16(fuel.netId);
+        writer.writeF64(fuel.emptyMass);
+        writer.writeU8(static_cast<uint8_t>(fuel.tankLevels.size()));
+        for (float level : fuel.tankLevels) {
+            writer.writeF32(level);
+        }
+    }
+    return true;
+}
+
+bool readFuel(Reader& reader, Fuel& message) {
+    uint8_t count = 0;
+    reader.readU8(count);
+    if (!reader.ok()) {
+        return false;
+    }
+    // Как в WORLD_STATE: числа пришли из сети, поэтому добавляем по одному, пока читается.
+    message.vessels.clear();
+    for (int i = 0; i < count; i++) {
+        VesselFuel fuel;
+        reader.readU16(fuel.netId);
+        reader.readF64(fuel.emptyMass);
+        uint8_t tanks = 0;
+        reader.readU8(tanks);
+        for (int t = 0; t < tanks && reader.ok(); t++) {
+            float level = 0.0f;
+            reader.readF32(level);
+            fuel.tankLevels.push_back(level);
+        }
+        if (!reader.ok()) {
+            return false;
+        }
+        message.vessels.push_back(fuel);
+    }
+    return finished(reader);
+}
+
+// ---------- VESSEL_ADDED ----------
+
+bool writeVesselAdded(Writer& writer, const VesselAdded& message) {
+    return writer.writeString(message.name) && writer.writeString(message.className) &&
+           writeVesselState(writer, message.state);
+}
+
+bool readVesselAdded(Reader& reader, VesselAdded& message) {
+    reader.readString(message.name);
+    reader.readString(message.className);
+    if (!readVesselState(reader, message.state)) {
+        return false;
+    }
+    return finished(reader);
+}
+
+// ---------- INPUT, PING, PONG ----------
+
+void writeInput(Writer& writer, const Input& message) {
+    writer.writeU16(message.netId);
+    writer.writeU32(message.keys);
+    for (float value : message.rot) {
+        writer.writeF32(value);
+    }
+    for (float value : message.lin) {
+        writer.writeF32(value);
+    }
+    writer.writeF32(message.throttle);
+}
+
+bool readInput(Reader& reader, Input& message) {
+    reader.readU16(message.netId);
+    reader.readU32(message.keys);
+    for (float& value : message.rot) {
+        reader.readF32(value);
+    }
+    for (float& value : message.lin) {
+        reader.readF32(value);
+    }
+    reader.readF32(message.throttle);
+    return finished(reader);
+}
+
+void writePingTime(Writer& writer, double time) {
+    writer.writeF64(time);
+}
+
+bool readPingTime(Reader& reader, double& time) {
+    reader.readF64(time);
+    return finished(reader);
+}
+
+// ---------- SCENARIO ----------
+
+bool writeScenario(Writer& writer, const Scenario& message) {
+    if (message.data.size() > kMaxScenarioSize) {
+        return false;
+    }
+    if (!writer.writeString(message.name)) {
+        return false;
+    }
+    writer.writeU32(static_cast<uint32_t>(message.data.size()));
+    writer.writeBytes(message.data);
+    return true;
+}
+
+bool readScenario(Reader& reader, Scenario& message) {
+    uint32_t size = 0;
+    reader.readString(message.name);
+    reader.readU32(size);
+    // size пришёл из сети: сначала сверяем его с тем, что действительно есть в пакете,
+    // и только потом читаем столько байтов.
+    if (!reader.ok() || size > kMaxScenarioSize || size != reader.remaining()) {
+        return false;
+    }
+    reader.readBytes(message.data, size);
+    return finished(reader);
+}
+
 }  // namespace olc

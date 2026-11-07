@@ -54,6 +54,10 @@ bool Writer::writeString(const std::string& value) {
     return true;
 }
 
+void Writer::writeBytes(const std::vector<uint8_t>& value) {
+    bytes_.insert(bytes_.end(), value.begin(), value.end());
+}
+
 // ---------- Reader ----------
 
 Reader::Reader(const uint8_t* data, size_t size) : data_(data), size_(size) {}
@@ -132,6 +136,15 @@ bool Reader::readString(std::string& value) {
     const char* start = reinterpret_cast<const char*>(data_ + position_ + 1);
     value.assign(start, length);
     position_ += 1 + length;
+    return true;
+}
+
+bool Reader::readBytes(std::vector<uint8_t>& value, size_t count) {
+    if (!canRead(count)) {
+        return false;
+    }
+    value.assign(data_ + position_, data_ + position_ + count);
+    position_ += count;
     return true;
 }
 

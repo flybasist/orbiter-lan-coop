@@ -49,12 +49,35 @@ cmake --build --preset windows-x64-release
 3. Запустите Orbiter, во вкладке Modules включите графический клиент D3D9Client, откройте
    сценарий с DeltaGlider и убедитесь, что всё летает.
 
-## 5. Повседневное использование
+## 5. Сборка плагина OLC
 
-Появится вместе с плагином: сборка OLC в `orbiter-lan-coop.out`, установка в
-`Modules/Plugin`, запуск хоста и клиента.
+Плагину нужны заголовки SDK и две библиотеки из сборки Orbiter (раздел 3). Соберите
+каталог SDK, например `C:\olc\orbiter-sdk`:
 
-## 6. Обновление
+- `include` — копия `Orbitersdk\include` из репозитория Orbiter;
+- `lib\Orbiter.lib` и `lib\Orbitersdk.lib` — из каталога сборки Orbiter
+  (`out\build\windows-x64-release`, поиском по имени файла).
+
+Затем в той же командной строке x64 из каталога OLC:
+
+```bat
+cmake -S . -B orbiter-lan-coop.out -G Ninja -DCMAKE_BUILD_TYPE=Release -DOLC_ORBITER_SDK_DIR=C:\olc\orbiter-sdk
+cmake --build orbiter-lan-coop.out
+ctest --test-dir orbiter-lan-coop.out
+```
+
+Готовый плагин — `orbiter-lan-coop.out\plugin\OrbiterLanCoop.dll`. Скопируйте его в
+`Modules\Plugin` Orbiter и включите во вкладке Modules. Пока это скелет: он только пишет в
+`Orbiter.log` строки `OLC: session started` и `OLC: session ended`.
+
+То же самое делает сборка в GitHub Actions (`.github/workflows/build.yml`): она собирает
+ядро Orbiter из базового коммита и выкладывает DLL как артефакт `OrbiterLanCoop-x64`.
+
+## 6. Повседневное использование
+
+Появится вместе с сетевой частью плагина: запуск хоста и клиента.
+
+## 7. Обновление
 
 Базовый коммит Orbiter меняется только осознанно (см. [README.md](README.md), условие 3):
 
@@ -66,7 +89,7 @@ git checkout <новый коммит или тег релиза>
 После этого Orbiter пересобирается, а карта ядра ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md))
 сверяется с новым кодом.
 
-## 7. Частые проблемы
+## 8. Частые проблемы
 
 | Сообщение или симптом | Что делать |
 |---|---|
@@ -74,7 +97,7 @@ git checkout <новый коммит или тег релиза>
 | CMake не находит системные заголовки с генератором Ninja | Запускайте из «Native Tools Command Prompt», а не из обычной консоли |
 | Планеты без текстур | Не указан каталог текстур (см. раздел 4) |
 
-## 8. Удаление
+## 9. Удаление
 
 Удалите каталог клона Orbiter и каталог `orbiter-lan-coop.out`. Visual Studio и DirectX SDK
 удаляются через «Установка и удаление программ».

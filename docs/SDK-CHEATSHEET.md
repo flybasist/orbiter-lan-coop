@@ -12,8 +12,10 @@
 | Начать сессию | `clbkSimulationStart` | Плагин живёт между сессиями: всё состояние сессии создавать здесь |
 | Закончить сессию | `clbkSimulationEnd` | Мир уже уничтожен: корабли не трогать, только сеть и таблицы |
 | Работа каждый кадр | `clbkPreStep` | Не вызывается на паузе |
+| Работа на паузе и при неактивном окне | Своё скрытое окно (`HWND_MESSAGE`) с `SetTimer` или `PostMessage` | Покадровых колбэков на паузе нет; сообщения окну приходят всегда (`ORBITER-INTERNALS.md`, раздел 14) |
+| Создать сеть и потоки | В `clbkSimulationStart`, не в `InitModule` | `InitModule`/`ExitModule` работают внутри `DllMain` |
 | Появился или удалён корабль | `clbkNewVessel`, `clbkDeleteVessel` | `clbkNewVessel` — только для созданных во время работы, до конца их настройки |
-| Ускорение или пауза изменились | `clbkTimeAccChanged`, `clbkPause` | — |
+| Ускорение или пауза изменились | `clbkTimeAccChanged`, `clbkPause` | В `clbkTimeAccChanged` оба аргумента — новое значение; `oapiSetPause` срабатывает только в следующем кадре |
 | Прыжок во времени | `clbkTimeJump` | — |
 
 ## 2. Состояние кораблей
@@ -29,6 +31,8 @@
 | Только ориентация / вращение | `SetGlobalOrientation`, `SetRotationMatrix`, `SetAngularVel` | Лёгкие, учитывают суперкорабль; только в `clbkPreStep` |
 | Отдельно положение или скорость | — | В SDK нет: только `DefSetStateEx` |
 | Статус полёта | `VESSEL::GetFlightStatus` | Бит 0 — стоит, бит 1 — часть суперкорабля |
+| Топливо и уровни двигателей | `VS_FUELLIST`, `VS_THRUSTLIST` в `VESSELSTATUS2`; `SetPropellantMass`, `SetThrusterLevel` | Топливо — до тяги: двигатель с пустым баком ядро обнуляет каждый шаг. Пустую массу (`SetEmptyMass`) передавать отдельно |
+| Анимации, огни, маяки | `GetAnimPtr`/`SetAnimation`, `GetLightEmitter`, `GetBeacon` | Анимация — только картинка, внутреннее состояние модуля корабля не меняется (`ORBITER-INTERNALS.md`, раздел 17) |
 
 По сети не передавать `OBJHANDLE`: опорное тело, база, корабли — по имени
 (`oapiGetObjectName`, `oapiGetGbodyByName`, `oapiGetBaseByName`).
@@ -104,3 +108,17 @@
 | Расстыковать | `VESSEL::Undock (n)` | Расталкивает корабли и на 5 с выключает их столкновения |
 | Вести связку | `DefSetStateEx` + `SetGlobalOrientation` + `SetAngularVel` на одном корабле | Не задавать состояние каждой части |
 | `VS_DOCKINFOLIST` в `DefSetStateEx` | — | Во время работы не использовать: только указатели, без суперкорабля |
+
+## 7. Интерфейс
+
+| Задача | Вызов | Подвох |
+|---|---|---|
+| Пункт настроек в Launchpad | `LaunchpadItem` + `oapiRegisterLaunchpadItem` в `InitModule` | Окно — диалог Win32, не ImGui; ImGui в Launchpad нет |
+| Сохранить настройки перед стартом | `LaunchpadItem::clbkWriteConfig` | Вызывается перед каждой сессией, отменить запуск нельзя |
+| Запустить сценарий | Нет в SDK | Только перезапуск `orbiter.exe -s <сценарий>` |
+| Окно в симуляции | `ImGuiDialog` + `oapiOpenDialog` | Вне сессии падает; рисуется и на паузе; без графического клиента окон нет |
+| Открыть окно игроку | `oapiRegisterCustomCmd`, `oapiRegisterCustomMenuCmd` | Пока фокус в окне ImGui, клавиатура уходит ему |
+| Короткое сообщение | `oapiAddNotification` | — |
+| Постоянный текст на экране | `oapiCreateAnnotation` | Только в сессии и с графическим клиентом |
+
+Подробности — `ORBITER-INTERNALS.md`, раздел 16.
