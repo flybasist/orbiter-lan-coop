@@ -46,7 +46,7 @@ DLLCLBK void InitModule(HINSTANCE hDLL) {
 
 // Точка выхода: Orbiter вызывает её при выгрузке DLL.
 // Модуль, зарегистрированный через oapiRegisterModule, ядро само не удаляет
-// (Orbiter.cpp:605, 644), поэтому удаляем его здесь.
+// (Orbiter.cpp:617, 656), поэтому удаляем его здесь.
 DLLCLBK void ExitModule(HINSTANCE hDLL) {
     (void)hDLL;
     delete g_module;
