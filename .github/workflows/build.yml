@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 env:
-  ORBITER_COMMIT: dabade2637e1ebbba9babeadabc187932c2c7ae7
+  ORBITER_COMMIT: a7a3396e6c3104a05fd5ac55736de75e4c0e921f
   ORBITER_SDK: ${{ github.workspace }}\orbiter-sdk
 
 jobs:

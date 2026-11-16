@@ -33,7 +33,7 @@ Orbiter из исходников на базовом коммите. Коман
 ```bat
 git clone https://github.com/orbitersim/orbiter.git
 cd orbiter
-git checkout dabade26
+git checkout a7a3396e
 cmake --preset windows-x64-release
 cmake --build --preset windows-x64-release
 ```
