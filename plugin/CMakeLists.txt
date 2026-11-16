@@ -6,6 +6,10 @@
 
 add_library(OrbiterLanCoop SHARED
     OrbiterLanCoop.cpp
+    config.cpp
+    host_side.cpp
+    client_side.cpp
+    trace.cpp
 )
 
 # Заголовки SDK - системные: предупреждения в них не наши.

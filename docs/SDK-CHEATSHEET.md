@@ -85,7 +85,7 @@
 | Задача | Вызов | Подвох |
 |---|---|---|
 | Время, шаг | `oapiGetSimTime`, `oapiGetSimStep`, `oapiGetSimMJD` | `oapiGetSimTime` — начало текущего шага |
-| Ускорение | `oapiGetTimeAcceleration`, `oapiSetTimeAcceleration` | Меняется плавно, не мгновенно |
+| Ускорение | `oapiGetTimeAcceleration`, `oapiSetTimeAcceleration` | Через SDK меняется сразу (задержка перехода 0); плавный переход бывает только внутри ядра |
 | Пауза | `oapiGetPause`, `oapiSetPause` | Применяется в начале следующего кадра |
 | Большое расхождение времени | `oapiSetSimMJD (mjd, pmode)` | Тяжёлая операция, только при больших расхождениях |
 

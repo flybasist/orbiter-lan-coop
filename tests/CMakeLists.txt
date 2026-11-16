@@ -32,3 +32,11 @@ add_test(NAME session_table COMMAND test-session-table)
 add_executable(test-socket test_socket.cpp)
 target_link_libraries(test-socket PRIVATE olc-core)
 add_test(NAME socket COMMAND test-socket)
+
+add_executable(test-client-clock test_client_clock.cpp)
+target_link_libraries(test-client-clock PRIVATE olc-core)
+add_test(NAME client_clock COMMAND test-client-clock)
+
+add_executable(test-link test_link.cpp)
+target_link_libraries(test-link PRIVATE olc-core)
+add_test(NAME link COMMAND test-link)

@@ -2,7 +2,10 @@
 # тестируется на любой системе. Его использует плагин (plugin/).
 add_library(olc-core STATIC
     attitude.cpp
+    client_clock.cpp
+    client_link.cpp
     header.cpp
+    host_link.cpp
     interpolation.cpp
     messages.cpp
     protocol.cpp

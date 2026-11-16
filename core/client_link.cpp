@@ -1,0 +1,423 @@
+#include "client_link.h"
+
+#include <algorithm>
+#include <cctype>
+#include <utility>
+
+#include "protocol.h"
+#include "serialize.h"
+
+namespace olc {
+
+namespace {
+
+// Совпадают ли строки без учёта регистра (имена систем Orbiter - ASCII).
+bool equalsIgnoreCase(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < a.size(); i++) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Собирает UDP-пакет: заголовок и готовое тело.
+std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
+                                   const std::vector<uint8_t>& body) {
+    UdpHeader header;
+    header.type = static_cast<uint8_t>(type);
+    header.session = session;
+    header.seq = seq;
+    Writer writer;
+    writeUdpHeader(writer, header);
+    writer.writeBytes(body);
+    return writer.bytes();
+}
+
+}  // namespace
+
+ClientLink::~ClientLink() {
+    stop("client stopped");
+}
+
+bool ClientLink::start(const ClientConfig& config, double now) {
+    config_ = config;
+    state_ = State::Connecting;
+    closeReason_.clear();
+    startedAt_ = now;
+    clock_ = ClientClock(config.displayDelay);
+    log("OLC client: connecting to " + endpointToString(config.host));
+
+    if (!tcp_.startConnect(config.host)) {
+        close("cannot start connection");
+        return false;
+    }
+
+    // HELLO уходит сразу: пока идёт подключение, кадр ждёт в очереди.
+    Hello hello;
+    hello.protocol = kProtocolVersion;
+    hello.orbiterVersion = config.orbiterVersion;
+    hello.pluginVersion = config.pluginVersion;
+    hello.player = config.player;
+    Writer body;
+    if (!writeHello(body, hello)) {
+        close("player name or plugin version is too long");
+        return false;
+    }
+    sendMessage(TcpType::Hello, body);
+    return true;
+}
+
+void ClientLink::stop(const std::string& reason) {
+    if (state_ != State::Connecting && state_ != State::Ready) {
+        return;
+    }
+    Writer body;
+    if (writeBye(body, reason)) {
+        sendMessage(TcpType::Bye, body);
+    }
+    tcp_.flush();
+    close(reason);
+}
+
+void ClientLink::close(const std::string& reason) {
+    if (state_ == State::Closed) {
+        return;
+    }
+    state_ = State::Closed;
+    closeReason_ = reason;
+    tcp_.close();
+    udp_.close();
+    log("OLC client: disconnected (" + reason + ")");
+}
+
+void ClientLink::log(const std::string& line) {
+    log_.push_back(line);
+}
+
+std::vector<std::string> ClientLink::takeLog() {
+    std::vector<std::string> lines;
+    lines.swap(log_);
+    return lines;
+}
+
+void ClientLink::sendMessage(TcpType type, const Writer& body) {
+    // Ошибку отправки не разбираем: оборванное соединение poll увидит при приёме.
+    tcp_.send(makeTcpFrame(static_cast<uint8_t>(type), body.bytes()));
+}
+
+// ---------- Приём ----------
+
+void ClientLink::poll(double now) {
+    if (state_ != State::Connecting && state_ != State::Ready) {
+        return;
+    }
+
+    bool connected = tcp_.receive(frames_);
+    // Сообщения разбираем, даже если соединение уже закрыто: перед закрытием хост мог
+    // прислать REJECT или BYE.
+    if (!handleFrames(now)) {
+        return;
+    }
+    if (!connected) {
+        close(welcomed_ ? "connection lost" : "connection refused");
+        return;
+    }
+    if (!welcomed_ && now - startedAt_ > kConnectTimeout) {
+        close("connection timeout");
+        return;
+    }
+    if (!tcp_.flush()) {
+        close(welcomed_ ? "connection lost" : "connection refused");
+        return;
+    }
+
+    if (state_ == State::Ready) {
+        handleUdp(now);
+        if (state_ == State::Ready && now >= nextPing_) {
+            sendPing(now);
+        }
+    }
+}
+
+bool ClientLink::handleFrames(double now) {
+    uint8_t type = 0;
+    std::vector<uint8_t> body;
+    TcpFrameReader::Result result = TcpFrameReader::Result::NeedMore;
+    while (state_ != State::Closed &&
+           (result = frames_.next(type, body)) == TcpFrameReader::Result::Ready) {
+        Reader reader(body.data(), body.size());
+
+        // До WELCOME хост может прислать только WELCOME или REJECT.
+        bool isHandshake = type == static_cast<uint8_t>(TcpType::Welcome) ||
+                           type == static_cast<uint8_t>(TcpType::Reject);
+        if (!welcomed_ && !isHandshake) {
+            close("unexpected message before WELCOME");
+            break;
+        }
+
+        switch (static_cast<TcpType>(type)) {
+            case TcpType::Welcome:
+                handleWelcome(reader);
+                break;
+            case TcpType::Reject:
+                handleReject(reader);
+                break;
+            case TcpType::Bodies:
+                if (!readBodies(reader, bodies_)) {
+                    close("broken BODIES message");
+                }
+                break;
+            case TcpType::Vessels:
+                handleVessels(reader, now);
+                break;
+            case TcpType::VesselAdded:
+                handleVesselAdded(reader);
+                break;
+            case TcpType::VesselRemoved:
+                handleVesselRemoved(reader);
+                break;
+            case TcpType::Ownership: {
+                std::vector<OwnerEntry> owners;
+                if (!readOwnership(reader, owners)) {
+                    close("broken OWNERSHIP message");
+                    break;
+                }
+                for (const OwnerEntry& entry : owners) {
+                    table_.setOwner(entry.netId, entry.owner);
+                }
+                break;
+            }
+            case TcpType::Landed: {
+                Landed landed;
+                if (!readLanded(reader, landed)) {
+                    close("broken LANDED message");
+                    break;
+                }
+                landed_.push_back(landed);
+                break;
+            }
+            case TcpType::Bye: {
+                std::string reason;
+                if (!readBye(reader, reason)) {
+                    reason = "no reason given";
+                }
+                close("host left: " + reason);
+                break;
+            }
+            default:
+                // Остальные сообщения (DOCK, SCENARIO) на этапе 1 не нужны.
+                break;
+        }
+    }
+
+    if (state_ != State::Closed && result == TcpFrameReader::Result::Broken) {
+        close("broken TCP stream");
+    }
+    return state_ != State::Closed;
+}
+
+void ClientLink::handleWelcome(Reader& reader) {
+    Welcome welcome;
+    if (welcomed_ || !readWelcome(reader, welcome)) {
+        close("broken or repeated WELCOME message");
+        return;
+    }
+    welcomed_ = true;
+    session_ = welcome.session;
+    clientId_ = welcome.clientId;
+    stateRateHz_ = welcome.stateRateHz;
+
+    if (!equalsIgnoreCase(welcome.system, config_.system)) {
+        Writer body;
+        if (writeBye(body, "different planetary system")) {
+            sendMessage(TcpType::Bye, body);
+        }
+        tcp_.flush();
+        close("host plays in system '" + welcome.system + "', this client in '" +
+              config_.system + "'");
+    }
+}
+
+void ClientLink::handleReject(Reader& reader) {
+    Reject reject;
+    if (!readReject(reader, reject)) {
+        close("rejected by host");
+        return;
+    }
+    close("rejected by host: " + reject.text);
+}
+
+void ClientLink::handleVessels(Reader& reader, double now) {
+    std::vector<VesselEntry> vessels;
+    if (state_ != State::Connecting || !readVessels(reader, vessels)) {
+        close("broken or repeated VESSELS message");
+        return;
+    }
+    for (const VesselEntry& entry : vessels) {
+        table_.addVesselWithId(entry.netId, entry.name, entry.className);
+    }
+
+    // Каких классов у клиента нет: каждый называем один раз.
+    std::vector<std::string> missing;
+    if (config_.classExists) {
+        for (const VesselEntry& entry : vessels) {
+            bool known = std::find(missing.begin(), missing.end(), entry.className) !=
+                         missing.end();
+            if (!known && !config_.classExists(entry.className)) {
+                missing.push_back(entry.className);
+            }
+        }
+    }
+    Writer classesBody;
+    if (!writeClassesMissing(classesBody, missing)) {
+        close("cannot build CLASSES_MISSING");
+        return;
+    }
+    sendMessage(TcpType::ClassesMissing, classesBody);
+
+    if (!udp_.open(0)) {
+        close("cannot open UDP socket");
+        return;
+    }
+    Writer readyBody;
+    writeUdpReady(readyBody, udp_.localPort());
+    sendMessage(TcpType::UdpReady, readyBody);
+
+    state_ = State::Ready;
+    nextPing_ = now;
+    log("OLC client: joined session as client " + std::to_string(clientId_) + ", " +
+        std::to_string(vessels.size()) + " vessels, " + std::to_string(bodies_.size()) +
+        " bodies");
+}
+
+void ClientLink::handleVesselAdded(Reader& reader) {
+    VesselAdded added;
+    if (!readVesselAdded(reader, added)) {
+        close("broken VESSEL_ADDED message");
+        return;
+    }
+    if (table_.addVesselWithId(added.state.netId, added.name, added.className)) {
+        // Состояние из VESSEL_ADDED относится к последнему известному моменту хоста.
+        buffers_[added.state.netId].add(lastPacketSimTime_, added.state);
+    }
+}
+
+void ClientLink::handleVesselRemoved(Reader& reader) {
+    uint16_t netId = 0;
+    if (!readVesselRemoved(reader, netId)) {
+        close("broken VESSEL_REMOVED message");
+        return;
+    }
+    table_.removeVessel(netId);
+    buffers_.erase(netId);
+    fuel_.erase(netId);
+}
+
+void ClientLink::handleUdp(double now) {
+    std::vector<uint8_t> packet;
+    Endpoint from;
+    while (udp_.receiveFrom(packet, from)) {
+        // Принимаем только пакеты хоста.
+        if (!(from == config_.host)) {
+            stats_.droppedPackets++;
+            continue;
+        }
+        Reader reader(packet.data(), packet.size());
+        UdpHeader header;
+        if (readUdpHeader(reader, header) != UdpHeaderResult::Ok || header.session != session_) {
+            stats_.droppedPackets++;
+            continue;
+        }
+        // Номер пакета общий у WORLD_STATE, FUEL и PONG: старые и повторные отбрасываем.
+        if (haveSeq_ && !isSequenceNewer(header.seq, lastSeq_)) {
+            stats_.droppedPackets++;
+            continue;
+        }
+        haveSeq_ = true;
+        lastSeq_ = header.seq;
+
+        if (header.type == static_cast<uint8_t>(UdpType::WorldState)) {
+            WorldState world;
+            if (!readWorldState(reader, world)) {
+                stats_.droppedPackets++;
+                continue;
+            }
+            stats_.worldStatePackets++;
+            hostWarp_ = world.warp;
+            hostPaused_ = world.paused != 0;
+            lastPacketSimTime_ = world.simTime;
+            lastPacketMjd_ = world.mjd;
+            clock_.onPacket(world.simTime, world.warp, hostPaused_, now);
+            for (const VesselState& vessel : world.vessels) {
+                buffers_[vessel.netId].add(world.simTime, vessel);
+            }
+        } else if (header.type == static_cast<uint8_t>(UdpType::Fuel)) {
+            Fuel fuel;
+            if (!readFuel(reader, fuel)) {
+                stats_.droppedPackets++;
+                continue;
+            }
+            for (const VesselFuel& vessel : fuel.vessels) {
+                fuel_[vessel.netId] = vessel;
+            }
+        } else if (header.type == static_cast<uint8_t>(UdpType::Pong)) {
+            double sentAt = 0.0;
+            if (!readPingTime(reader, sentAt)) {
+                stats_.droppedPackets++;
+                continue;
+            }
+            rtt_ = now - sentAt;
+        }
+    }
+}
+
+void ClientLink::sendPing(double now) {
+    Writer body;
+    writePingTime(body, now);
+    udp_.sendTo(config_.host,
+                makeUdpPacket(UdpType::Ping, session_, pingSeq_++, body.bytes()));
+    nextPing_ = now + kPingInterval;
+}
+
+// ---------- Что отдаём плагину ----------
+
+double ClientLink::hostMjdAt(double simTime) const {
+    return lastPacketMjd_ + (simTime - lastPacketSimTime_) / 86400.0;
+}
+
+bool ClientLink::sampleVessel(uint16_t netId, double simTime, VesselState& result,
+                              bool& starved) {
+    auto found = buffers_.find(netId);
+    if (found == buffers_.end() || found->second.size() == 0) {
+        return false;
+    }
+    if (!found->second.sample(simTime, result, starved)) {
+        return false;
+    }
+    if (starved) {
+        stats_.starvedSamples++;
+    }
+    return true;
+}
+
+std::vector<VesselFuel> ClientLink::takeFuel() {
+    std::vector<VesselFuel> result;
+    for (const auto& entry : fuel_) {
+        result.push_back(entry.second);
+    }
+    fuel_.clear();
+    return result;
+}
+
+std::vector<Landed> ClientLink::takeLanded() {
+    std::vector<Landed> result;
+    result.swap(landed_);
+    return result;
+}
+
+}  // namespace olc

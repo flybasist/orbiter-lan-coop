@@ -87,8 +87,10 @@
 - Шаг берётся из реальных часов (`std::chrono::steady_clock`) — `Orbiter.cpp:1740`.
   Первые три кадра после загрузки — фиксированные 10 мс, шаг ограничен сверху 0,1 с.
   Поэтому два компьютера никогда не считают одинаково: детерминированный lockstep невозможен.
-- Ускорение — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1363`), меняется плавно через
-  `TimeData::SetWarp` (`TimeData.h:31`) и `TWarpDelay` (`TimeData.cpp:55-63`).
+- Ускорение — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1363`) → `TimeData::SetWarp`
+  (`TimeData.h:31`). Плавный переход (`TWarpDelay`, `TimeData.cpp:55-63`) только при
+  ненулевой задержке; `oapiSetTimeAcceleration` передаёт задержку 0 (`OrbiterAPI.cpp:1034-1037`),
+  то есть меняет ускорение сразу (проверено на стенде 2026-11-17).
 - Пауза — `Orbiter::Pause` (`Orbiter.cpp:1189`): запрос применяется в начале следующего кадра.
   На паузе `clbkPreStep` и `clbkPostStep` не вызываются (`Orbiter.cpp:1949, 1960`).
 - Прыжок во времени — `Orbiter::Timejump` (`Orbiter.cpp:1820`), для кораблей —
