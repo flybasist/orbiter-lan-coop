@@ -5,8 +5,9 @@
 // - пауза и ускорение - как у хоста;
 // - сим-время клиента держится рядом со временем показа: при расхождении больше
 //   TimeSyncThreshold - прыжок oapiSetSimMJD (не чаще раза в kTimeJumpPause секунд);
-// - только вне паузы: топливо из FUEL, посадки из LANDED и состояния кораблей на момент
-//   показа - через DefSetStateEx в clbkPreStep (ORBITER-INTERNALS.md, раздел 3).
+// - только вне паузы: топливо из FUEL и состояния кораблей на момент показа - через
+//   DefSetStateEx в clbkPreStep (ORBITER-INTERNALS.md, раздел 3). Корабль, который на момент
+//   показа стоит на поверхности, ставится туда один раз по месту из LANDED.
 // Корабли клиента сопоставляются с кораблями хоста по имени: на этапе 1 оба запускают один
 // и тот же сценарий (docs/ARCHITECTURE.md, раздел 2).
 #pragma once
@@ -42,7 +43,8 @@ public:
 private:
     void followTime(double now, double displayTime);
     void applyFuel();
-    void applyLanded();
+    void collectLanded();
+    void putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place);
     void applyStates(double displayTime);
     // Корабль клиента для net_id хоста: ищется по имени и запоминается. nullptr - нет такого.
     OBJHANDLE vesselHandle(uint16_t netId);
@@ -52,11 +54,9 @@ private:
 
     Config config_;
     olc::ClientLink link_;
-    olc::ClientLink::State lastState_ = olc::ClientLink::State::Idle;
     std::map<uint16_t, OBJHANDLE> vessels_;  // net_id → корабль клиента (nullptr - нет)
     std::map<uint16_t, OBJHANDLE> bodies_;   // net_id тела → тело клиента
-    std::map<uint16_t, uint16_t> refBodies_; // net_id корабля → последнее опорное тело
-    std::vector<olc::Landed> pendingLanded_; // LANDED, для которых ещё не известно тело
+    std::map<uint16_t, olc::Landed> landedAt_;  // net_id → последнее место посадки из LANDED
 
     Trace trace_;
     uint16_t traceNetId_ = 0;

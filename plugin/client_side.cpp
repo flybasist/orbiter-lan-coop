@@ -79,25 +79,13 @@ void ClientSide::stop() {
 void ClientSide::tick(double now, bool paused) {
     link_.poll(now);
 
-    // Смена состояния подключения - в лог.
-    const olc::ClientLink::State state = link_.state();
-    if (state != lastState_) {
-        if (state == olc::ClientLink::State::Ready) {
-            oapiWriteLogV("OLC client: connected as client %u, %u vessels in session",
-                          static_cast<unsigned>(link_.clientId()),
-                          static_cast<unsigned>(link_.table().vesselEntries().size()));
-        } else if (state == olc::ClientLink::State::Closed) {
-            oapiWriteLogV("OLC client: disconnected: %s", link_.closeReason().c_str());
-        }
-        lastState_ = state;
-    }
-
-    if (state == olc::ClientLink::State::Ready && link_.hasWorld()) {
+    // Подключение и отключение пишет в лог сам ClientLink.
+    if (link_.state() == olc::ClientLink::State::Ready && link_.hasWorld()) {
         const double displayTime = link_.displayTime(now);
         followTime(now, displayTime);
         if (!paused) {
             applyFuel();
-            applyLanded();
+            collectLanded();
             applyStates(displayTime);
         }
         if (now >= nextStats_) {
@@ -168,43 +156,29 @@ void ClientSide::applyFuel() {
     }
 }
 
-void ClientSide::applyLanded() {
-    std::vector<olc::Landed> landed = link_.takeLanded();
-    landed.insert(landed.end(), pendingLanded_.begin(), pendingLanded_.end());
-    pendingLanded_.clear();
-
-    for (const olc::Landed& message : landed) {
-        OBJHANDLE handle = vesselHandle(message.netId);
-        if (!handle) {
-            continue;
-        }
-        VESSEL* vessel = oapiGetVesselInterface(handle);
-        // Уже стоит - ничего не делаем: статус «стоит» задаётся один раз
-        // (ORBITER-INTERNALS.md, раздел 6). Хост повторяет LANDED для поздних клиентов.
-        if (vessel->GetFlightStatus() & 1) {
-            continue;
-        }
-        // Опорное тело приходит в WORLD_STATE; пока его нет - ждём.
-        auto ref = refBodies_.find(message.netId);
-        OBJHANDLE body = ref != refBodies_.end() ? bodyHandle(ref->second) : nullptr;
-        if (!body) {
-            pendingLanded_.push_back(message);
-            continue;
-        }
-        VESSELSTATUS2 status;
-        std::memset(&status, 0, sizeof(status));
-        status.version = 2;
-        status.rbody = body;
-        status.status = 1;
-        status.surf_lng = message.longitude;
-        status.surf_lat = message.latitude;
-        status.surf_hdg = message.heading;
-        // arot.x > 4: «расширенной» ориентации нет, ядро поставит корабль на опоры само
-        // (Vesselstatus.cpp, SetState2, ветка status 1).
-        status.arot.x = 10.0;
-        vessel->DefSetStateEx(&status);
-        oapiWriteLogV("OLC client: vessel '%s' landed", vessel->GetName());
+void ClientSide::collectLanded() {
+    // Место посадки запоминается, а применяется в applyStates, когда момент показа дойдёт до
+    // посадки: LANDED приходит сразу, а клиент показывает мир с задержкой. Если поставить
+    // корабль раньше, следующий же кадр снова навяжет ему полёт из буфера.
+    for (const olc::Landed& message : link_.takeLanded()) {
+        landedAt_[message.netId] = message;
     }
+}
+
+void ClientSide::putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place) {
+    VESSELSTATUS2 status;
+    std::memset(&status, 0, sizeof(status));
+    status.version = 2;
+    status.rbody = body;
+    status.status = 1;
+    status.surf_lng = place.longitude;
+    status.surf_lat = place.latitude;
+    status.surf_hdg = place.heading;
+    // arot.x > 4: «расширенной» ориентации нет, ядро поставит корабль на опоры само
+    // (Vesselstatus.cpp, SetState2, ветка status 1).
+    status.arot.x = 10.0;
+    vessel->DefSetStateEx(&status);
+    oapiWriteLogV("OLC client: vessel '%s' landed", vessel->GetName());
 }
 
 void ClientSide::applyStates(double displayTime) {
@@ -227,7 +201,6 @@ void ClientSide::applyStates(double displayTime) {
         if (!link_.sampleVessel(entry.netId, displayTime, state, starved)) {
             continue;  // по этому кораблю ещё не было пакетов
         }
-        refBodies_[entry.netId] = state.refBody;
         OBJHANDLE handle = vesselHandle(entry.netId);
         OBJHANDLE body = bodyHandle(state.refBody);
         if (!handle || !body) {
@@ -251,8 +224,14 @@ void ClientSide::applyStates(double displayTime) {
                 trace_.write(link_.hostMjdAt(displayTime), objectName(body).c_str(),
                              state.rpos.x, state.rpos.y, state.rpos.z, starved);
             }
+        } else if (!(vessel->GetFlightStatus() & 1)) {
+            // Стоит на поверхности у хоста, а у клиента ещё нет: ставим один раз
+            // (ORBITER-INTERNALS.md, раздел 6). Дальше стоящий корабль ядро держит само.
+            auto place = landedAt_.find(entry.netId);
+            if (place != landedAt_.end()) {
+                putOnSurface(vessel, body, place->second);
+            }
         }
-        // Стоящий корабль ядро держит само; его ставит applyLanded.
 
         // Уровни двигателей: для выхлопа, а заодно физика клиента между пакетами
         // двигает корабль так же, как хост.
