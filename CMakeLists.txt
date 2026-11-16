@@ -32,5 +32,8 @@ if(WIN32 AND OLC_ORBITER_SDK_DIR)
     add_subdirectory(plugin)
 endif()
 
+# Проверка сети между двумя машинами (docs/STANDS.md)
+add_subdirectory(tools/netcheck)
+
 # Симуляция сглаживания движения (измерения до написания сетевого плагина)
 add_subdirectory(tools/smoothing)
