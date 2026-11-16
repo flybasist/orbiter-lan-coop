@@ -86,18 +86,41 @@ if ($vsPath) {
 # ---------- 3. DirectX SDK ----------
 
 Write-Step 'DirectX SDK (June 2010)'
-if (Test-Path $dxsdkDir) {
+# Проверяем по заголовку, а не по каталогу: неудачная установка оставляет пустой каталог
+# с одной папкой system.
+$dxsdkHeader = Join-Path $dxsdkDir 'Include\d3dx9.h'
+if (Test-Path $dxsdkHeader) {
     Write-Host 'DirectX SDK is already installed, skipping.'
 } else {
+    # Установщик SDK падает с ошибкой S1023 и не ставит SDK, если в системе уже есть
+    # Visual C++ 2010 Redistributable новее, чем в нём самом. Обход от Microsoft
+    # (KB2728613): удалить Visual C++ 2010 Redistributable, поставить SDK, вернуть
+    # Redistributable последней версии.
+    $uninstallKeys = @(
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    $vc2010 = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -match 'Visual C\+\+ 2010 .*Redistributable' }
+    foreach ($package in $vc2010) {
+        Write-Host "Removing $($package.DisplayName) (restored after the SDK)."
+        Start-Process msiexec.exe -ArgumentList "/x $($package.PSChildName) /quiet /norestart" -Wait
+    }
+
     $setup = Join-Path $env:TEMP 'DXSDK_Jun10.exe'
     Write-Host 'Downloading DirectX SDK (about 570 MB)...'
     Invoke-WebRequest -Uri $dxsdkUrl -OutFile $setup -UseBasicParsing
-    # /U - установка без вопросов. Установщик часто завершается ошибкой S1023: он не может
-    # поставить старый Visual C++ 2010 Redistributable поверх более нового. Сам SDK при этом
-    # устанавливается, поэтому успех проверяем по каталогу, а не по коду возврата.
+    # /U - установка без вопросов.
     Start-Process -FilePath $setup -ArgumentList '/U' -Wait
     Remove-Item $setup -ErrorAction SilentlyContinue
-    if (-not (Test-Path $dxsdkDir)) { throw "DirectX SDK was not installed: $dxsdkDir not found." }
+
+    # Возвращаем только те разрядности, что были удалены.
+    foreach ($package in $vc2010) {
+        $id = if ($package.DisplayName -match 'x64') { 'Microsoft.VCRedist.2010.x64' } else { 'Microsoft.VCRedist.2010.x86' }
+        Write-Host "Restoring $id."
+        winget install --id $id --exact --silent --accept-package-agreements --accept-source-agreements
+    }
+    if (-not (Test-Path $dxsdkHeader)) { throw "DirectX SDK was not installed: $dxsdkHeader not found." }
 }
 
 # ---------- 4. Брандмауэр ----------

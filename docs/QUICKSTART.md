@@ -2,8 +2,9 @@
 
 Плагина пока нет, поэтому здесь — подготовка окружения разработчика: Windows и сборка
 Orbiter из исходников на базовом коммите. Команды взяты из `COMPILE.md` и
-`CMakePresets.json` репозитория Orbiter и на наших стендах ещё не проверены — это часть
-этапа 0 ([PLAN.md](PLAN.md)). После проверки файл уточняется.
+`CMakePresets.json` репозитория Orbiter. На стенде Windows 11 ARM (этап 0,
+[PLAN.md](PLAN.md)) проверены сборка без графического клиента, ядра SPICE, загрузка плагина
+и запуск без графики; сборка с D3D9Client ещё ждёт DirectX SDK.
 
 ## 1. Требования
 
@@ -16,8 +17,10 @@ Orbiter из исходников на базовом коммите. Коман
 1. **Visual Studio** 2022 или 2026 (подойдёт бесплатная Community) с набором
    «Desktop development with C++» и компонентом «C++ MFC» во вкладке Individual Components.
 2. **DirectX SDK (June 2010):** https://www.microsoft.com/en-us/download/details.aspx?id=6812.
-   Ошибка установщика S1023 известна: файлы обычно всё равно распаковываются в
-   `C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)`.
+   Если уже установлен Visual C++ 2010 Redistributable, установщик падает с ошибкой S1023 и
+   SDK **не ставит** (в каталоге остаётся одна папка `system`). Проверяйте по файлу
+   `Include\d3dx9.h`. Обход от Microsoft: удалить Visual C++ 2010 Redistributable, поставить
+   SDK, вернуть Redistributable. Так делает скрипт `tools/stands/setup-windows.ps1`.
 3. **Git для Windows:** https://git-scm.com/install/windows.
 4. **Python 3.13+** — только если собирать скриптом `compileOrbiter.py` (см. ниже).
 
@@ -38,14 +41,30 @@ cmake --preset windows-x64-release
 cmake --build --preset windows-x64-release
 ```
 
-Сборка появится в `out\build\windows-x64-release`.
+Сборка появится в `out\build\windows-x64-release`, готовая к запуску установка — после
+`cmake --install out\build\windows-x64-release` в `out\install\windows-x64-release`.
+
+Что выяснилось на стенде:
+
+- **Windows 11 ARM.** Сборка x64 идёт из обычной среды `vcvarsall.bat x64`: компилятор x64
+  работает через эмуляцию. Настройка CMake (с загрузкой сторонних библиотек) — около 4 минут,
+  сборка — около 6 минут на 4 ядрах.
+- **Без DirectX SDK собрать полный Orbiter нельзя.** С `-DORBITER_BUILD_D3D9CLIENT=OFF` падает
+  LuaInterpreter: ему нужен `gcCoreAPI.h`, который появляется только при сборке D3D9Client.
+  Цели `Orbiter` и `Orbitersdk` (так собирает CI) при этом собираются. Каталог сборки не
+  заменяет установку: часть модулей (атмосферы планет) Orbiter ищет там, куда их кладёт
+  только `cmake --install`.
 
 ## 4. Первый запуск
 
 1. Текстуры планет в репозиторий не входят. Укажите каталог с ними переменной
    `ORBITER_PLANET_TEXTURE_INSTALL_DIR` до сборки или параметром `PlanetTexDir` в `Orbiter.cfg`
    после (например, из установленного Orbiter 2016 или 2024).
-2. Ядра SPICE и их текстуры берутся отдельно (ссылки в `COMPILE.md` Orbiter, раздел SPICE).
+2. **Ядра SPICE обязательны.** Без `Kernels\orbiter.bsp` (1,6 ГБ) Orbiter закрывает сессию
+   сразу после запуска (`SUN - Couldn't load kernel`). Архивы — по ссылкам из `COMPILE.md`
+   Orbiter, раздел SPICE: `Kernels.7z` (1,2 ГБ) распаковывается в `Kernels`, `Textures.7z` — в
+   `Textures`. Для второй копии Orbiter на той же машине `orbiter.bsp` можно не копировать, а
+   сделать жёсткую ссылку (`mklink /H`).
 3. Запустите Orbiter, во вкладке Modules включите графический клиент D3D9Client, откройте
    сценарий с DeltaGlider и убедитесь, что всё летает.
 

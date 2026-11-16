@@ -44,7 +44,7 @@ OLC — плагин для космосимулятора Orbiter, которы
 | `.github/workflows/build.yml` | Сборка в GitHub Actions: ядро Orbiter из базового коммита (с кешем), затем ядро OLC с тестами и плагин под Windows x64. |
 | `tools/smoothing/` | Модель сглаживания `olc-smoothing`: имитирует пакеты хоста с задержкой и потерями и сравнивает способы восстановления движения на клиенте; `run-grid.sh` прогоняет её по сетке параметров. От Orbiter не зависит. Выводы — `SMOOTHING.md`. |
 | `tools/netcheck/` | Утилита `olc-netcheck`: проверка сети между двумя машинами на сетевом ядре OLC — рукопожатие по TCP, `PING`/`PONG` по UDP, потери и задержка. Как пользоваться — `STANDS.md`, раздел 10. |
-| `tools/stands/` | `setup-windows.ps1` — подготовка Windows-машины к сборке Orbiter и OLC (Git, Visual Studio, DirectX SDK, брандмауэр); схема стендов — `STANDS.md`. |
+| `tools/stands/` | Скрипты для Windows-стенда: `setup-windows.ps1` — подготовка к сборке Orbiter и OLC (Git, Visual Studio, DirectX SDK, брандмауэр); `register-run-task.ps1` и `run-orbiter.ps1` — запуск Orbiter на видимом рабочем столе по команде из SSH и снимки экрана. Схема стендов — `STANDS.md`. |
 
 Исходный код Orbiter в этот репозиторий не входит. Для чтения используется отдельный клон
 `orbitersim/orbiter` (у владельца — `~/Documents/github/orbiter`), см. «Условия» ниже.
