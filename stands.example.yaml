@@ -14,6 +14,9 @@
 #   arch      - архитектура: x64 или arm64
 #   roles     - для чего машина (список; значения - docs/STANDS.md, раздел «Роли машин»):
 #               build, client, host, headless-host, core-tests
+#   access    - что агенту можно на машине (docs/STANDS.md, раздел 6):
+#               limited - только сборка, запуск и остановка Orbiter, файлы OLC, логи;
+#               full    - машина отдана агенту: пакеты, перезагрузка, настройки
 #   screen    - как увидеть картинку: none, mac-window (окно ВМ на экране Mac),
 #               console (консоль гипервизора, входит владелец), physical (только у машины)
 #   orbiter   - каталог установки Orbiter на машине (пусто, если Orbiter не ставится)
@@ -26,6 +29,7 @@ machines:
     os: windows-11
     arch: arm64
     roles: [build, client, host]
+    access: limited
     screen: mac-window
     orbiter: 'C:\olc\orbiter'
     checked: 2026-01-01
@@ -36,6 +40,7 @@ machines:
     os: windows-10
     arch: x64
     roles: [build, headless-host]
+    access: full
     screen: console
     orbiter: 'C:\olc\orbiter'
     checked: 2026-01-01
