@@ -17,7 +17,7 @@
 | Что | Где | Зачем OLC |
 |---|---|---|
 | `Orbiter.exe` собирается с `NOGRAPHICS`: графика подключается отдельным модулем (D3D9Client) | `Src/Orbiter/CMakeLists.txt:163` | Можно запускать без графики |
-| Без графического клиента открывается «Orbiter Server Console» | `Src/Orbiter/console_ng.cpp:39`, `Src/Orbiter/Orbiter.h:364` | Кандидат на хост без монитора (Proxmox) |
+| Без графического клиента открывается «Orbiter Server Console» | `Src/Orbiter/console_ng.cpp:39`, `Src/Orbiter/Orbiter.h:364` | Кандидат на хост без монитора (виртуальная машина без видеокарты) |
 | `Orbitersdk.lib` — статическая библиотека | `Src/Orbitersdk/CMakeLists.txt:9` | Её код входит в DLL плагина (лицензия, см. `CREDITS.md`) |
 | Пресеты сборки под Windows и под Linux через `winegcc` | `CMakePresets.json` | Возможная сборка под Linux в будущем |
 | Модульные тесты на CTest | `Tests/` | Образец, как тестировать независимый код |

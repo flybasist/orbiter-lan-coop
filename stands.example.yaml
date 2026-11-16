@@ -1,0 +1,42 @@
+# Пример списка стендов OLC.
+#
+# Скопируйте файл в stands.yaml (он в .gitignore и в git не попадает) и опишите свои машины.
+# ИИ-агент работает только с машинами из stands.yaml; если файла нет — стендов нет.
+# Как подготовить машину и какие системы поддерживаются — docs/STANDS.md.
+#
+# Адреса, пользователь и ключ здесь не пишутся: они живут в ~/.ssh/config, а в этом файле
+# указывается только имя машины оттуда (поле ssh). Паролей нет нигде.
+#
+# Поля машины:
+#   ssh       - имя хоста в ~/.ssh/config, по нему агент подключается
+#   where     - где работает: parallels, vmware, hyper-v, proxmox, hardware, steam-deck
+#   os        - система: windows-11, windows-10, debian-13, ubuntu-26.04, steamos и т. п.
+#   arch      - архитектура: x64 или arm64
+#   roles     - для чего машина (список; значения - docs/STANDS.md, раздел «Роли машин»):
+#               build, client, host, headless-host, core-tests
+#   screen    - как увидеть картинку: none, mac-window (окно ВМ на экране Mac),
+#               console (консоль гипервизора, входит владелец), physical (только у машины)
+#   orbiter   - каталог установки Orbiter на машине (пусто, если Orbiter не ставится)
+#   checked   - дата последней проверки, что машина готова (ГГГГ-ММ-ДД)
+#   notes     - что угодно ещё: особенности, ограничения
+
+machines:
+  - ssh: olc-win-arm
+    where: parallels
+    os: windows-11
+    arch: arm64
+    roles: [build, client, host]
+    screen: mac-window
+    orbiter: 'C:\olc\orbiter'
+    checked: 2026-01-01
+    notes: Orbiter x64 через эмуляцию - FPS не показатель
+
+  - ssh: olc-win-x86
+    where: proxmox
+    os: windows-10
+    arch: x64
+    roles: [build, headless-host]
+    screen: console
+    orbiter: 'C:\olc\orbiter'
+    checked: 2026-01-01
+    notes: без видеокарты
