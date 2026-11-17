@@ -5,7 +5,7 @@
 Shared flights in the [Orbiter](https://github.com/orbitersim/orbiter) space flight simulator
 over a local network: several people in one simulation from different computers.
 
-> Status: prototype (stage 2). The host sends the world state and the client shows it; a student
+> Status: prototype (stage 2). The host sends the world state and the client shows it; a pilot
 > connects with a button in Launchpad and gets the host's world. Checked over the network between machines.
 > Controlling one's own vessel is not possible yet — that is stage 3.
 
@@ -15,8 +15,8 @@ OLC is a plugin for the standard Orbiter, not a modified version of the simulato
 
 | Role | What it does |
 |---|---|
-| Host (the instructor's computer) | Computes the physics of all vessels, controls time and pause |
-| Client (a student's computer) | Shows the host's world, sends the host commands for its own vessel |
+| Host (the flight director's computer) | Computes the physics of all vessels, controls time and pause |
+| Client (a pilot's computer) | Shows the host's world, sends the host commands for its own vessel |
 
 There is one physics for everyone, so the participants' worlds do not drift apart, and docking
 the vessels of two players works the same way as in a single-player game.

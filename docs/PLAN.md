@@ -16,9 +16,9 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | detailed plan written, awaiting approval |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | plan agreed, how to take and release a vessel — preliminary |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
-| 5. For the instructor | Shared pause, watching any vessel, saving and debriefing a flight | — |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
 The order of stages 4 and 5 depends on the space club's answers (what matters more to them).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
@@ -172,7 +172,7 @@ How the client gets the host's world (decisions 16, 17 and 30 in [DECISIONS.md](
    ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 18): in the same process this
    works — the plugin closes the session, puts the scenario in place, selects it in Launchpad and
    presses "Launch" itself. This is the main path (decision 30); restarting the process with `-s` from decision 16
-   remains a fallback. Another fallback: the scenario is selected in Launchpad, and the student
+   remains a fallback. Another fallback: the scenario is selected in Launchpad, and the pilot
    starts it with one click.
 4. Vessels that appear on the host during the session are created by the client plugin itself
    (`oapiCreateVesselEx`), after checking that the class is installed.
@@ -183,9 +183,9 @@ It is assessed separately (a workaround or a PR to the core) before the work con
 
 ### Detailed plan (approved by the owner on 2026-11-17)
 
-**How connecting goes** (one button for the student):
+**How connecting goes** (one button for the pilot):
 
-1. In Launchpad the student opens the "OLC" item (the "Extra" tab), types the host address and a name and
+1. In Launchpad the pilot opens the "OLC" item (the "Extra" tab), types the host address and a name and
    presses "Connect". There is no session yet.
 2. The plugin opens TCP and sends `HELLO` without a scenario number. The host saves the current world to
    a file and replies with `SCENARIO` carrying the number of this save, then closes the connection.
@@ -207,15 +207,15 @@ It is assessed separately (a workaround or a PR to the core) before the work con
 | 2.3 | Host: new and deleted vessels during the session — `clbkNewVessel`, `clbkDeleteVessel` → the table, `VESSEL_ADDED`, `VESSEL_REMOVED`, the vessel in `WORLD_STATE` | Mac (core) + Windows (plugin) | A core test; on the rig a vessel created on the host appears on the client |
 | 2.4 | Client: create a vessel (`oapiCreateVesselEx`) only if `Config\Vessels\<class>.cfg` exists, otherwise — into `CLASSES_MISSING`; delete a vessel on `VESSEL_REMOVED`; reconcile against `VESSELS` at session start | Windows ARM, plugin | No class file — Orbiter does not crash, the host logs what the client is missing |
 | 2.5 | Client: start the received scenario through Launchpad — write the file to `Scenarios\OLC\`, select it by path, "Launch"; if a session is running — close it first | Windows ARM, plugin | Reconnecting without restarting Orbiter, 10 times in a row without failures |
-| 2.6 | The "OLC" item in Launchpad: role, address, port, name, a "Connect" button, a status line (connecting, host refusal with the reason, missing classes). Settings — in `Config\OrbiterLanCoop.cfg`, as now | Windows ARM, plugin | The student connects without touching files |
+| 2.6 | The "OLC" item in Launchpad: role, address, port, name, a "Connect" button, a status line (connecting, host refusal with the reason, missing classes). Settings — in `Config\OrbiterLanCoop.cfg`, as now | Windows ARM, plugin | The pilot connects without touching files |
 | 2.7 | A check on the rigs: the host on Windows x64, a client with graphics; connecting with the button in the middle of the host's flight, creating and deleting a vessel on the host, refusal for a different version and for a missing class | Proxmox + Parallels | Results in the "Stage 2" section against the criteria below |
 
 **Stage 2 succeeds if:**
 
-- the student connects with one button and after 30–40 s sees the host's world — the same vessels in the same
+- the pilot connects with one button and after 30–40 s sees the host's world — the same vessels in the same
   places as on the host;
 - a vessel created or deleted on the host during the session appears or disappears on the client;
-- the student switches the camera and the focus vessel (F3), and the picture does not break;
+- the pilot switches the camera and the focus vessel (F3), and the picture does not break;
 - a missing vessel class does not crash Orbiter on the client: the player sees what is missing;
 - a host refusal (version, another system, no free places) is shown in Launchpad in a clear text;
 - reconnecting works without restarting Orbiter.
@@ -244,9 +244,9 @@ an ImGui window in the simulation (the log and notifications are enough for now)
 
 ## Stage 3. Two vessels: everyone controls their own
 
-### Detailed plan (draft of 2026-11-18, awaiting the owner's approval)
+### Detailed plan (owner's decisions of 2026-11-18; how to take and release — preliminary)
 
-The goal is the first working version: a student flies their own vessel from the client, the host
+The goal is the first working version: a pilot flies their own vessel from the client, the host
 computes the physics, two players rendezvous and dock in orbit. The basis is already there: the
 protocol describes `INPUT`, `KEY`, `OWNERSHIP`, `DOCK`, the session table knows the owners, the ways to
 apply input to another vessel were found in the sources ([ARCHITECTURE.md](ARCHITECTURE.md), "How input
@@ -256,38 +256,55 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 
 | # | Task | Where | Done when |
 |---|---|---|---|
-| 3.1 | Vessel ownership: a client controls the vessel in its focus if it is free (option A below). The host sends `OWNERSHIP`, a refusal is shown as an on-screen notice | Mac (core) + Windows | A core test: take, release on a focus change and when the client leaves; two clients do not control one vessel |
-| 3.2 | Client: held keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); the own vessel does not fire its engines locally | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host |
+| 3.0 | Measuring the smoothing buffer and the state rate on a wired pair (30 Hz / 50 ms, 60 Hz / 25–30 ms), defaults for a LAN | Proxmox | Numbers in the results, the decision in `DECISIONS.md` |
+| 3.1 | Vessel ownership by decision 1 below (A2): take, release, keeping for 60 s after a break. The host sends `OWNERSHIP`, a refusal and "view only" are shown as on-screen notices | Mac (core) + Windows | A core test: take, release, a pilot leaving and coming back; two pilots do not control one vessel |
+| 3.2 | Client: the key layout from `keymap.cfg`; control keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); control keys of any vessel are cleared locally, the camera works | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host |
 | 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same |
 | 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host |
 | 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps |
-| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results; if it gets in the way of docking — option B below |
-| 3.7 | A check by people: host and student, two DeltaGliders in orbit, rendezvous and docking | Owner + rigs | Results against the criteria below |
+| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results |
+| 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below |
+| 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine |
 
 **Stage 3 succeeds if:**
 
-- a student flies their own vessel from the client: RCS, main engine, autopilots, gear;
+- a pilot flies their own vessel from the client: RCS, main engine, autopilots, gear;
 - two vessels, each under its own player, rendezvous and dock in orbit; both see the stack the same way;
 - switching the focus does not let anyone take over someone else's vessel;
-- when the connection breaks, the student's vessel does not keep flying with a key held down.
+- when the connection breaks, the pilot's vessel does not keep flying with a key held down.
 
-**What the owner has to decide:**
+**Owner's decisions (2026-11-18, decisions 32–35):**
 
-1. **Who controls which vessel.** A — whoever has the vessel in focus (F3), if the vessel is free; the
-   host the same way. B — the host assigns vessels to students. I recommend A: nothing has to be set up,
-   assignment (B) can be added at stage 5 "For the teacher".
-2. **Delay of the own vessel.** The client shows the world 100 ms after the host (the smoothing buffer),
-   plus the network: the own vessel responds with a delay of about 0.1–0.2 s. A — accept it and measure
-   (3.6). B — show the own vessel earlier than the others (a smaller buffer). C — prediction on the
-   client with correction from the host. I recommend A, then B if it gets in the way; C is complex and
-   only after the measurement.
-3. **Gear, hatches, lights.** The internal state of add-ons (animations) cannot be sent in a general
-   way (decision 24). I suggest: a one-time key press is executed both on the host and on the client —
-   both vessels switch the animation themselves. A mismatch is possible if the client joined later; a
-   full solution comes later.
-4. **Check 3.7 — with you.** Docking by hand cannot be checked by a script: it needs an evening, a host
-   and a student at two machines (Mac with Parallels and a Proxmox machine with the GT 630 passed
-   through, if you decide so).
+1. **Ownership — A2:** a vessel stays with the pilot until the pilot releases it or leaves; switching the
+   focus (F3) does not take the vessel away. How to take and release — preliminarily: take — by moving the
+   focus to a free vessel when the pilot has none yet; release — with a key or by leaving the session.
+   Someone else's vessel in focus is view only, with an on-screen notice. Connection lost — the vessel
+   stays with the pilot for 60 s, the controls released.
+2. **The target environment is a wired LAN** through one switch (decision 32). The delay of the own vessel
+   is set by the smoothing buffer; its default for a LAN is chosen by a measurement (task 3.0). Prediction
+   and extrapolation are not part of stage 3.
+3. **Animations — option A:** a one-time key press is executed both on the host and on the client. Later —
+   reconnaissance of sending animations in a general way (`GetAnimation`/`SetAnimation`).
+4. **The check by people — step by step:** three docking scenarios and a memo for pilots (task 3.7).
+5. The OLC interface is in English for now, language choice comes later.
+
+**What was found about focus and control in Orbiter** (sources, 2026-11-18):
+
+- In single play the focus is the control: all standard control goes only to the vessel in focus
+  (`Orbiter::UserInput`), F3 moves the focus to any vessel that allows it (`DlgFocus`). Looking at another
+  vessel without changing the focus is possible with the camera (the "Camera" dialog). Orbiter has no
+  "view without control" — OLC adds it.
+- Keyboard: if a plugin "eats" the keys entirely (`clbkProcessKeyboardImmediate` returns `true`), the core
+  skips for this frame camera rotation as well, not only vessel control. So on the client only the vessel
+  control keys must be cleared: the key array is passed to the plugin itself, not as a copy, and single keys
+  can be zeroed in it.
+- The SDK does not give the key layout, but the core reads it from `keymap.cfg` in the Orbiter folder — the
+  plugin reads this file itself. This is needed in any option: `INPUT` sends actions, not key codes.
+- The core applies the joystick to the vessel in focus past the plugins; it cannot be suppressed. The harm
+  is small: the vessel's state is imposed every frame.
+- The option "take and release only with a key" (F3 everywhere is viewing) does not argue with Orbiter's
+  code: the mechanics are the same (clear the controls if the vessel is not one's own), the difference is
+  one key and an on-screen hint. It can be made a setting on top of the default option.
 
 Not part of stage 3: a crew in one vessel (stage 4), clicks in the cockpit and on panels, add-ons' own
 held keys (the SDK does not allow it), sending animations in a general way.

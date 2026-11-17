@@ -108,7 +108,7 @@ Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x
    `plugin/OrbiterLanCoop.cfg`; without graphics, over SSH, the file is written by hand).
 3. The host (`host`) starts any scenario as usual.
 4. The client (`client`) presses "Connect" in the same window: the plugin gets the host's world, writes
-   it to `Scenarios\OLC\Host world.scn` and starts it itself. In 20–40 s the student is in the host's world.
+   it to `Scenarios\OLC\Host world.scn` and starts it itself. In 20–40 s the pilot is in the host's world.
    The fallback is to start this scenario by hand, or the same scenario as the host's:
    the client connects at the start of any session, creates missing vessels and deletes extra ones.
 5. Both `Orbiter.log` files contain `OLC ...` lines: the connection, and every 10 s statistics

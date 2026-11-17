@@ -25,7 +25,7 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
   └──────────────────────────────────┘    input     └──────────────────────────────────┘
 ```
 
-- **Host** — an ordinary Orbiter in which the instructor also flies. Its simulation is the "truth".
+- **Host** — an ordinary Orbiter in which the flight director also flies. Its simulation is the "truth".
 - **Client** — an ordinary Orbiter with the same scenario. Its own vessel physics is
   replaced by the states it receives, and the player's input goes to the host.
 - **Vessel ownership.** Every vessel has a "controller": the host, a specific client or
@@ -40,7 +40,7 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
 2. The client gets **the same world**. The SDK has no function to load a scenario at run time,
    so:
    - at stage 1 both start the same scenario by hand;
-   - from stage 2 the student presses "Connect" in Launchpad, the host sends its current
+   - from stage 2 the pilot presses "Connect" in Launchpad, the host sends its current
      scenario, the client plugin selects it in Launchpad itself and starts it in the same process
      ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 18; the fallback is restarting
      Orbiter with the `-s` switch) and connects by itself (more — [PLAN.md](PLAN.md), stage 2).

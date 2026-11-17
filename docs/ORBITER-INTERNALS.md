@@ -433,6 +433,7 @@ get stuck on a random commit between releases. So the main project is checked re
 | 2026-11-16 | `dabade26..a7a3396e` | 4 commits: `[CORE] Distance display improvement` (#620) — `Astro.cpp`, `Astro.h` (`SciStr` without the `prefix` parameter, scientific notation with `e`), `MenuInfoBar.cpp`; no new tags or releases | None: the distance format in the info panels; the SDK and places from the map are not affected, line references are the same | `a7a3396e` |
 | 2026-11-17 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 | 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
+| 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 
 ## 14. The plugin outside the frame: pause, windows, threads
 
@@ -687,7 +688,7 @@ is written to the file, then step 3.
 - The element numbers (`1000`, `1090`) and the simulation window title are not part of the SDK; when the
   base commit changes, check them against `resource.h`.
 - It is better to write the host's scenario into a separate file (`Scenarios\OLC\...`) and select it in
-  the list by path, so as not to overwrite the student's `(Current state)`; selecting by path is
+  the list by path, so as not to overwrite the pilot's `(Current state)`; selecting by path is
   done in `RefreshList` (`TabScenario.cpp:215-233`) — the same tree walk.
 
 **How it is done in the plugin (stage 2, checked 2026-11-17 on Windows 11 ARM with graphics):**
