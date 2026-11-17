@@ -15,7 +15,7 @@ I — research, S — test rigs.
 |---|---|---|
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
-| 2. Observer | The client sees the host's world, switches camera and vessels | — |
+| 2. Observer | The client sees the host's world, switches camera and vessels | detailed plan written, awaiting approval |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | — |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the instructor | Shared pause, watching any vessel, saving and debriefing a flight | — |
@@ -180,6 +180,53 @@ How the client gets the host's world (decisions 16 and 17 in [DECISIONS.md](DECI
 
 If some item runs into the core and cannot be solved by the plugin, that is the main risk found.
 It is assessed separately (a workaround or a PR to the core) before the work continues.
+
+### Detailed plan (draft of 2026-11-17, awaiting the owner's approval)
+
+**How connecting goes** (one button for the student):
+
+1. In Launchpad the student opens the "OLC" item (the "Extra" tab), types the host address and a name and
+   presses "Connect". There is no session yet.
+2. The plugin opens TCP and sends `HELLO` without a scenario number. The host saves the current world to
+   a file and replies with `SCENARIO` carrying the number of this save, then closes the connection.
+3. The client plugin writes the file to `Scenarios\OLC\<host name>.scn`, selects it in the
+   Launchpad list and presses "Launch" itself (section 18 of `ORBITER-INTERNALS.md`).
+4. At the start of the session the plugin connects again, now with the save number in `HELLO`. The host
+   accepts it as an ordinary client: `WELCOME`, `BODIES`, `VESSELS` — as at stage 1.
+5. While the client was loading (about 20 s), vessels may have appeared and disappeared on the host. The client
+   compares its vessels with the `VESSELS` list by name: it creates the missing ones and deletes the extra ones.
+6. After that, during the session the host reports new and deleted vessels (`VESSEL_ADDED`,
+   `VESSEL_REMOVED`), and the client does the same on its side.
+
+**Task queue:**
+
+| No. | Task | Where | Done when |
+|---|---|---|---|
+| 2.1 | Protocol v3: a save number in `HELLO` (`scenario_id`, 0 — no scenario yet), the same number in `SCENARIO`. A decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and handshake tests for both variants |
+| 2.2 | Host: on `HELLO` without a number — ask the plugin for the scenario file, send `SCENARIO`, close the connection. A file over 1 MB — `REJECT` with a clear text | Mac, core | A loopback test: the client gets the file byte for byte |
+| 2.3 | Host: new and deleted vessels during the session — `clbkNewVessel`, `clbkDeleteVessel` → the table, `VESSEL_ADDED`, `VESSEL_REMOVED`, the vessel in `WORLD_STATE` | Mac (core) + Windows (plugin) | A core test; on the rig a vessel created on the host appears on the client |
+| 2.4 | Client: create a vessel (`oapiCreateVesselEx`) only if `Config\Vessels\<class>.cfg` exists, otherwise — into `CLASSES_MISSING`; delete a vessel on `VESSEL_REMOVED`; reconcile against `VESSELS` at session start | Windows ARM, plugin | No class file — Orbiter does not crash, the host logs what the client is missing |
+| 2.5 | Client: start the received scenario through Launchpad — write the file to `Scenarios\OLC\`, select it by path, "Launch"; if a session is running — close it first | Windows ARM, plugin | Reconnecting without restarting Orbiter, 10 times in a row without failures |
+| 2.6 | The "OLC" item in Launchpad: role, address, port, name, a "Connect" button, a status line (connecting, host refusal with the reason, missing classes). Settings — in `Config\OrbiterLanCoop.cfg`, as now | Windows ARM, plugin | The student connects without touching files |
+| 2.7 | A check on the rigs: the host on Windows x64, a client with graphics; connecting with the button in the middle of the host's flight, creating and deleting a vessel on the host, refusal for a different version and for a missing class | Proxmox + Parallels | Results in the "Stage 2" section against the criteria below |
+
+**Stage 2 succeeds if:**
+
+- the student connects with one button and after 30–40 s sees the host's world — the same vessels in the same
+  places as on the host;
+- a vessel created or deleted on the host during the session appears or disappears on the client;
+- the student switches the camera and the focus vessel (F3), and the picture does not break;
+- a missing vessel class does not crash Orbiter on the client: the player sees what is missing;
+- a host refusal (version, another system, no free places) is shown in Launchpad in a clear text;
+- reconnecting works without restarting Orbiter.
+
+**What the owner has to decide:**
+
+- approve this plan (stage 2 code starts after approval);
+- record in decision 16 the Launchpad path as the main one, and restarting with `-s` as the fallback.
+
+Not part of stage 2: controlling one's own vessel (stage 3), docking, sending add-ons,
+an ImGui window in the simulation (the log and notifications are enough for now).
 
 ## Test rigs
 
