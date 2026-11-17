@@ -1,7 +1,7 @@
-// Тесты HostLink и ClientLink вместе: рукопожатие, отказы, рассылка состояния, топливо,
-// посадка, PING/PONG и отключение. Только loopback 127.0.0.1 и порт 0 (любой свободный).
-// Всё ожидание идёт циклом poll + пауза 1 мс и ограничено по времени, так что тест
-// не может зависнуть.
+// HostLink and ClientLink tests together: handshake, rejections, state broadcast, fuel,
+// landing, PING/PONG and disconnecting. Loopback 127.0.0.1 and port 0 (any free one) only.
+// All waiting is a poll + 1 ms pause loop with a time limit, so the test
+// cannot hang.
 
 #include <chrono>
 #include <cstdint>
@@ -26,19 +26,19 @@ constexpr uint32_t kLoopback = 0x7F000001;  // 127.0.0.1
 constexpr uint32_t kOrbiterVersion = 20260101;
 constexpr uint32_t kSession = 777;
 
-// Реальное время в секундах от первого вызова.
+// Real time in seconds since the first call.
 double now() {
     static const auto start = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
     return elapsed.count();
 }
 
-// Хост с таблицей. Таблица объявлена первой: она живёт дольше HostLink.
+// A host with a table. The table is declared first: it outlives HostLink.
 struct TestHost {
     explicit TestHost(int maxPlayers = olc::kDefaultMaxPlayers)
         : table(maxPlayers), link(table) {}
 
-    // Запускает хост на порту 0.
+    // Starts the host on port 0.
     bool start() {
         olc::HostConfig config;
         config.port = 0;
@@ -64,7 +64,7 @@ olc::ClientConfig makeClientConfig(const TestHost& host) {
     return config;
 }
 
-// Опрашивает хост и клиентов раз в 1 мс, пока condition не станет true или не выйдет время.
+// Polls the host and clients every 1 ms until condition is true or time runs out.
 bool waitFor(olc::HostLink& host, std::initializer_list<olc::ClientLink*> clients,
              const std::function<bool()>& condition, double seconds = 3.0) {
     double deadline = now() + seconds;
@@ -81,7 +81,7 @@ bool waitFor(olc::HostLink& host, std::initializer_list<olc::ClientLink*> client
     return condition();
 }
 
-// Три корабля и два тела: набор для рукопожатия.
+// Three vessels and two bodies: a set for the handshake.
 void fillHost(TestHost& host) {
     uint16_t netId = 0;
     host.table.addVessel("GL-01", "DeltaGlider", netId);
@@ -106,7 +106,7 @@ bool contains(const std::string& text, const std::string& part) {
     return text.find(part) != std::string::npos;
 }
 
-// Одинаковы ли списки кораблей двух таблиц.
+// Whether two tables have the same vessel lists.
 bool sameTables(const olc::SessionTable& a, const olc::SessionTable& b) {
     std::vector<olc::VesselEntry> va = a.vesselEntries();
     std::vector<olc::VesselEntry> vb = b.vesselEntries();
@@ -129,7 +129,7 @@ bool sameTables(const olc::SessionTable& a, const olc::SessionTable& b) {
     return true;
 }
 
-// ---------- Тесты ----------
+// ---------- Tests ----------
 
 void testHandshake() {
     TestHost host;
@@ -141,7 +141,7 @@ void testHandshake() {
     CHECK(client.start(makeClientConfig(host), now()));
     CHECK(client.state() == olc::ClientLink::State::Connecting);
 
-    // Ждём Ready и OWNERSHIP (он приходит уже после UDP_READY клиента).
+    // Wait for Ready and OWNERSHIP (it comes after the client's UDP_READY).
     bool done = waitFor(host.link, {&client}, [&]() {
         return client.state() == olc::ClientLink::State::Ready &&
                host.link.readyClientCount() == 1 && sameTables(host.table, client.table());
@@ -184,7 +184,7 @@ void testClassesMissing() {
     CHECK(!hasLine(hostLog, "DeltaGlider"));
 }
 
-// Большой WORLD_STATE: 60 кораблей по 20 двигателей не помещаются в один пакет.
+// A large WORLD_STATE: 60 vessels with 20 thrusters each do not fit into one packet.
 void testWorldState() {
     TestHost host;
     CHECK(host.start());
@@ -208,7 +208,7 @@ void testWorldState() {
     CHECK(client.start(makeClientConfig(host), now()));
     CHECK(waitFor(host.link, {&client}, [&]() { return host.link.readyClientCount() == 1; }));
 
-    // Шлём состояние, пока не придут все корабли (повторы с тем же simTime безвредны).
+    // Send the state until all vessels arrive (repeats with the same simTime are harmless).
     int iteration = 0;
     auto allArrived = [&]() {
         for (const olc::VesselState& vessel : world.vessels) {
@@ -230,7 +230,7 @@ void testWorldState() {
     CHECK(client.hasWorld());
     CHECK(client.hostWarp() == 2.0);
     CHECK(client.hostPaused());
-    CHECK(client.stats().worldStatePackets > 1);  // не меньше двух пакетов
+    CHECK(client.stats().worldStatePackets > 1);  // at least two packets
     CHECK(host.link.stats().udpPacketsSent > 1);
 
     for (const olc::VesselState& vessel : world.vessels) {
@@ -248,9 +248,9 @@ void testWorldState() {
 
     olc::VesselState unknown;
     bool starved = false;
-    CHECK(!client.sampleVessel(500, 100.5, unknown, starved));  // такого корабля нет
+    CHECK(!client.sampleVessel(500, 100.5, unknown, starved));  // no such vessel
 
-    // Без кораблей хост всё равно шлёт пакет: время и пауза нужны клиенту.
+    // Without vessels the host still sends a packet: the client needs the time and pause.
     olc::WorldState empty;
     empty.simTime = 200.0;
     empty.warp = 1.0;
@@ -312,7 +312,7 @@ void testFuelAndLanded() {
     if (gotLanded.size() == 1) {
         CHECK(gotLanded[0].netId == 2 && gotLanded[0].heading == 0.3);
     }
-    // Второй вызов ничего не возвращает.
+    // A second call returns nothing.
     CHECK(client.takeFuel().empty());
     CHECK(client.takeLanded().empty());
 }
@@ -334,7 +334,7 @@ void testRejectOrbiterVersion() {
     CHECK(host.table.playerCount() == 1);
 }
 
-// Версию протокола ClientLink всегда пишет верную, поэтому HELLO шлём вручную.
+// ClientLink always writes the correct protocol version, so HELLO is sent by hand.
 void testRejectProtocolVersion() {
     TestHost host;
     CHECK(host.start());
@@ -358,7 +358,7 @@ void testRejectProtocolVersion() {
     uint8_t type = 0;
     std::vector<uint8_t> message;
     bool gotReject = waitFor(host.link, {}, [&]() {
-        raw.flush();  // HELLO мог остаться в очереди, пока шло подключение
+        raw.flush();  // HELLO may have stayed in the queue while connecting
         raw.receive(frames);
         return frames.next(type, message) == olc::TcpFrameReader::Result::Ready;
     });
@@ -372,7 +372,7 @@ void testRejectProtocolVersion() {
     CHECK(host.table.playerCount() == 1);
 }
 
-// Сообщение до HELLO - клиент отключается.
+// A message before HELLO - the client is disconnected.
 void testMessageBeforeHello() {
     TestHost host;
     CHECK(host.start());
@@ -388,7 +388,7 @@ void testMessageBeforeHello() {
 
     olc::TcpFrameReader frames;
     bool closed = waitFor(host.link, {}, [&]() {
-        raw.flush();  // сообщение могло остаться в очереди, пока шло подключение
+        raw.flush();  // the message may have stayed in the queue while connecting
         return !raw.receive(frames) && raw.state() == olc::TcpConnection::State::Closed;
     });
     CHECK(closed);
@@ -397,7 +397,7 @@ void testMessageBeforeHello() {
 }
 
 void testPlayerLimit() {
-    TestHost host(2);  // хост и один клиент
+    TestHost host(2);  // the host and one client
     CHECK(host.start());
     fillHost(host);
 
@@ -430,11 +430,11 @@ void testOtherSystem() {
     CHECK(waitFor(host.link, {&client},
                   [&]() { return client.state() == olc::ClientLink::State::Closed; }));
     CHECK(contains(client.closeReason(), "system"));
-    // Хост получает BYE и освобождает место.
+    // The host gets BYE and frees the slot.
     CHECK(waitFor(host.link, {&client}, [&]() { return host.link.clientCount() == 0; }));
     CHECK(host.table.playerCount() == 1);
 
-    // Имя системы сравнивается без учёта регистра.
+    // The system name is compared ignoring case.
     config.system = "SOL";
     olc::ClientLink same;
     CHECK(same.start(config, now()));
@@ -451,22 +451,22 @@ void testPingPong() {
     CHECK(client.start(makeClientConfig(host), now()));
     CHECK(client.rtt() < 0.0);
     CHECK(waitFor(host.link, {&client}, [&]() { return client.rtt() >= 0.0; }, 5.0));
-    // Работаем ещё немного: следующий PING уходит через kPingInterval.
+    // Keep working a bit longer: the next PING goes out after kPingInterval.
     waitFor(host.link, {&client}, []() { return false; }, 1.2);
     CHECK(client.rtt() >= 0.0);
     CHECK(client.rtt() < 1.0);
     CHECK(client.state() == olc::ClientLink::State::Ready);
-    CHECK(host.link.stats().udpPacketsSent >= 2);  // не меньше двух PONG
+    CHECK(host.link.stats().udpPacketsSent >= 2);  // at least two PONGs
 }
 
-// Клиент за NAT: в UDP_READY - порт на машине клиента, а хосту пакеты приходят с другого.
-// Хост должен слать WORLD_STATE туда, откуда пришёл PING клиента, а не на порт из UDP_READY.
+// A client behind NAT: UDP_READY has the port on the client machine, but the host gets packets from another one.
+// The host must send WORLD_STATE where the client's PING came from, not to the port in UDP_READY.
 void testUdpAddressFromPing() {
     TestHost host;
     CHECK(host.start());
     fillHost(host);
 
-    // Клиент без ClientLink: рукопожатие вручную.
+    // A client without ClientLink: the handshake by hand.
     olc::TcpConnection raw;
     olc::Endpoint hostTcp;
     hostTcp.ip = kLoopback;
@@ -481,7 +481,7 @@ void testUdpAddressFromPing() {
     CHECK(olc::writeHello(helloBody, hello));
     raw.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Hello), helloBody.bytes()));
 
-    // Ждём WELCOME и берём из него номер клиента.
+    // Wait for WELCOME and take the client number from it.
     olc::TcpFrameReader frames;
     uint8_t clientId = 0;
     bool welcomed = waitFor(host.link, {}, [&]() {
@@ -503,8 +503,8 @@ void testUdpAddressFromPing() {
     });
     CHECK(welcomed);
 
-    // UDP_READY с «чужим» портом: так видит свой порт клиент за NAT.
-    olc::UdpSocket natPort;  // настоящий адрес клиента, каким его видит хост
+    // UDP_READY with a "wrong" port: that is how a client behind NAT sees its port.
+    olc::UdpSocket natPort;  // the client's real address as the host sees it
     CHECK(natPort.open(0));
     olc::Writer readyBody;
     olc::writeUdpReady(readyBody, static_cast<uint16_t>(natPort.localPort() + 1));
@@ -514,7 +514,7 @@ void testUdpAddressFromPing() {
         return host.link.readyClientCount() == 1;
     }));
 
-    // PING с номером клиента с настоящего адреса.
+    // PING with the client number from the real address.
     olc::Writer pingPacket;
     olc::UdpHeader header;
     header.type = static_cast<uint8_t>(olc::UdpType::Ping);
@@ -527,7 +527,7 @@ void testUdpAddressFromPing() {
     olc::Endpoint hostUdp = hostTcp;
     CHECK(natPort.sendTo(hostUdp, pingPacket.bytes()));
 
-    // После PING хост шлёт состояние на настоящий адрес: PONG и WORLD_STATE.
+    // After PING the host sends to the real address: PONG and WORLD_STATE.
     bool gotWorld = false;
     bool learned = waitFor(host.link, {}, [&]() {
         olc::WorldState world;
@@ -583,7 +583,7 @@ void testHostStop() {
     CHECK(contains(client.closeReason(), "host shut down"));
 }
 
-// Чужие и битые UDP-пакеты хост считает в статистике.
+// The host counts foreign and broken UDP packets in its statistics.
 void testBadUdp() {
     TestHost host;
     CHECK(host.start());
@@ -593,9 +593,9 @@ void testBadUdp() {
     olc::Endpoint to;
     to.ip = kLoopback;
     to.port = host.link.port();
-    CHECK(udp.sendTo(to, {1, 2, 3}));  // короче заголовка
+    CHECK(udp.sendTo(to, {1, 2, 3}));  // shorter than the header
 
-    olc::Writer writer;  // верный заголовок, но чужая сессия
+    olc::Writer writer;  // a correct header but a foreign session
     olc::UdpHeader header;
     header.type = static_cast<uint8_t>(olc::UdpType::Ping);
     header.session = kSession + 1;
@@ -606,9 +606,9 @@ void testBadUdp() {
     CHECK(waitFor(host.link, {}, [&]() { return host.link.stats().udpBadPackets == 2; }));
 }
 
-// Хост, которого нет: клиент не зависает, а получает понятную причину.
+// A host that does not exist: the client does not hang but gets a clear reason.
 void testConnectionRefused() {
-    // Занимаем порт, узнаём номер и закрываем: на нём никто не слушает.
+    // Take a port, learn its number and close it: nobody listens on it.
     olc::TcpListener listener;
     CHECK(listener.open(0));
     olc::Endpoint endpoint;

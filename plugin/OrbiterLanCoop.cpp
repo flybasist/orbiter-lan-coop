@@ -1,15 +1,15 @@
-// OrbiterLanCoop - плагин сетевой игры для Orbiter (этап 1: хост рассылает мир, клиент
-// его показывает; docs/PLAN.md).
+// OrbiterLanCoop - a multiplayer plugin for Orbiter (stage 1: the host sends the world, the client
+// shows it; docs/PLAN.md).
 //
-// Роль (хост, клиент или выключен) задаётся файлом Config\OrbiterLanCoop.cfg (config.h).
-// Работа роли - в HostSide и ClientSide, а этот файл только связывает их с Orbiter:
-// - clbkSimulationStart - запуск сети и роли. Не InitModule: InitModule вызывается из
-//   DllMain, где нельзя запускать Winsock (docs/ORBITER-INTERNALS.md, раздел 14);
-// - clbkPreStep - работа каждый кадр (снять или навязать состояния);
-// - на паузе clbkPreStep не вызывается, поэтому у плагина есть скрытое окно Windows с
-//   таймером: его сообщения приходят всегда, и на паузе роль работает по таймеру
-//   (решение 23 в docs/DECISIONS.md);
-// - clbkSimulationEnd - остановка.
+// The role (host, client or off) is set by the file Config\OrbiterLanCoop.cfg (config.h).
+// The role's work is in HostSide and ClientSide; this file only connects them to Orbiter:
+// - clbkSimulationStart - start the network and the role. Not InitModule: InitModule is called from
+//   DllMain, where Winsock must not be started (docs/ORBITER-INTERNALS.md, section 14);
+// - clbkPreStep - work every frame (capture or impose states);
+// - clbkPreStep is not called while paused, so the plugin has a hidden Windows window with
+//   a timer: its messages always arrive, and while paused the role works by the timer
+//   (decision 23 in docs/DECISIONS.md);
+// - clbkSimulationEnd - stop.
 
 #define ORBITER_MODULE
 #include "Orbitersdk.h"
@@ -24,7 +24,7 @@
 
 namespace {
 
-// Таймер скрытого окна: как часто работать на паузе, миллисекунды.
+// Hidden window timer: how often to work while paused, milliseconds.
 constexpr UINT kTimerIntervalMs = 50;
 constexpr UINT_PTR kTimerId = 1;
 const char kWindowClass[] = "OrbiterLanCoopTimer";
@@ -34,13 +34,13 @@ LanCoopModule* g_module = nullptr;
 
 LRESULT CALLBACK timerWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
-// Модуль плагина: Orbiter создаёт сессии, а этот объект живёт между ними.
+// The plugin module: Orbiter creates sessions, and this object lives between them.
 class LanCoopModule : public oapi::Module {
 public:
     explicit LanCoopModule(HINSTANCE hDLL) : oapi::Module(hDLL), instance_(hDLL) {}
 
     void clbkSimulationStart(RenderMode mode) override {
-        // Строки в лог - на английском (правила проекта).
+        // Log lines are in English (project rules).
         oapiWriteLogV("OLC: session started (protocol v%u, render mode %d)",
                       static_cast<unsigned>(olc::kProtocolVersion), static_cast<int>(mode));
         config_ = olcplugin::loadConfig();
@@ -71,7 +71,7 @@ public:
     }
 
     void clbkSimulationEnd() override {
-        // Мир здесь уже удалён: корабли не трогаем (ORBITER-INTERNALS.md, раздел 8).
+        // The world is already deleted here: do not touch vessels (ORBITER-INTERNALS.md, section 8).
         destroyTimerWindow();
         stopRole();
         oapiWriteLogV("OLC: session ended");
@@ -99,7 +99,7 @@ public:
         }
     }
 
-    // Таймер скрытого окна. Вне паузы работу делает clbkPreStep.
+    // Hidden window timer. Outside pause clbkPreStep does the work.
     void onTimer() {
         if (oapiGetPause()) {
             tick(true);
@@ -132,7 +132,7 @@ private:
         }
     }
 
-    // Скрытое окно только для сообщений (HWND_MESSAGE): на экране его нет.
+    // A message-only hidden window (HWND_MESSAGE): it is not on screen.
     void createTimerWindow() {
         WNDCLASSA windowClass = {};
         windowClass.lpfnWndProc = timerWindowProc;
@@ -173,15 +173,15 @@ LRESULT CALLBACK timerWindowProc(HWND window, UINT message, WPARAM wParam, LPARA
 
 }  // namespace
 
-// Точка входа: Orbiter вызывает её при загрузке DLL плагина.
+// Entry point: Orbiter calls it when loading the plugin DLL.
 DLLCLBK void InitModule(HINSTANCE hDLL) {
     g_module = new LanCoopModule(hDLL);
     oapiRegisterModule(g_module);
 }
 
-// Точка выхода: Orbiter вызывает её при выгрузке DLL.
-// Модуль, зарегистрированный через oapiRegisterModule, ядро само не удаляет
-// (Orbiter.cpp:617, 656), поэтому удаляем его здесь.
+// Exit point: Orbiter calls it when unloading the DLL.
+// The core does not delete a module registered with oapiRegisterModule
+// (Orbiter.cpp:617, 656), so we delete it here.
 DLLCLBK void ExitModule(HINSTANCE hDLL) {
     (void)hDLL;
     delete g_module;

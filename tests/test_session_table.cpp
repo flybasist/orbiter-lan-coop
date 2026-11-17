@@ -1,5 +1,5 @@
-// Тесты таблицы сессии: игроки и их пределы, выдача net_id, поиск, владение,
-// порядок записей и путь таблицы от хоста к клиенту через сообщение VESSELS.
+// Session table tests: players and their limits, net_id assignment, lookup, ownership,
+// record order and the table's path from host to client via the VESSELS message.
 
 #include <string>
 #include <vector>
@@ -15,7 +15,7 @@ void testPlayerLimits() {
     CHECK(olc::SessionTable(100).maxPlayers() == olc::kMaxPlayersLimit);
     CHECK(olc::SessionTable(5).maxPlayers() == 5);
 
-    // По умолчанию 4 игрока: хост и три клиента.
+    // By default 4 players: the host and three clients.
     olc::SessionTable table;
     CHECK(table.maxPlayers() == 4);
     CHECK(table.playerCount() == 1);
@@ -26,9 +26,9 @@ void testPlayerLimits() {
     CHECK(table.playerCount() == 4);
     id = 99;
     CHECK(!table.addPlayer(id));
-    CHECK(id == 99);  // при отказе номер не меняется
+    CHECK(id == 99);  // on rejection the number does not change
 
-    // Минимальная сессия: хост и один клиент.
+    // The minimal session: the host and one client.
     olc::SessionTable small(1);
     CHECK(small.addPlayer(id) && id == 1);
     CHECK(!small.addPlayer(id));
@@ -41,7 +41,7 @@ void testPlayerIds() {
     table.addPlayer(id);
     table.addPlayer(id);
 
-    // Освободившийся номер выдаётся снова, и это наименьший свободный.
+    // A freed number is given again, and it is the lowest free one.
     CHECK(table.removePlayer(2));
     CHECK(table.playerCount() == 3);
     CHECK(table.addPlayer(id) && id == 2);
@@ -50,7 +50,7 @@ void testPlayerIds() {
     CHECK(table.removePlayer(3));
     CHECK(table.addPlayer(id) && id == 1);
 
-    // Несуществующих клиентов удалить нельзя.
+    // Nonexistent clients cannot be removed.
     CHECK(!table.removePlayer(9));
     CHECK(!table.removePlayer(olc::kHostOwner));
     CHECK(!table.removePlayer(olc::kNoOwner));
@@ -85,32 +85,32 @@ void testAddVessel() {
     uint16_t id = 99;
     CHECK(table.addVessel("GL-01", "DeltaGlider", id) && id == 0);
     CHECK(table.addVessel("GL-02", "DeltaGlider", id) && id == 1);
-    CHECK(table.addVessel("ISS", "", id) && id == 2);  // класс может быть пустым
+    CHECK(table.addVessel("ISS", "", id) && id == 2);  // the class may be empty
     CHECK(table.findById(0)->name == "GL-01");
     CHECK(table.findById(0)->className == "DeltaGlider");
     CHECK(table.findById(0)->owner == olc::kNoOwner);
 
-    // Отказы не расходуют номер.
+    // Rejections do not use up a number.
     id = 77;
-    CHECK(!table.addVessel("GL-01", "ShuttleA", id));  // имя занято
-    CHECK(!table.addVessel("", "ShuttleA", id));       // пустое имя
+    CHECK(!table.addVessel("GL-01", "ShuttleA", id));  // name taken
+    CHECK(!table.addVessel("", "ShuttleA", id));       // empty name
     CHECK(!table.addVessel(std::string(256, 'x'), "ShuttleA", id));
     CHECK(!table.addVessel("Long", std::string(256, 'x'), id));
     CHECK(id == 77);
     CHECK(table.addVessel(std::string(255, 'x'), std::string(255, 'y'), id) && id == 3);
 
-    // Номера не переиспользуются после удаления.
+    // Numbers are not reused after removal.
     CHECK(table.removeVessel(1));
     CHECK(table.addVessel("GL-03", "DeltaGlider", id) && id == 4);
-    CHECK(table.addVessel("GL-02", "DeltaGlider", id) && id == 5);  // имя свободно
+    CHECK(table.addVessel("GL-02", "DeltaGlider", id) && id == 5);  // the name is free
     CHECK(table.findById(1) == nullptr);
 }
 
 void testNetIdExhaustion() {
     olc::SessionTable table;
     uint16_t id = 0;
-    // Каждый корабль сразу удаляем: таблица остаётся маленькой и тест идёт быстро,
-    // а заодно видно, что удаление номер не возвращает.
+    // Each vessel is removed at once: the table stays small and the test is fast,
+    // and it also shows that removal does not return the number.
     int wrongIds = 0;
     for (int i = 0; i < 65536; i++) {
         if (!table.addVessel("v", "", id) || id != static_cast<uint16_t>(i) ||
@@ -136,14 +136,14 @@ void testAddVesselWithId() {
     CHECK(entries.size() == 4 && entries[2].netId == 5 && entries[2].className == "ShuttleA");
     CHECK(entries.size() == 4 && entries[3].netId == 9);
 
-    CHECK(!table.addVesselWithId(5, "Other", "X"));  // номер занят
-    CHECK(!table.addVesselWithId(7, "B", "X"));      // имя занято
+    CHECK(!table.addVesselWithId(5, "Other", "X"));  // number taken
+    CHECK(!table.addVesselWithId(7, "B", "X"));      // name taken
     CHECK(!table.addVesselWithId(7, "", "X"));
     CHECK(!table.addVesselWithId(7, std::string(256, 'x'), "X"));
     CHECK(!table.addVesselWithId(7, "G", std::string(256, 'x')));
     CHECK(table.vesselEntries().size() == 4);
 
-    // Номер 65535 тоже допустим.
+    // Number 65535 is allowed too.
     CHECK(table.addVesselWithId(65535, "Last", ""));
     CHECK(table.vesselEntries().back().netId == 65535);
 }
@@ -174,23 +174,23 @@ void testOwnership() {
     table.addVessel("A", "", a);
     table.addVessel("B", "", b);
 
-    CHECK(!table.setOwner(50, client));  // корабля нет
+    CHECK(!table.setOwner(50, client));  // no vessel
     CHECK(!table.isControlledBy(50, client));
-    CHECK(!table.isControlledBy(a, client));  // пока никто не владеет
+    CHECK(!table.isControlledBy(a, client));  // nobody owns it yet
 
     CHECK(table.setOwner(a, client));
     CHECK(table.isControlledBy(a, client));
     CHECK(!table.isControlledBy(b, client));
-    CHECK(!table.isControlledBy(a, 2));  // чужой клиент
+    CHECK(!table.isControlledBy(a, 2));  // another client
 
-    // Хост и "никто" не клиенты: false даже если они владельцы.
+    // The host and "nobody" are not clients: false even if they are owners.
     CHECK(table.setOwner(a, olc::kHostOwner));
     CHECK(!table.isControlledBy(a, olc::kHostOwner));
     CHECK(table.setOwner(a, olc::kNoOwner));
     CHECK(!table.isControlledBy(a, olc::kNoOwner));
     CHECK(!table.isControlledBy(b, olc::kNoOwner));
 
-    // Корабль удалён - управлять нечем.
+    // The vessel is removed - nothing to control.
     table.setOwner(a, client);
     table.removeVessel(a);
     CHECK(!table.isControlledBy(a, client));
@@ -211,7 +211,7 @@ void testOwnerEntries() {
     CHECK(owners.size() == 3 && owners[2].netId == 8 && owners[2].owner == olc::kHostOwner);
 }
 
-// Хост → VESSELS → клиент: у клиента те же записи.
+// Host → VESSELS → client: the client has the same records.
 void testHostToClient() {
     olc::SessionTable host;
     uint16_t id = 0;

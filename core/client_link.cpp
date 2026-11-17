@@ -11,7 +11,7 @@ namespace olc {
 
 namespace {
 
-// Совпадают ли строки без учёта регистра (имена систем Orbiter - ASCII).
+// Whether strings are equal ignoring case (Orbiter system names are ASCII).
 bool equalsIgnoreCase(const std::string& a, const std::string& b) {
     if (a.size() != b.size()) {
         return false;
@@ -25,7 +25,7 @@ bool equalsIgnoreCase(const std::string& a, const std::string& b) {
     return true;
 }
 
-// Собирает UDP-пакет: заголовок и готовое тело.
+// Builds a UDP packet: header and a ready body.
 std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
                                    const std::vector<uint8_t>& body) {
     UdpHeader header;
@@ -57,7 +57,7 @@ bool ClientLink::start(const ClientConfig& config, double now) {
         return false;
     }
 
-    // HELLO уходит сразу: пока идёт подключение, кадр ждёт в очереди.
+    // HELLO goes out at once: while connecting, the frame waits in the queue.
     Hello hello;
     hello.protocol = kProtocolVersion;
     hello.orbiterVersion = config.orbiterVersion;
@@ -106,11 +106,11 @@ std::vector<std::string> ClientLink::takeLog() {
 }
 
 void ClientLink::sendMessage(TcpType type, const Writer& body) {
-    // Ошибку отправки не разбираем: оборванное соединение poll увидит при приёме.
+    // Send errors are not examined: poll sees a broken connection when receiving.
     tcp_.send(makeTcpFrame(static_cast<uint8_t>(type), body.bytes()));
 }
 
-// ---------- Приём ----------
+// ---------- Receiving ----------
 
 void ClientLink::poll(double now) {
     if (state_ != State::Connecting && state_ != State::Ready) {
@@ -118,8 +118,8 @@ void ClientLink::poll(double now) {
     }
 
     bool connected = tcp_.receive(frames_);
-    // Сообщения разбираем, даже если соединение уже закрыто: перед закрытием хост мог
-    // прислать REJECT или BYE.
+    // Messages are parsed even if the connection is already closed: before closing the host
+    // may have sent REJECT or BYE.
     if (!handleFrames(now)) {
         return;
     }
@@ -152,7 +152,7 @@ bool ClientLink::handleFrames(double now) {
            (result = frames_.next(type, body)) == TcpFrameReader::Result::Ready) {
         Reader reader(body.data(), body.size());
 
-        // До WELCOME хост может прислать только WELCOME или REJECT.
+        // Before WELCOME the host may send only WELCOME or REJECT.
         bool isHandshake = type == static_cast<uint8_t>(TcpType::Welcome) ||
                            type == static_cast<uint8_t>(TcpType::Reject);
         if (!welcomed_ && !isHandshake) {
@@ -210,7 +210,7 @@ bool ClientLink::handleFrames(double now) {
                 break;
             }
             default:
-                // Остальные сообщения (DOCK, SCENARIO) на этапе 1 не нужны.
+                // Other messages (DOCK, SCENARIO) are not needed at stage 1.
                 break;
         }
     }
@@ -262,7 +262,7 @@ void ClientLink::handleVessels(Reader& reader, double now) {
         table_.addVesselWithId(entry.netId, entry.name, entry.className);
     }
 
-    // Каких классов у клиента нет: каждый называем один раз.
+    // Which classes the client lacks: each one is named once.
     std::vector<std::string> missing;
     if (config_.classExists) {
         for (const VesselEntry& entry : vessels) {
@@ -302,7 +302,7 @@ void ClientLink::handleVesselAdded(Reader& reader) {
         return;
     }
     if (table_.addVesselWithId(added.state.netId, added.name, added.className)) {
-        // Состояние из VESSEL_ADDED относится к последнему известному моменту хоста.
+        // The state in VESSEL_ADDED refers to the latest known host moment.
         buffers_[added.state.netId].add(lastPacketSimTime_, added.state);
     }
 }
@@ -322,7 +322,7 @@ void ClientLink::handleUdp(double now) {
     std::vector<uint8_t> packet;
     Endpoint from;
     while (udp_.receiveFrom(packet, from)) {
-        // Принимаем только пакеты хоста.
+        // Accept only the host's packets.
         if (!(from == config_.host)) {
             stats_.droppedPackets++;
             continue;
@@ -333,7 +333,7 @@ void ClientLink::handleUdp(double now) {
             stats_.droppedPackets++;
             continue;
         }
-        // Номер пакета общий у WORLD_STATE, FUEL и PONG: старые и повторные отбрасываем.
+        // WORLD_STATE, FUEL and PONG share one sequence counter: old and repeated packets are dropped.
         if (haveSeq_ && !isSequenceNewer(header.seq, lastSeq_)) {
             stats_.droppedPackets++;
             continue;
@@ -348,9 +348,9 @@ void ClientLink::handleUdp(double now) {
                 continue;
             }
             stats_.worldStatePackets++;
-            // Большое состояние приходит несколькими пакетами с одним sim_time: часы
-            // подводим один раз на состояние, иначе поправка применится несколько раз.
-            // Пакеты на паузе тоже с одним sim_time, но смену паузы и ускорения не пропускаем.
+            // A large state arrives in several packets with the same sim_time: the clock
+            // is adjusted once per state, otherwise the correction would be applied several times.
+            // Packets during pause also share a sim_time, but pause and warp changes are not skipped.
             const bool sameState = clock_.started() && world.simTime == lastPacketSimTime_ &&
                                    world.warp == hostWarp_ &&
                                    (world.paused != 0) == hostPaused_;
@@ -385,8 +385,8 @@ void ClientLink::handleUdp(double now) {
 }
 
 void ClientLink::sendPing(double now) {
-    // В PING - номер клиента: по нему хост узнаёт наш настоящий UDP-адрес (за NAT порт
-    // может отличаться от порта из UDP_READY).
+    // PING carries the client number: from it the host learns our real UDP address (behind NAT
+    // the port may differ from the one in UDP_READY).
     Ping ping;
     ping.time = now;
     ping.clientId = clientId_;
@@ -397,7 +397,7 @@ void ClientLink::sendPing(double now) {
     nextPing_ = now + kPingInterval;
 }
 
-// ---------- Что отдаём плагину ----------
+// ---------- What we hand to the plugin ----------
 
 double ClientLink::hostMjdAt(double simTime) const {
     return lastPacketMjd_ + (simTime - lastPacketSimTime_) / 86400.0;

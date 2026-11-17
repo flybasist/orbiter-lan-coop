@@ -5,7 +5,7 @@
 
 #include "protocol.h"
 
-// Системные заголовки подключаются только здесь: socket.h их не тянет.
+// System headers are included only here: socket.h does not pull them in.
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -27,8 +27,8 @@
 
 namespace olc {
 
-// Всё платформенное - в этом безымянном пространстве имён, чтобы классы ниже читались
-// без #ifdef.
+// Everything platform-specific is in this unnamed namespace, so that the classes below read
+// without #ifdef.
 namespace {
 
 #ifdef _WIN32
@@ -37,16 +37,16 @@ using AddrLength = int;
 using AddrLength = socklen_t;
 #endif
 
-// Размер адреса IPv4 в виде, который ждут системные функции.
+// IPv4 address size in the form the system functions expect.
 constexpr AddrLength kAddressSize = sizeof(sockaddr_in);
 
-// Сколько байтов TCP-соединение читает за один вызов receive (см. socket.h).
+// How many bytes a TCP connection reads per receive call (see socket.h).
 constexpr size_t kMaxReceivePerCall = 256 * 1024;
 
-// Сколько байтов отдаётся системе за один вызов send.
+// How many bytes are handed to the system per send call.
 constexpr size_t kMaxSendChunk = 1024 * 1024;
 
-// ----- Ошибки -----
+// ----- Errors -----
 
 int lastError() {
 #ifdef _WIN32
@@ -56,7 +56,7 @@ int lastError() {
 #endif
 }
 
-// "Данных пока нет" (при чтении) или "буфер отправки полон" (при записи).
+// "No data yet" (when reading) or "send buffer is full" (when writing).
 bool isWouldBlock(int error) {
 #ifdef _WIN32
     return error == WSAEWOULDBLOCK;
@@ -65,7 +65,7 @@ bool isWouldBlock(int error) {
 #endif
 }
 
-// Вызов прервал сигнал или система: его надо просто повторить.
+// The call was interrupted by a signal or the system: just repeat it.
 bool isInterrupted(int error) {
 #ifdef _WIN32
     return error == WSAEINTR;
@@ -74,8 +74,8 @@ bool isInterrupted(int error) {
 #endif
 }
 
-// connect на неблокирующем сокете не успел закончить, подключение идёт в фоне.
-// POSIX: EINPROGRESS (а если connect прервал сигнал, подключение тоже продолжается).
+// connect on a non-blocking socket did not finish, the connection continues in the background.
+// POSIX: EINPROGRESS (and if a signal interrupted connect, the connection continues too).
 // Windows: WSAEWOULDBLOCK.
 bool isConnectInProgress(int error) {
 #ifdef _WIN32
@@ -85,11 +85,11 @@ bool isConnectInProgress(int error) {
 #endif
 }
 
-// Ошибки приёма UDP, после которых надо просто читать дальше. Бывают только на Windows:
-// - WSAEMSGSIZE: пакет не поместился в буфер (слишком длинный), он отбрасывается;
-// - WSAECONNRESET: наш прошлый пакет ушёл на закрытый порт и пришёл ответ ICMP. Это
-//   не ошибка приёма, но Windows сообщает о ней при чтении. Дополнительно сообщение
-//   отключено в UdpSocket::open (SIO_UDP_CONNRESET), а здесь - на случай, если не вышло.
+// UDP receive errors after which we simply keep reading. They happen only on Windows:
+// - WSAEMSGSIZE: the packet did not fit the buffer (too long), it is dropped;
+// - WSAECONNRESET: our previous packet went to a closed port and an ICMP reply came back. This
+//   is not a receive error, but Windows reports it on read. The report is also
+//   turned off in UdpSocket::open (SIO_UDP_CONNRESET); this is here in case that failed.
 bool isIgnorableUdpReceiveError(int error) {
 #ifdef _WIN32
     return error == WSAEMSGSIZE || error == WSAECONNRESET;
@@ -99,7 +99,7 @@ bool isIgnorableUdpReceiveError(int error) {
 #endif
 }
 
-// ----- Сокет -----
+// ----- Socket -----
 
 void closeHandle(SocketHandle handle) {
 #ifdef _WIN32
@@ -122,19 +122,19 @@ bool setNonBlocking(SocketHandle handle) {
 #endif
 }
 
-// Включает опцию сокета со значением "да" (1).
+// Turns on a socket option with the value "yes" (1).
 bool setOptionOn(SocketHandle handle, int level, int name) {
     int value = 1;
     return setsockopt(handle, level, name, reinterpret_cast<const char*>(&value),
                       static_cast<int>(sizeof(value))) == 0;
 }
 
-// Настройка TCP-сокета: неблокирующий, без задержки отправки и без SIGPIPE.
-// TCP_NODELAY: сообщения мелкие, и нажатие клавиши не должно ждать, пока система
-// накопит больше данных.
-// SIGPIPE: запись в закрытое соединение иначе убьёт процесс (Orbiter или тест).
-// На Linux это флаг MSG_NOSIGNAL в send (kSendFlags), на macOS - опция сокета
-// SO_NOSIGPIPE, на Windows такого сигнала нет.
+// TCP socket setup: non-blocking, no send delay and no SIGPIPE.
+// TCP_NODELAY: messages are small, and a key press must not wait until the system
+// collects more data.
+// SIGPIPE: otherwise a write into a closed connection kills the process (Orbiter or a test).
+// On Linux this is the MSG_NOSIGNAL flag in send (kSendFlags), on macOS the socket option
+// SO_NOSIGPIPE, Windows has no such signal.
 bool prepareTcpSocket(SocketHandle handle) {
     if (!setNonBlocking(handle)) {
         return false;
@@ -156,7 +156,7 @@ constexpr int kSendFlags = MSG_NOSIGNAL;
 constexpr int kSendFlags = 0;
 #endif
 
-// ----- Адреса -----
+// ----- Addresses -----
 
 sockaddr_in toSockaddr(const Endpoint& endpoint) {
     sockaddr_in address = {};
@@ -173,7 +173,7 @@ Endpoint fromSockaddr(const sockaddr_in& address) {
     return endpoint;
 }
 
-// Привязывает сокет к порту на всех адресах компьютера (port 0 - любой свободный).
+// Binds the socket to a port on all addresses of the computer (port 0 - any free one).
 bool bindAnyAddress(SocketHandle handle, uint16_t port) {
     Endpoint any;
     any.ip = 0;  // INADDR_ANY
@@ -182,7 +182,7 @@ bool bindAnyAddress(SocketHandle handle, uint16_t port) {
     return bind(handle, reinterpret_cast<const sockaddr*>(&address), kAddressSize) == 0;
 }
 
-// Настоящий порт сокета (getsockname). 0 при ошибке.
+// The actual port of the socket (getsockname). 0 on error.
 uint16_t localPortOf(SocketHandle handle) {
     if (handle == kNoSocket) {
         return 0;
@@ -195,22 +195,22 @@ uint16_t localPortOf(SocketHandle handle) {
     return fromSockaddr(address).port;
 }
 
-// ----- Проверка подключения -----
+// ----- Connection check -----
 
 enum class ConnectProgress { Waiting, Done, Failed };
 
-// Смотрит без ожидания (select с нулевым таймаутом), закончился ли connect.
-// Успех - сокет готов к записи, а SO_ERROR равен 0. Неудача: на POSIX сокет тоже
-// становится готов к записи, но SO_ERROR хранит ошибку; на Windows неудача приходит
-// в наборе исключений, поэтому смотрим и его.
+// Checks without waiting (select with zero timeout) whether connect has finished.
+// Success - the socket is writable and SO_ERROR is 0. Failure: on POSIX the socket also
+// becomes writable but SO_ERROR holds the error; on Windows failure arrives
+// in the exception set, so we check it too.
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable : 4127)  // макросы FD_SET/FD_ZERO: условие while (0) постоянное
+#pragma warning(disable : 4127)  // FD_SET/FD_ZERO macros: the while (0) condition is constant
 #endif
 ConnectProgress checkConnect(SocketHandle handle) {
 #ifndef _WIN32
     if (handle >= FD_SETSIZE) {
-        return ConnectProgress::Failed;  // select не умеет работать с таким номером
+        return ConnectProgress::Failed;  // select cannot handle such a descriptor number
     }
 #endif
     fd_set writeSet;
@@ -219,8 +219,8 @@ ConnectProgress checkConnect(SocketHandle handle) {
     FD_ZERO(&errorSet);
     FD_SET(handle, &writeSet);
     FD_SET(handle, &errorSet);
-    timeval timeout = {};  // 0 секунд: не ждать
-    // Первый параметр select на Windows не используется.
+    timeval timeout = {};  // 0 seconds: do not wait
+    // The first select parameter is not used on Windows.
     int ready = select(static_cast<int>(handle) + 1, nullptr, &writeSet, &errorSet, &timeout);
     if (ready < 0) {
         return isInterrupted(lastError()) ? ConnectProgress::Waiting : ConnectProgress::Failed;
@@ -246,7 +246,7 @@ ConnectProgress checkConnect(SocketHandle handle) {
 
 }  // namespace
 
-// ----- Сеть и адреса -----
+// ----- Network and addresses -----
 
 bool startNetwork() {
 #ifdef _WIN32
@@ -268,7 +268,7 @@ bool parseIpv4(const std::string& text, uint32_t& ip) {
     int parts = 0;
     size_t i = 0;
     while (true) {
-        // Одно число: от 1 до 3 цифр, не больше 255.
+        // One number: 1 to 3 digits, at most 255.
         uint32_t value = 0;
         int digits = 0;
         while (i < text.size() && text[i] >= '0' && text[i] <= '9') {
@@ -291,7 +291,7 @@ bool parseIpv4(const std::string& text, uint32_t& ip) {
         if (text[i] != '.') {
             return false;
         }
-        i++;  // точка; после неё обязано быть ещё число
+        i++;  // dot; another number must follow it
     }
     if (parts != 4) {
         return false;
@@ -330,16 +330,16 @@ bool UdpSocket::open(uint16_t port) {
     }
 
 #ifdef _WIN32
-    // Без этого Windows сообщает о каждом ответе ICMP "порт закрыт" ошибкой
-    // WSAECONNRESET при чтении, хотя приём тут ни при чём.
-    // SIO_UDP_CONNRESET есть не во всех версиях заголовков, поэтому задан вручную.
+    // Without this, Windows reports every ICMP "port closed" reply as a
+    // WSAECONNRESET error on read, although receiving has nothing to do with it.
+    // SIO_UDP_CONNRESET is not in every header version, so it is defined by hand.
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
     BOOL newBehavior = FALSE;
     DWORD returned = 0;
     WSAIoctl(handle, SIO_UDP_CONNRESET, &newBehavior, sizeof(newBehavior), nullptr, 0,
-             &returned, nullptr, nullptr);  // не вышло - не страшно, см. receiveFrom
+             &returned, nullptr, nullptr);  // failure is not a problem, see receiveFrom
 #endif
 
     if (!bindAnyAddress(handle, port)) {
@@ -388,8 +388,8 @@ bool UdpSocket::receiveFrom(std::vector<uint8_t>& packet, Endpoint& from) {
         return false;
     }
 
-    // Буфер на один байт больше предела: так видно, что пакет слишком длинный
-    // (система обрезает его до размера буфера).
+    // The buffer is one byte larger than the limit: that way a too long packet is visible
+    // (the system truncates it to the buffer size).
     uint8_t buffer[kMaxUdpPacketSize + 1];
     while (true) {
         sockaddr_in address = {};
@@ -402,10 +402,10 @@ bool UdpSocket::receiveFrom(std::vector<uint8_t>& packet, Endpoint& from) {
             if (isInterrupted(error) || isIgnorableUdpReceiveError(error)) {
                 continue;
             }
-            return false;  // пакетов нет (EWOULDBLOCK) или настоящая ошибка
+            return false;  // no packets (EWOULDBLOCK) or a real error
         }
         if (static_cast<size_t>(received) > kMaxUdpPacketSize) {
-            continue;  // слишком длинный пакет: отбрасываем и читаем следующий
+            continue;  // packet too long: drop it and read the next one
         }
         packet.assign(buffer, buffer + received);
         from = fromSockaddr(address);
@@ -425,7 +425,7 @@ TcpConnection::TcpConnection(TcpConnection&& other) noexcept
       remote_(other.remote_),
       outbox_(std::move(other.outbox_)),
       outboxSent_(other.outboxSent_) {
-    // У источника ничего не остаётся: его деструктор не закроет наш сокет.
+    // Nothing is left in the source: its destructor will not close our socket.
     other.handle_ = kNoSocket;
     other.state_ = State::Closed;
     other.outbox_.clear();
@@ -464,7 +464,7 @@ bool TcpConnection::startConnect(const Endpoint& to) {
     sockaddr_in address = toSockaddr(to);
     int result = connect(handle, reinterpret_cast<const sockaddr*>(&address), kAddressSize);
     if (result == 0) {
-        state_ = State::Connected;  // бывает, что соединение готово сразу
+        state_ = State::Connected;  // sometimes the connection is ready at once
     } else if (isConnectInProgress(lastError())) {
         state_ = State::Connecting;
     } else {
@@ -508,7 +508,7 @@ bool TcpConnection::flush() {
         return false;
     }
     if (state_ == State::Connecting) {
-        return true;  // подключение ещё идёт: кадры ждут в очереди
+        return true;  // still connecting: frames wait in the queue
     }
 
     while (outboxSent_ < outbox_.size()) {
@@ -521,7 +521,7 @@ bool TcpConnection::flush() {
                 continue;
             }
             if (isWouldBlock(error)) {
-                return true;  // буфер системы полон: остаток уйдёт при следующем flush
+                return true;  // the system buffer is full: the rest goes out on the next flush
             }
             close();
             return false;
@@ -529,7 +529,7 @@ bool TcpConnection::flush() {
         outboxSent_ += static_cast<size_t>(sent);
     }
 
-    // Всё ушло: очередь можно очистить.
+    // Everything went out: the queue can be cleared.
     outbox_.clear();
     outboxSent_ = 0;
     return true;
@@ -547,7 +547,7 @@ bool TcpConnection::receive(TcpFrameReader& frames) {
         return false;
     }
     if (state_ == State::Connecting) {
-        return true;  // ещё не подключились: данных быть не может
+        return true;  // not connected yet: there can be no data
     }
 
     uint8_t buffer[16 * 1024];
@@ -561,19 +561,19 @@ bool TcpConnection::receive(TcpFrameReader& frames) {
                 continue;
             }
             if (isWouldBlock(error)) {
-                return true;  // всё прочитано
+                return true;  // everything has been read
             }
             close();
             return false;
         }
         if (received == 0) {
-            close();  // собеседник закрыл соединение
+            close();  // the peer closed the connection
             return false;
         }
         frames.append(buffer, static_cast<size_t>(received));
         total += static_cast<size_t>(received);
     }
-    return true;  // за вызов прочитано достаточно, остальное - в следующий раз
+    return true;  // enough read for one call, the rest next time
 }
 
 void TcpConnection::close() {
@@ -609,9 +609,9 @@ bool TcpListener::open(uint16_t port) {
     }
 
 #ifndef _WIN32
-    // Позволяет сразу открыть тот же порт после перезапуска хоста, пока старые
-    // соединения ещё в состоянии TIME_WAIT. На Windows SO_REUSEADDR значит другое:
-    // разрешает второму сокету занять уже занятый порт. Там он не нужен и вреден.
+    // Lets the host reopen the same port right after a restart while old
+    // connections are still in TIME_WAIT. On Windows SO_REUSEADDR means something else:
+    // it lets a second socket take a port that is already in use. There it is not needed and harmful.
     if (!setOptionOn(handle, SOL_SOCKET, SO_REUSEADDR)) {
         closeHandle(handle);
         return false;
@@ -656,11 +656,11 @@ bool TcpListener::accept(TcpConnection& connection) {
             break;
         }
         if (!isInterrupted(lastError())) {
-            return false;  // никого нет (EWOULDBLOCK) или ошибка: попробуем в следующий раз
+            return false;  // nobody is waiting (EWOULDBLOCK) or an error: try next time
         }
     }
 
-    // Принятый сокет не всегда наследует настройки слушающего, поэтому задаём их заново.
+    // An accepted socket does not always inherit the listener's settings, so set them again.
     if (!prepareTcpSocket(accepted)) {
         closeHandle(accepted);
         return false;

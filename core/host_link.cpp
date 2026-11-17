@@ -9,11 +9,11 @@ namespace olc {
 
 namespace {
 
-// Сколько раз пробуем подобрать для UDP тот же номер порта, что система выдала для TCP
-// (только при port = 0: TCP и UDP-порты занимаются независимо, номер может оказаться занят).
+// How many times we try to get the same UDP port number the system gave for TCP
+// (only with port = 0: TCP and UDP ports are taken independently, the number may be busy).
 constexpr int kPortAttempts = 20;
 
-// Собирает UDP-пакет: заголовок и готовое тело.
+// Builds a UDP packet: header and a ready body.
 std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
                                    const std::vector<uint8_t>& body) {
     UdpHeader header;
@@ -40,7 +40,7 @@ bool HostLink::start(const HostConfig& config) {
     }
     config_ = config;
 
-    // При port = 0 порт выбирает система для TCP, а UDP открываем на тот же номер.
+    // With port = 0 the system chooses the TCP port, and UDP is opened on the same number.
     int attempts = config.port == 0 ? kPortAttempts : 1;
     bool opened = false;
     for (int i = 0; i < attempts && !opened; i++) {
@@ -123,14 +123,14 @@ void HostLink::log(const std::string& line) {
     log_.push_back(line);
 }
 
-// ---------- Приём ----------
+// ---------- Receiving ----------
 
 void HostLink::poll(double now) {
     if (!running_) {
         return;
     }
 
-    // Новые подключения.
+    // New connections.
     while (true) {
         TcpConnection connection;
         if (!listener_.accept(connection)) {
@@ -142,13 +142,13 @@ void HostLink::poll(double now) {
         clients_.push_back(std::move(client));
     }
 
-    // Сообщения клиентов. Отключённый клиент удаляется из списка.
+    // Client messages. A disconnected client is removed from the list.
     for (size_t i = 0; i < clients_.size();) {
         Client& client = clients_[i];
         bool keep = client.tcp.receive(client.frames);
-        // Сообщения разбираем, даже если соединение уже закрыто: в нём мог остаться BYE.
+        // Messages are parsed even if the connection is already closed: a BYE may be left in it.
         if (!handleFrames(client)) {
-            keep = false;  // причина уже записана в leaveReason
+            keep = false;  // the reason is already in leaveReason
         } else if (!keep) {
             client.leaveReason = "connection lost";
         }
@@ -177,7 +177,7 @@ bool HostLink::handleFrames(Client& client) {
     while ((result = client.frames.next(type, body)) == TcpFrameReader::Result::Ready) {
         Reader reader(body.data(), body.size());
 
-        // До рукопожатия клиент может прислать только HELLO.
+        // Before the handshake a client may send only HELLO.
         if (!client.welcomed && type != static_cast<uint8_t>(TcpType::Hello)) {
             client.leaveReason = "message received before HELLO";
             return false;
@@ -215,8 +215,8 @@ bool HostLink::handleFrames(Client& client) {
                     client.leaveReason = "broken UDP_READY";
                     return false;
                 }
-                // Адрес, уже узнанный по PING, точнее: порт из UDP_READY - это порт на
-                // машине клиента, а за NAT хосту виден другой.
+                // An address already learned from PING is more accurate: the port in UDP_READY is the
+                // port on the client machine, and behind NAT the host sees another one.
                 if (!client.udpFromPing) {
                     client.udp.ip = client.tcp.remote().ip;
                     client.udp.port = udpPort;
@@ -235,7 +235,7 @@ bool HostLink::handleFrames(Client& client) {
                 return false;
             }
             default:
-                // Остальные сообщения (KEY и другие) на этапе 1 хосту не нужны.
+                // Other messages (KEY and others) are not needed by the host at stage 1.
                 break;
         }
     }
@@ -340,7 +340,7 @@ void HostLink::dropClient(size_t index, const std::string& reason) {
         log("OLC host: connection from " + endpointToString(client.tcp.remote()) +
             " closed (" + reason + ")");
     }
-    // Досылаем то, что осталось в очереди (например REJECT), и закрываем.
+    // Send what is left in the queue (e.g. REJECT) and close.
     client.tcp.flush();
     client.tcp.close();
     clients_.erase(clients_.begin() + static_cast<std::ptrdiff_t>(index));
@@ -364,7 +364,7 @@ void HostLink::handleUdp() {
                 continue;
             }
             learnUdpAddress(ping.clientId, from);
-            // PONG уходит тому, от кого пришёл PING, с тем же телом.
+            // PONG goes to whoever sent the PING, with the same body.
             Writer body;
             writePing(body, ping);
             if (udp_.sendTo(from, makeUdpPacket(UdpType::Pong, config_.session, seq_++,
@@ -372,14 +372,14 @@ void HostLink::handleUdp() {
                 stats_.udpPacketsSent++;
             }
         }
-        // INPUT и остальное на этапе 1 хост игнорирует.
+        // The host ignores INPUT and the rest at stage 1.
     }
 }
 
 void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
     for (Client& client : clients_) {
-        // Номер клиента подделать легко, поэтому адрес принимаем только с того же IP,
-        // что и TCP-соединение этого клиента.
+        // A client number is easy to fake, so the address is accepted only from the same IP
+        // as this client's TCP connection.
         if (!client.welcomed || client.clientId != clientId ||
             client.tcp.remote().ip != from.ip) {
             continue;
@@ -395,7 +395,7 @@ void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
     }
 }
 
-// ---------- Рассылка ----------
+// ---------- Sending ----------
 
 void HostLink::sendUdpToReady(uint8_t type, const std::vector<uint8_t>& body) {
     std::vector<uint8_t> packet =
@@ -412,8 +412,8 @@ void HostLink::sendWorldState(const WorldState& state) {
         return;
     }
 
-    // Общая часть пакетов: всё, кроме списка кораблей. Её размер - то, что пишется
-    // для пустого списка, остальное место в пакете отдано кораблям.
+    // The common part of the packets: everything except the vessel list. Its size is what
+    // is written for an empty list; the rest of the packet is for vessels.
     WorldState packet = state;
     packet.vessels.clear();
     Writer emptyPacket;
@@ -422,9 +422,9 @@ void HostLink::sendWorldState(const WorldState& state) {
     }
     size_t budget = kMaxUdpPacketSize - kUdpHeaderSize - emptyPacket.bytes().size();
 
-    size_t used = 0;  // сколько байтов кораблей уже в packet
+    size_t used = 0;  // how many vessel bytes are already in packet
     bool sentAny = false;
-    // Отправляет накопленный packet и начинает следующий.
+    // Sends the accumulated packet and starts the next one.
     auto flushPacket = [&]() {
         Writer body;
         if (writeWorldState(body, packet)) {
@@ -438,7 +438,7 @@ void HostLink::sendWorldState(const WorldState& state) {
     for (const VesselState& vessel : state.vessels) {
         Writer probe;
         if (!writeVesselState(probe, vessel)) {
-            continue;  // больше kMaxThrusters двигателей: плагин такого передавать не должен
+            continue;  // more than kMaxThrusters thrusters: the plugin must not pass that
         }
         size_t size = probe.bytes().size();
         if (!packet.vessels.empty() &&
@@ -448,8 +448,8 @@ void HostLink::sendWorldState(const WorldState& state) {
         packet.vessels.push_back(vessel);
         used += size;
     }
-    // Последний пакет. Если кораблей нет совсем, всё равно шлём один: клиенту нужны
-    // время и пауза.
+    // The last packet. Even with no vessels at all we send one: the client needs
+    // the time and the pause flag.
     if (!packet.vessels.empty() || !sentAny) {
         flushPacket();
     }
@@ -478,12 +478,12 @@ void HostLink::sendFuel(const Fuel& fuel) {
     };
 
     for (const VesselFuel& vessel : fuel.vessels) {
-        // Размер корабля в пакете: разница между пакетом с ним и пустым пакетом.
+        // A vessel's size in the packet: the difference between a packet with it and an empty packet.
         Fuel single;
         single.vessels.push_back(vessel);
         Writer probe;
         if (!writeFuel(probe, single)) {
-            continue;  // больше kMaxTanks баков: плагин такого передавать не должен
+            continue;  // more than kMaxTanks tanks: the plugin must not pass that
         }
         size_t size = probe.bytes().size() - emptyPacket.bytes().size();
         if (!packet.vessels.empty() &&

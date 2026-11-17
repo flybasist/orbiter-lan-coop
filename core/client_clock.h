@@ -1,61 +1,61 @@
-// Часы показа на клиенте: какой момент сим-времени хоста показывать сейчас.
+// Client display clock: which moment of host sim time to display now.
 //
-// Клиент показывает мир с небольшой задержкой (docs/SMOOTHING.md): на displayDelay секунд
-// реального времени позади хоста, то есть на displayDelay × ускорение секунд сим-времени.
-// Тогда между двумя пакетами WORLD_STATE всегда есть что интерполировать.
+// The client shows the world with a small delay (docs/SMOOTHING.md): displayDelay seconds
+// of real time behind the host, that is displayDelay × warp seconds of sim time.
+// Then there is always something to interpolate between two WORLD_STATE packets.
 //
-// Как работают часы:
-// - между пакетами время показа идёт само: реальное время × ускорение хоста (на паузе
-//   стоит);
-// - каждый пакет говорит, где хост был в момент приёма; из этого получается, где часы
-//   должны быть (цель = время хоста − displayDelay × ускорение);
-// - небольшую ошибку часы исправляют плавно, по доле kClockGain за пакет, чтобы разброс
-//   задержки сети не дёргал картинку;
-// - большую ошибку (первый пакет, прыжок времени у хоста) - сразу, прыжком.
-// Все времена - в секундах; now - реальное время клиента (oapiGetSysTime).
+// How the clock works:
+// - between packets display time runs by itself: real time × host warp (stopped
+//   while paused);
+// - each packet tells where the host was when it was received; from that we get where the
+//   clock should be (target = host time − displayDelay × warp);
+// - a small error is corrected smoothly, by the fraction kClockGain per packet, so that network
+//   delay jitter does not shake the picture;
+// - a large error (first packet, a time jump on the host) is corrected at once, with a jump.
+// All times are in seconds; now is the client's real time (oapiGetSysTime).
 #pragma once
 
 namespace olc {
 
-// Задержка показа по умолчанию, секунды реального времени (SMOOTHING.md, решение по Д2).
+// Default display delay, seconds of real time (SMOOTHING.md, decision after D2).
 constexpr double kDefaultDisplayDelay = 0.1;
 
-// Какую долю ошибки часы исправляют за один пакет. При 30 пакетах в секунду ошибка
-// уменьшается вдвое примерно за 0,5 с.
+// Which fraction of the error the clock corrects per packet. At 30 packets per second the error
+// halves in about 0.5 s.
 constexpr double kClockGain = 0.05;
 
-// Ошибка больше этого (секунды реального времени, то есть × ускорение в сим-времени)
-// исправляется прыжком.
+// An error larger than this (seconds of real time, i.e. × warp in sim time)
+// is corrected with a jump.
 constexpr double kClockJumpThreshold = 1.0;
 
 class ClientClock {
 public:
     explicit ClientClock(double displayDelay = kDefaultDisplayDelay);
 
-    // Пришёл пакет: хост был на сим-времени hostSimTime с ускорением warp и паузой paused,
-    // клиент принял пакет в реальное время now. Пакеты, пришедшие не по порядку, тоже
-    // можно передавать: опоздавший пакет даёт цель чуть позади, и часы почти не сдвинутся.
+    // A packet arrived: the host was at sim time hostSimTime with warp and paused,
+    // the client received the packet at real time now. Out-of-order packets may also
+    // be passed: a late packet gives a target slightly behind, and the clock barely moves.
     void onPacket(double hostSimTime, double warp, bool paused, double now);
 
-    // Сим-время хоста, которое показывать в момент now. До первого пакета - 0.
-    // now не должно идти назад; если идёт - время показа не меняется.
+    // Host sim time to display at moment now. Before the first packet - 0.
+    // now must not go backwards; if it does, display time does not change.
     double displayTime(double now);
 
-    // Был ли хоть один пакет.
+    // Whether at least one packet has arrived.
     bool started() const { return started_; }
 
-    // Сколько раз часы прыгали (для статистики в логе).
+    // How many times the clock jumped (for log statistics).
     int jumps() const { return jumps_; }
 
 private:
-    // Сдвигает время показа до момента now с текущей скоростью.
+    // Moves display time up to moment now at the current rate.
     void advance(double now);
 
     double displayDelay_;
     bool started_ = false;
-    double displayTime_ = 0.0;  // сим-время хоста, которое показывается в lastNow_
-    double lastNow_ = 0.0;      // реальное время последнего advance
-    double rate_ = 1.0;         // скорость хода: ускорение хоста, 0 на паузе
+    double displayTime_ = 0.0;  // host sim time displayed at lastNow_
+    double lastNow_ = 0.0;      // real time of the last advance
+    double rate_ = 1.0;         // running rate: host warp, 0 while paused
     int jumps_ = 0;
 };
 

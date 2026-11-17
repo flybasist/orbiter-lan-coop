@@ -1,4 +1,4 @@
-// Тесты часов показа клиента: ход между пакетами, пауза, плавная подстройка, прыжок.
+// Client display clock tests: running between packets, pause, smooth adjustment, jump.
 
 #include <cmath>
 
@@ -11,11 +11,11 @@ bool near(double a, double b) {
     return std::fabs(a - b) < 1e-9;
 }
 
-// Первый пакет ставит время показа на hostSimTime - задержка × ускорение и не считается прыжком.
+// The first packet sets display time to hostSimTime - delay × warp and does not count as a jump.
 void testFirstPacket() {
     olc::ClientClock clock(0.1);
     CHECK(!clock.started());
-    CHECK(near(clock.displayTime(5.0), 0.0));  // до первого пакета - 0
+    CHECK(near(clock.displayTime(5.0), 0.0));  // before the first packet - 0
 
     clock.onPacket(1000.0, 1.0, false, 5.0);
     CHECK(clock.started());
@@ -27,16 +27,16 @@ void testFirstPacket() {
     CHECK(near(fast.displayTime(5.0), 999.0));  // 1000 - 0.1 × 10
 }
 
-// Между пакетами время идёт с ускорением хоста.
+// Between packets time runs with the host warp.
 void testRunsWithWarp() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 5.0, false, 10.0);
     double start = clock.displayTime(10.0);
     CHECK(near(start, 999.5));
-    CHECK(near(clock.displayTime(12.0), start + 10.0));  // 2 с × 5
+    CHECK(near(clock.displayTime(12.0), start + 10.0));  // 2 s × 5
 }
 
-// На паузе время стоит.
+// While paused, time stands still.
 void testPause() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 1.0, true, 10.0);
@@ -44,11 +44,11 @@ void testPause() {
     CHECK(near(clock.displayTime(13.0), start));
 }
 
-// Небольшая ошибка исправляется плавно: уменьшается, но не пропадает сразу.
+// A small error is corrected smoothly: it shrinks but does not vanish at once.
 void testSmoothCorrection() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 1.0, false, 10.0);
-    // Через секунду хост на самом деле ушёл на 0,3 с дальше, чем идут часы.
+    // A second later the host is actually 0.3 s further than the clock runs.
     double now = 11.0;
     double before = clock.displayTime(now);       // 1000.9
     double target = 1001.3 - 0.1;                 // 1001.2
@@ -61,18 +61,18 @@ void testSmoothCorrection() {
     CHECK(near(errorAfter, errorBefore * (1.0 - olc::kClockGain)));
     CHECK(clock.jumps() == 0);
 
-    // Много пакетов подряд сводят ошибку почти к нулю.
+    // Many packets in a row bring the error almost to zero.
     for (int i = 0; i < 300; i++) {
-        clock.onPacket(1001.3, 1.0, true, now);  // хост стоит: цель не меняется
+        clock.onPacket(1001.3, 1.0, true, now);  // the host stands still: the target does not change
     }
     CHECK(std::fabs(clock.displayTime(now) - target) < 1e-6);
 }
 
-// Большая ошибка исправляется прыжком, прыжки считаются.
+// A large error is corrected with a jump; jumps are counted.
 void testJump() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 1.0, false, 10.0);
-    clock.onPacket(5000.0, 1.0, false, 10.0);  // хост перемотал время
+    clock.onPacket(5000.0, 1.0, false, 10.0);  // the host moved its time
     CHECK(clock.jumps() == 1);
     CHECK(near(clock.displayTime(10.0), 4999.9));
     clock.onPacket(100.0, 1.0, false, 10.0);
@@ -80,23 +80,23 @@ void testJump() {
     CHECK(near(clock.displayTime(10.0), 99.9));
 }
 
-// Порог прыжка растёт с ускорением: при ускорении 100 ошибка 50 с - ещё не прыжок.
+// The jump threshold grows with warp: at warp 100 an error of 50 s is not yet a jump.
 void testJumpThresholdScalesWithWarp() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 100.0, false, 10.0);
-    clock.onPacket(1050.0, 100.0, true, 10.0);  // ошибка 50 < 1 × 100
+    clock.onPacket(1050.0, 100.0, true, 10.0);  // error 50 < 1 × 100
     CHECK(clock.jumps() == 0);
-    clock.onPacket(1300.0, 100.0, true, 10.0);  // ошибка больше порога
+    clock.onPacket(1300.0, 100.0, true, 10.0);  // error above the threshold
     CHECK(clock.jumps() == 1);
 }
 
-// Реальное время назад время показа не двигает.
+// Real time going backwards does not move display time.
 void testNowGoesBack() {
     olc::ClientClock clock(0.1);
     clock.onPacket(1000.0, 1.0, false, 10.0);
     double at12 = clock.displayTime(12.0);
     CHECK(near(clock.displayTime(11.0), at12));
-    // После "возврата" ход продолжается от наибольшего now.
+    // After the "rollback" running continues from the largest now.
     CHECK(near(clock.displayTime(13.0), at12 + 1.0));
 }
 

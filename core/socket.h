@@ -1,19 +1,19 @@
-// Обёртка над сокетами: UDP, TCP-соединение и TCP-слушатель (docs/PROTOCOL.md, раздел 3).
+// Socket wrapper: UDP, TCP connection and TCP listener (docs/PROTOCOL.md, section 3).
 //
-// Зачем: сетевое ядро не должно знать про Winsock и POSIX-сокеты. Платформенные
-// различия (Windows - Winsock, Mac и Linux - сокеты POSIX) спрятаны в socket.cpp,
-// а этот заголовок не подключает системные сетевые заголовки.
-// Все сокеты неблокирующие, потоков внутри нет, и ни одна функция не ждёт сеть:
-// "нет данных" - это обычный результат (false или пустой ответ), а не ошибка.
-// Поэтому обёртку можно опрашивать из главного потока Orbiter каждый кадр - так и
-// работает плагин (решение 23 в docs/DECISIONS.md).
-// Только IPv4; адрес задаётся цифрами ("192.168.1.10"), имена (DNS) не поддерживаются.
+// Why: the network core must not know about Winsock and POSIX sockets. Platform
+// differences (Windows - Winsock, Mac and Linux - POSIX sockets) are hidden in socket.cpp,
+// and this header does not include system network headers.
+// All sockets are non-blocking, there are no threads inside, and no function waits for the
+// network: "no data" is a normal result (false or an empty answer), not an error.
+// So the wrapper can be polled from Orbiter's main thread every frame - that is how
+// the plugin works (decision 23 in docs/DECISIONS.md).
+// IPv4 only; the address is given as digits ("192.168.1.10"), names (DNS) are not supported.
 //
-// Сеть надо запустить: startNetwork() до первого сокета, stopNetwork() после последнего.
-// В плагине Orbiter вызывайте их из clbkSimulationStart и clbkSimulationEnd, а не из
-// InitModule: при загрузке DLL запускать Winsock нельзя (docs/ORBITER-INTERNALS.md,
-// раздел 14).
-// Классы не потокобезопасны: один объект - один поток.
+// The network must be started: startNetwork() before the first socket, stopNetwork() after the last.
+// In an Orbiter plugin call them from clbkSimulationStart and clbkSimulationEnd, not from
+// InitModule: Winsock must not be started while the DLL is loading (docs/ORBITER-INTERNALS.md,
+// section 14).
+// The classes are not thread-safe: one object - one thread.
 #pragma once
 
 #include <cstddef>
@@ -25,8 +25,8 @@
 
 namespace olc {
 
-// Дескриптор сокета. На Windows это SOCKET (UINT_PTR), в остальных системах int.
-// Тип свой, чтобы не подключать системные заголовки.
+// Socket descriptor. On Windows it is SOCKET (UINT_PTR), on other systems int.
+// Our own type, so that system headers are not needed here.
 #ifdef _WIN32
 using SocketHandle = uintptr_t;
 constexpr SocketHandle kNoSocket = ~static_cast<uintptr_t>(0);  // INVALID_SOCKET
@@ -35,30 +35,30 @@ using SocketHandle = int;
 constexpr SocketHandle kNoSocket = -1;
 #endif
 
-// Запускает сетевую часть системы. На Windows это WSAStartup (версия 2.2), в остальных
-// системах ничего не делает. Возвращает false, если запустить не удалось.
+// Starts the system's network layer. On Windows this is WSAStartup (version 2.2), on other
+// systems it does nothing. Returns false if it could not be started.
 bool startNetwork();
 
-// Останавливает сетевую часть (на Windows WSACleanup). Вызывать после закрытия сокетов.
+// Stops the network layer (WSACleanup on Windows). Call after closing the sockets.
 void stopNetwork();
 
-// Адрес IPv4 и порт.
+// IPv4 address and port.
 struct Endpoint {
-    uint32_t ip = 0;     // в обычном порядке: 127.0.0.1 = 0x7F000001
+    uint32_t ip = 0;     // in normal order: 127.0.0.1 = 0x7F000001
     uint16_t port = 0;
 };
 
-// Разбирает адрес вида "192.168.1.10": ровно 4 десятичных числа 0...255 через точку,
-// без пробелов и других символов. При ошибке возвращает false, ip не меняется.
+// Parses an address like "192.168.1.10": exactly 4 decimal numbers 0...255 separated by
+// dots, no spaces or other characters. On error returns false and leaves ip unchanged.
 bool parseIpv4(const std::string& text, uint32_t& ip);
 
-// Адрес и порт для логов: "192.168.1.10:47800".
+// Address and port for logs: "192.168.1.10:47800".
 std::string endpointToString(const Endpoint& endpoint);
 
-// Нужен хосту, чтобы узнать клиента по адресу его UDP-пакета.
+// The host needs it to recognize a client by the address of its UDP packet.
 bool operator==(const Endpoint& a, const Endpoint& b);
 
-// UDP-сокет: пакеты отправляются и принимаются целиком, без соединения.
+// UDP socket: packets are sent and received whole, without a connection.
 class UdpSocket {
 public:
     UdpSocket() = default;
@@ -66,29 +66,29 @@ public:
     UdpSocket(const UdpSocket&) = delete;
     UdpSocket& operator=(const UdpSocket&) = delete;
 
-    // Открывает неблокирующий сокет на всех адресах компьютера. port 0 - любой
-    // свободный порт. Возвращает false при ошибке. Уже открытый сокет сначала закрывается.
+    // Opens a non-blocking socket on all addresses of the computer. port 0 - any
+    // free port. Returns false on error. An already open socket is closed first.
     bool open(uint16_t port);
     void close();
     bool isOpen() const;
 
-    // Настоящий порт после open (с port 0 его выбирает система): клиент шлёт его
-    // хосту в UDP_READY. 0, если сокет закрыт.
+    // The actual port after open (with port 0 the system chooses it): the client sends it
+    // to the host in UDP_READY. 0 if the socket is closed.
     uint16_t localPort() const;
 
-    // Отправляет один пакет. false при ошибке (в том числе когда буфер отправки системы
-    // занят: UDP не ждёт, пакет просто теряется) или если пакет больше kMaxUdpPacketSize.
+    // Sends one packet. false on error (including when the system send buffer is
+    // full: UDP does not wait, the packet is simply lost) or if the packet is larger than kMaxUdpPacketSize.
     bool sendTo(const Endpoint& to, const std::vector<uint8_t>& packet);
 
-    // Достаёт следующий принятый пакет и адрес отправителя. false - пакетов больше нет
-    // (или сокет закрыт). Пакеты длиннее kMaxUdpPacketSize молча отбрасываются.
+    // Takes the next received packet and the sender's address. false - no more packets
+    // (or the socket is closed). Packets longer than kMaxUdpPacketSize are silently dropped.
     bool receiveFrom(std::vector<uint8_t>& packet, Endpoint& from);
 
 private:
     SocketHandle handle_ = kNoSocket;
 };
 
-// TCP-соединение. Данные идут потоком, поэтому сообщения собирает TcpFrameReader.
+// TCP connection. Data flows as a stream, so TcpFrameReader assembles the messages.
 class TcpConnection {
 public:
     enum class State { Closed, Connecting, Connected };
@@ -97,55 +97,55 @@ public:
     ~TcpConnection();
     TcpConnection(const TcpConnection&) = delete;
     TcpConnection& operator=(const TcpConnection&) = delete;
-    // Перемещение нужно, чтобы accept отдавал соединение и чтобы хранить их в vector.
+    // Move is needed so that accept can hand over a connection and connections can live in a vector.
     TcpConnection(TcpConnection&& other) noexcept;
     TcpConnection& operator=(TcpConnection&& other) noexcept;
 
-    // Начинает подключение и сразу возвращается. false - сразу ошибка. Иначе State
-    // станет Connected, когда подключение завершится, или Closed, если не удастся.
+    // Starts connecting and returns at once. false - immediate error. Otherwise State
+    // becomes Connected when the connection completes, or Closed if it fails.
     bool startConnect(const Endpoint& to);
 
-    // Текущее состояние. Для Connecting проверяет подключение без ожидания и при
-    // необходимости переходит в Connected или закрывается (Closed).
+    // Current state. For Connecting it checks the connection without waiting and, if
+    // needed, moves to Connected or closes (Closed).
     State state();
 
-    // Ставит готовый кадр (makeTcpFrame) в очередь и отправляет сколько получится.
-    // TCP-отправка может уйти частично: остаток хранится в очереди и досылается
-    // следующими send и flush. Пока идёт подключение (Connecting), кадры только копятся.
-    // false - соединение закрыто или разорвано (тогда оно закрывается).
+    // Puts a ready frame (makeTcpFrame) into the queue and sends as much as it can.
+    // A TCP send may go out partially: the rest stays in the queue and is sent by
+    // later send and flush calls. While connecting (Connecting), frames only accumulate.
+    // false - the connection is closed or broken (then it is closed).
     bool send(const std::vector<uint8_t>& frame);
 
-    // Досылает очередь. false - соединение закрыто или разорвано.
+    // Sends the rest of the queue. false - the connection is closed or broken.
     bool flush();
 
-    // Сколько байтов ещё не отправлено.
+    // How many bytes are not yet sent.
     size_t pendingBytes() const;
 
-    // Читает всё, что пришло (но не больше нескольких сотен КБ за вызов, чтобы
-    // болтливый собеседник не занял поток надолго), и отдаёт в frames. Если ничего не
-    // пришло - true. false - собеседник закрыл соединение или ошибка (соединение
-    // закрыто); байты, пришедшие до закрытия, уже лежат в frames - заберите их.
+    // Reads everything that has arrived (but no more than a few hundred KB per call, so that
+    // a chatty peer does not hold the thread for long) and passes it to frames. If nothing
+    // arrived - true. false - the peer closed the connection or an error occurred (the connection
+    // is closed); bytes that arrived before closing are already in frames - take them.
     bool receive(TcpFrameReader& frames);
 
     void close();
 
-    // Адрес собеседника (для Closed - последний, к которому подключались).
+    // The peer's address (for Closed - the last one we connected to).
     const Endpoint& remote() const;
 
 private:
-    friend class TcpListener;  // accept отдаёт готовое соединение
+    friend class TcpListener;  // accept hands over a ready connection
 
-    // Проверяет подключение в состоянии Connecting (без ожидания).
+    // Checks the connection in the Connecting state (without waiting).
     void updateConnecting();
 
     SocketHandle handle_ = kNoSocket;
     State state_ = State::Closed;
     Endpoint remote_;
-    std::vector<uint8_t> outbox_;  // очередь на отправку
-    size_t outboxSent_ = 0;        // сколько байтов очереди уже ушло
+    std::vector<uint8_t> outbox_;  // send queue
+    size_t outboxSent_ = 0;        // how many queue bytes have already gone out
 };
 
-// TCP-слушатель: принимает входящие подключения.
+// TCP listener: accepts incoming connections.
 class TcpListener {
 public:
     TcpListener() = default;
@@ -153,17 +153,17 @@ public:
     TcpListener(const TcpListener&) = delete;
     TcpListener& operator=(const TcpListener&) = delete;
 
-    // Открывает неблокирующий слушающий сокет на всех адресах. port 0 - любой свободный.
-    // Возвращает false при ошибке. Уже открытый слушатель сначала закрывается.
+    // Opens a non-blocking listening socket on all addresses. port 0 - any free port.
+    // Returns false on error. An already open listener is closed first.
     bool open(uint16_t port);
     void close();
     bool isOpen() const;
 
-    // Настоящий порт после open; 0, если слушатель закрыт.
+    // The actual port after open; 0 if the listener is closed.
     uint16_t localPort() const;
 
-    // Принимает одно ожидающее подключение без ожидания. false - никого нет.
-    // Новое соединение уже в состоянии Connected и тоже неблокирующее.
+    // Accepts one pending connection without waiting. false - nobody is waiting.
+    // The new connection is already Connected and also non-blocking.
     bool accept(TcpConnection& connection);
 
 private:

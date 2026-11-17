@@ -1,5 +1,5 @@
-// Тесты буфера интерполяции: точность на орбите, края буфера, опоздавшие пакеты,
-// посадка и смена опорного тела.
+// Interpolation buffer tests: accuracy on orbit, buffer edges, late packets,
+// landing and a reference body change.
 
 #include <cmath>
 
@@ -8,12 +8,12 @@
 
 namespace {
 
-// Круговая орбита в плоскости xy: радиус 400 км над Землёй и круговая скорость.
+// A circular orbit in the xy plane: 400 km above Earth with circular velocity.
 const double kRadius = 6.771e6;
 const double kSpeed = 7672.6;
-const double kRate = 30.0;  // пакетов в секунду
+const double kRate = 30.0;  // packets per second
 
-// Летящий корабль на круговой орбите в момент t.
+// A flying vessel on a circular orbit at moment t.
 olc::VesselState orbitState(double t) {
     double angle = kSpeed / kRadius * t;
     olc::VesselState state;
@@ -22,7 +22,7 @@ olc::VesselState orbitState(double t) {
     state.refBody = 3;
     state.rpos = {kRadius * std::cos(angle), kRadius * std::sin(angle), 0.0};
     state.rvel = {-kSpeed * std::sin(angle), kSpeed * std::cos(angle), 0.0};
-    state.arot = {0.0, 0.0, angle};  // корабль поворачивается вместе с орбитой
+    state.arot = {0.0, 0.0, angle};  // the vessel turns together with the orbit
     state.vrot = {0.0, 0.0, kSpeed / kRadius};
     return state;
 }
@@ -32,7 +32,7 @@ double distance(const olc::Vec3& a, const olc::Vec3& b) {
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-// Совпадают ли числа с точностью до микрометра (координаты - миллионы метров).
+// Whether numbers match to a micrometre (coordinates are millions of metres).
 bool near(double a, double b) {
     return std::fabs(a - b) < 1e-6;
 }
@@ -43,8 +43,8 @@ void testOrbit() {
         CHECK(buffer.add(i / kRate, orbitState(i / kRate)));
     }
 
-    // Посередине между пакетами 4 и 5. Прямая между ними срезала бы дугу на ~1 мм,
-    // Эрмит должен ошибаться намного меньше.
+    // Midway between packets 4 and 5. A straight line between them would cut the arc by ~1 mm,
+    // Hermite must be off by much less.
     double t = 4.5 / kRate;
     olc::VesselState shown;
     bool starved = true;
@@ -56,7 +56,7 @@ void testOrbit() {
     CHECK(std::fabs(shown.arot.z - truth.arot.z) < 1e-12);
     CHECK(shown.netId == 7 && shown.refBody == 3);
 
-    // Ровно в момент пакета - сам пакет.
+    // Exactly at a packet moment - the packet itself.
     CHECK(buffer.sample(3 / kRate, shown, starved));
     CHECK(distance(shown.rpos, orbitState(3 / kRate).rpos) < 1e-6);
 }
@@ -66,22 +66,22 @@ void testEdges() {
     olc::VesselState shown;
     bool starved = false;
 
-    // Пустой буфер - показать нечего.
+    // An empty buffer - nothing to show.
     CHECK(!buffer.sample(1.0, shown, starved));
 
     CHECK(buffer.add(1.0, orbitState(1.0)));
     CHECK(buffer.add(2.0, orbitState(2.0)));
 
-    // Опоздавший и повторный пакеты не принимаются.
+    // A late or repeated packet is not accepted.
     CHECK(!buffer.add(1.5, orbitState(1.5)));
     CHECK(!buffer.add(2.0, orbitState(2.0)));
     CHECK(buffer.size() == 2);
 
-    // Раньше первого пакета - первый пакет как есть.
+    // Before the first packet - the first packet as is.
     CHECK(buffer.sample(0.5, shown, starved));
     CHECK(!starved && shown.rpos.x == orbitState(1.0).rpos.x);
 
-    // Буфер кончился: движение по последней скорости, ориентация последняя.
+    // The buffer ran out: motion with the last velocity, the last attitude.
     olc::VesselState last = orbitState(2.0);
     CHECK(buffer.sample(2.5, shown, starved));
     CHECK(starved);
@@ -91,14 +91,14 @@ void testEdges() {
 }
 
 void testBufferLimit() {
-    // Буфер хранит только последние kInterpolationBufferSize пакетов.
+    // The buffer keeps only the last kInterpolationBufferSize packets.
     olc::InterpolationBuffer buffer;
     for (int i = 0; i < 100; i++) {
         buffer.add(i, orbitState(i));
     }
     CHECK(buffer.size() == olc::kInterpolationBufferSize);
 
-    // Самые старые забыты: раньше оставшихся показывается первый оставшийся.
+    // The oldest are forgotten: before the remaining ones the first remaining one is shown.
     olc::VesselState shown;
     bool starved = false;
     CHECK(buffer.sample(0.0, shown, starved));
@@ -107,8 +107,8 @@ void testBufferLimit() {
 }
 
 void testNoInterpolationAcrossFrames() {
-    // Корабль сел: между летящим и стоящим пакетами не интерполируем, а продолжаем
-    // летящий по его скорости до прихода момента посадки.
+    // The vessel landed: we do not interpolate between flying and landed packets but continue
+    // the flying one with its velocity until the landing moment comes.
     olc::VesselState flying = orbitState(0.0);
     flying.thrusters = {200};
     olc::VesselState landed;
@@ -127,11 +127,11 @@ void testNoInterpolationAcrossFrames() {
     CHECK(near(shown.rpos.y, flying.rvel.y * 0.05));
     CHECK(shown.thrusters == flying.thrusters);
 
-    // С момента посадки - стоящий корабль.
+    // From the landing moment on - a landed vessel.
     CHECK(buffer.sample(0.1, shown, starved));
     CHECK(shown.status == static_cast<uint8_t>(olc::VesselStatus::Landed));
 
-    // Смена опорного тела: положения в разных системах отсчёта, тоже не интерполируем.
+    // A reference body change: positions in different frames, also not interpolated.
     olc::VesselState otherBody = orbitState(0.1);
     otherBody.refBody = 4;
     olc::InterpolationBuffer soi;

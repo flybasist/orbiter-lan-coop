@@ -7,12 +7,12 @@ namespace olc {
 
 namespace {
 
-// Матрица 3×3: m[строка][столбец].
+// 3×3 matrix: m[row][column].
 struct Matrix3 {
     double m[3][3];
 };
 
-// Матрица из углов - та же формула, что в Vessel::SetGlobalOrientation.
+// Matrix from angles - the same formula as in Vessel::SetGlobalOrientation.
 Matrix3 eulerToMatrix(const Vec3& arot) {
     double sinx = std::sin(arot.x), cosx = std::cos(arot.x);
     double siny = std::sin(arot.y), cosy = std::cos(arot.y);
@@ -25,11 +25,11 @@ Matrix3 eulerToMatrix(const Vec3& arot) {
     return r;
 }
 
-// Углы из матрицы - обратное к eulerToMatrix.
-// По формуле: m[0][2] = -sin y, m[1][2] / m[2][2] = tg x, m[0][1] / m[0][0] = tg z.
+// Angles from a matrix - the inverse of eulerToMatrix.
+// From the formula: m[0][2] = -sin y, m[1][2] / m[2][2] = tan x, m[0][1] / m[0][0] = tan z.
 Vec3 matrixToEuler(const Matrix3& r) {
     Vec3 arot;
-    // Из-за округления |m[0][2]| может чуть превысить 1: asin тогда дал бы NaN.
+    // Due to rounding |m[0][2]| may slightly exceed 1: asin would then give NaN.
     double siny = std::clamp(-r.m[0][2], -1.0, 1.0);
     arot.y = std::asin(siny);
     double cosy = std::cos(arot.y);
@@ -37,16 +37,16 @@ Vec3 matrixToEuler(const Matrix3& r) {
         arot.x = std::atan2(r.m[1][2], r.m[2][2]);
         arot.z = std::atan2(r.m[0][1], r.m[0][0]);
     } else {
-        // y = ±π/2: x и z крутят вокруг одной оси. Берём x = 0, тогда по формуле
-        // m[1][0] = -sin z и m[1][1] = cos z.
+        // y = ±π/2: x and z rotate around the same axis. Take x = 0, then by the formula
+        // m[1][0] = -sin z and m[1][1] = cos z.
         arot.x = 0.0;
         arot.z = std::atan2(-r.m[1][0], r.m[1][1]);
     }
     return arot;
 }
 
-// Матрица → кватернион (стандартный способ: выбираем самую большую из четырёх
-// величин w², x², y², z², чтобы не делить на число около нуля).
+// Matrix → quaternion (the standard way: pick the largest of the four
+// values w², x², y², z², so as not to divide by a number near zero).
 Quat matrixToQuat(const Matrix3& r) {
     const double (*m)[3] = r.m;
     double trace = m[0][0] + m[1][1] + m[2][2];
@@ -79,7 +79,7 @@ Quat matrixToQuat(const Matrix3& r) {
     return q;
 }
 
-// Кватернион → матрица (обратное к matrixToQuat).
+// Quaternion → matrix (the inverse of matrixToQuat).
 Matrix3 quatToMatrix(const Quat& q) {
     double w = q.w, x = q.x, y = q.y, z = q.z;
     Matrix3 r = {{
@@ -90,7 +90,7 @@ Matrix3 quatToMatrix(const Quat& q) {
     return r;
 }
 
-// Приводит кватернион к единичной длине: после арифметики длина чуть уходит от 1.
+// Normalizes a quaternion to unit length: after arithmetic the length drifts slightly from 1.
 Quat normalized(const Quat& q) {
     double length = std::sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
     Quat result;
@@ -112,8 +112,8 @@ Vec3 quatToEuler(const Quat& q) {
 }
 
 Quat slerp(const Quat& a, const Quat& b, double s) {
-    // q и -q - один и тот же поворот. Если угол между a и b больше 90° в
-    // пространстве кватернионов, берём -b: так путь от a к b будет кратчайшим.
+    // q and -q are the same rotation. If the angle between a and b is larger than 90° in
+    // quaternion space, take -b: that way the path from a to b is the shortest.
     double dot = a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
     Quat end = b;
     if (dot < 0.0) {
@@ -124,8 +124,8 @@ Quat slerp(const Quat& a, const Quat& b, double s) {
         end.z = -b.z;
     }
 
-    // Почти одинаковые повороты: sin угла около нуля, делить на него нельзя.
-    // На таком малом угле обычная линейная смесь ничем не хуже.
+    // Almost identical rotations: the sine of the angle is near zero, we cannot divide by it.
+    // At such a small angle a plain linear blend is just as good.
     double weightA = 1.0 - s;
     double weightB = s;
     if (dot < 0.9995) {

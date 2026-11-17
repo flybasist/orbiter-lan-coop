@@ -5,46 +5,46 @@
 
 namespace {
 
-constexpr double kMu = 3.986004418e14;  // гравитационный параметр Земли, м^3/с^2
-constexpr double kStartRadius = 6.771e6;  // начальный радиус орбиты, м
+constexpr double kMu = 3.986004418e14;  // Earth's gravitational parameter, m^3/s^2
+constexpr double kStartRadius = 6.771e6;  // initial orbit radius, m
 
-// Основной двигатель: с 30 по 50 секунду тяга 3 м/с^2 вдоль скорости.
-// В профиле pilot она включается импульсами: 1 с работает, 1 с пауза.
+// Main engine: from second 30 to 50, thrust 3 m/s^2 along the velocity.
+// In the pilot profile it fires in pulses: 1 s on, 1 s off.
 constexpr double kBurnStart = 30.0;
 constexpr double kBurnEnd = 50.0;
 constexpr double kBurnAcc = 3.0;
 constexpr double kBurnPulseOn = 1.0;
 constexpr double kBurnPulsePeriod = 2.0;
 
-// Вращение. В профиле smooth: с 60 по 70 секунду угловое ускорение 0.02 рад/с^2
-// вокруг оси Z, потом постоянная угловая скорость.
+// Rotation. In the smooth profile: from second 60 to 70 angular acceleration 0.02 rad/s^2
+// around the Z axis, then a constant angular velocity.
 constexpr double kSpinStart = 60.0;
 constexpr double kSpinEnd = 70.0;
 constexpr double kSpinAcc = 0.02;
 
-// RCS-вращение в профиле pilot: с 60 по 90 секунду каждые 2 с импульс 0.5 с
-// с угловым ускорением 0.1 рад/с^2; оси X, Y, Z идут по кругу, знак чередуется.
+// RCS rotation in the pilot profile: from second 60 to 90, every 2 s a 0.5 s pulse
+// with angular acceleration 0.1 rad/s^2; the X, Y, Z axes go in a circle, the sign alternates.
 constexpr double kRcsSpinStart = 60.0;
 constexpr double kRcsSpinEnd = 90.0;
 constexpr double kRcsSpinAcc = 0.1;
 constexpr double kRcsSpinPulseOn = 0.5;
 constexpr double kRcsSpinPulsePeriod = 2.0;
 
-// RCS-перемещение в профиле pilot: с 95 по 110 секунду 0.3 м/с^2 вдоль мировой +Z,
-// 0.5 с включено, 1.5 с пауза.
+// RCS translation in the pilot profile: from second 95 to 110, 0.3 m/s^2 along world +Z,
+// 0.5 s on, 1.5 s off.
 constexpr double kRcsMoveStart = 95.0;
 constexpr double kRcsMoveEnd = 110.0;
 constexpr double kRcsMoveAcc = 0.3;
 constexpr double kRcsMovePulseOn = 0.5;
 constexpr double kRcsMovePulsePeriod = 2.0;
 
-// Включён ли импульс в момент t: серия начинается в start, каждые period секунд
-// импульс длится on секунд.
+// Whether a pulse is on at moment t: the series starts at start, every period seconds
+// the pulse lasts on seconds.
 bool pulseIsOn(double t, double start, double end, double on, double period) {
     return t >= start && t < end && std::fmod(t - start, period) < on;
 }
 
-// Силы (кроме гравитации), действующие в момент t.
+// Forces (other than gravity) acting at moment t.
 Forces forcesAt(Profile profile, double t) {
     Forces forces;
     if (profile == Profile::Smooth) {
@@ -62,7 +62,7 @@ Forces forcesAt(Profile profile, double t) {
     return forces;
 }
 
-// Угловое ускорение в момент t (вектор в осях тела).
+// Angular acceleration at moment t (a vector in body axes).
 Vec3 angularAccelAt(Profile profile, double t) {
     if (profile == Profile::Smooth) {
         if (t >= kSpinStart && t < kSpinEnd) {
@@ -73,7 +73,7 @@ Vec3 angularAccelAt(Profile profile, double t) {
     if (!pulseIsOn(t, kRcsSpinStart, kRcsSpinEnd, kRcsSpinPulseOn, kRcsSpinPulsePeriod)) {
         return {};
     }
-    // Номер импульса определяет ось (X, Y, Z по кругу) и знак (+, -, +, ...).
+    // The pulse number defines the axis (X, Y, Z in a circle) and the sign (+, -, +, ...).
     int number = static_cast<int>((t - kRcsSpinStart) / kRcsSpinPulsePeriod);
     double signedAcc = (number % 2 == 0) ? kRcsSpinAcc : -kRcsSpinAcc;
     Vec3 acc;
@@ -91,7 +91,7 @@ Vec3 totalAccel(Vec3 pos, Vec3 vel, const Forces& forces) {
     return gravityAccel(pos) + forces.constantAcc + normalize(vel) * forces.thrustAlongVelocity;
 }
 
-// Один шаг Рунге-Кутты 4-го порядка для пары (положение, скорость).
+// One step of 4th order Runge-Kutta for the pair (position, velocity).
 void rk4Step(Vec3& pos, Vec3& vel, const Forces& forces, double dt) {
     Vec3 k1p = vel;
     Vec3 k1v = totalAccel(pos, vel, forces);
@@ -128,19 +128,19 @@ void propagateOrbit(Vec3& pos, Vec3& vel, const Forces& forces, double duration)
 }
 
 Trajectory::Trajectory(double duration, Profile profile) {
-    // Запас в секунду, чтобы интерполяции в конце не упирались в край.
+    // A one-second margin, so that interpolations at the end do not hit the edge.
     int steps = static_cast<int>(std::ceil((duration + 1.0) / kStep));
     samples_.reserve(steps + 1);
 
     Vec3 pos = {kStartRadius, 0.0, 0.0};
-    Vec3 vel = {0.0, std::sqrt(kMu / kStartRadius), 0.0};  // круговая скорость
+    Vec3 vel = {0.0, std::sqrt(kMu / kStartRadius), 0.0};  // circular velocity
     Quat att;
     Vec3 angVel;
 
     for (int i = 0; i <= steps; i++) {
         double t = i * kStep;
 
-        // Небольшой сдвиг, чтобы границы импульсов не зависели от ошибок округления t.
+        // A small offset, so that pulse boundaries do not depend on rounding errors of t.
         Forces now = forcesAt(profile, t + 1e-9);
 
         State s;
@@ -152,8 +152,8 @@ Trajectory::Trajectory(double duration, Profile profile) {
         s.angVel = angVel;
         samples_.push_back(s);
 
-        // Шаг к следующему образцу. Силы берём в середине шага, чтобы границы
-        // импульсов (кратные шагу) не попадали на стык шагов.
+        // Step to the next sample. Forces are taken in the middle of the step, so that pulse
+        // boundaries (multiples of the step) do not fall on the step joints.
         double mid = t + kStep / 2.0;
         rk4Step(pos, vel, forcesAt(profile, mid), kStep);
         Vec3 angAcc = angularAccelAt(profile, mid);
@@ -164,7 +164,7 @@ Trajectory::Trajectory(double duration, Profile profile) {
 }
 
 State Trajectory::at(double t) const {
-    // Номер образца слева от t; t и индекс ограничиваем доступным диапазоном.
+    // The sample number to the left of t; t and the index are clamped to the available range.
     double maxTime = samples_.back().time;
     t = std::clamp(t, 0.0, maxTime);
     size_t i = static_cast<size_t>(t / kStep);

@@ -1,11 +1,11 @@
-﻿# Подаёт строку команды в консоль другого процесса - «Orbiter Server Console» (Orbiter без
-# графического клиента). Так хост без графики получает команды консоли (pause on, pause off,
-# tacc 10 и т. п.) из SSH: например, для проверки паузы и ускорения (docs/STANDS.md, раздел 6).
+﻿# Types a command line into another process's console - "Orbiter Server Console" (Orbiter without
+# a graphics client). This way a host without graphics gets console commands (pause on, pause off,
+# tacc 10, etc.) from SSH: for example, to check pause and time acceleration (docs/STANDS.md, section 6).
 #
 #   powershell -ExecutionPolicy Bypass -File console-send.ps1 -ProcessId <pid> -Command "pause on"
 #
-# Скрипт отцепляется от своей консоли, подключается к консоли процесса и пишет в её ввод
-# нажатия клавиш. Результат (sent N или ошибка) дописывается в C:\olc\console-send.log.
+# The script detaches from its own console, attaches to the process's console and writes
+# key presses into its input. The result (sent N or an error) is appended to C:\olc\console-send.log.
 param([int]$ProcessId, [string]$Command)
 $code = @"
 using System;
@@ -44,5 +44,5 @@ public static class ConsoleSend {
 }
 "@
 Add-Type -TypeDefinition $code
-# Свой вывод скрипту не виден (он отцепился от консоли), поэтому итог - в файл.
+# The script cannot see its own output (it detached from the console), so the result goes to a file.
 [ConsoleSend]::Send([uint32]$ProcessId, $Command) | Out-File C:\olc\console-send.log -Append

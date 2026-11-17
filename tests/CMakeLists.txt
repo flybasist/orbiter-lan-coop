@@ -1,5 +1,5 @@
-# Тесты сетевого ядра. Без сторонних библиотек: проверки - в check.h.
-# Запуск: ctest --test-dir orbiter-lan-coop.out
+# Network core tests. No third-party libraries: the checks are in check.h.
+# Run: ctest --test-dir orbiter-lan-coop.out
 
 add_executable(test-protocol test_protocol.cpp)
 target_link_libraries(test-protocol PRIVATE olc-core)

@@ -1,4 +1,4 @@
-// Тесты сообщений: туда-обратно, точные байты, обрезанные и лишние байты.
+// Message tests: round trip, exact bytes, truncated and extra bytes.
 
 #include <string>
 #include <vector>
@@ -18,7 +18,7 @@ void testHello() {
 
     olc::Writer w;
     CHECK(olc::writeHello(w, hello));
-    // 2 + 4 + (1 + 5) + (1 + 5) байтов.
+    // 2 + 4 + (1 + 5) + (1 + 5) bytes.
     CHECK(w.bytes().size() == 18);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
@@ -27,14 +27,14 @@ void testHello() {
     CHECK(back.protocol == 1 && back.orbiterVersion == 241101);
     CHECK(back.pluginVersion == "0.0.1" && back.player == "Pilot");
 
-    // Слишком длинное имя игрока не упаковывается.
+    // A too long player name is not packed.
     hello.player = std::string(256, 'x');
     olc::Writer tooLong;
     CHECK(!olc::writeHello(tooLong, hello));
 }
 
 void testWelcomeThroughTcpFrame() {
-    // Полный путь: упаковать, обернуть в TCP-кадр, достать из потока, разобрать.
+    // The full path: pack, wrap into a TCP frame, take from the stream, parse.
     olc::Welcome welcome;
     welcome.clientId = 2;
     welcome.session = 0xDEADBEEF;
@@ -67,7 +67,7 @@ void testReject() {
 
     olc::Writer w;
     CHECK(olc::writeReject(w, reject));
-    CHECK(w.bytes()[0] == 4);  // номер причины из PROTOCOL.md
+    CHECK(w.bytes()[0] == 4);  // reason number from PROTOCOL.md
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
     olc::Reject back;
@@ -82,14 +82,14 @@ void testBrokenMessages() {
     olc::writeWelcome(w, welcome);
     const std::vector<uint8_t>& good = w.bytes();
 
-    // Каждое обрезанное тело - битое.
+    // Every truncated body is broken.
     for (size_t size = 0; size < good.size(); size++) {
         olc::Reader r(good.data(), size);
         olc::Welcome back;
         CHECK(!olc::readWelcome(r, back));
     }
 
-    // Лишний байт в конце - тоже битое.
+    // An extra byte at the end is broken too.
     std::vector<uint8_t> extra = good;
     extra.push_back(0);
     olc::Reader r(extra.data(), extra.size());
@@ -128,21 +128,21 @@ void testLists() {
     CHECK(olc::readOwnership(ro, ownersBack) && ownersBack.size() == 2);
     CHECK(ownersBack[1].netId == 11 && ownersBack[1].owner == olc::kNoOwner);
 
-    // Пустой список - это 2 байта числа элементов.
+    // An empty list is the 2 bytes of the item count.
     olc::Writer empty;
     CHECK(olc::writeClassesMissing(empty, {}));
     CHECK(empty.bytes().size() == 2);
 
-    // Больше 65535 элементов в одно сообщение не помещается.
+    // More than 65535 items do not fit into one message.
     olc::Writer tooMany;
     CHECK(!olc::writeOwnership(tooMany, std::vector<olc::OwnerEntry>(65536)));
 
-    // Битый пакет обещает 65535 тел, а данных нет: разбор не удаётся и не виснет.
+    // A broken packet promises 65535 bodies but has no data: parsing fails and does not hang.
     const uint8_t liar[2] = {0xFF, 0xFF};
     olc::Reader rl(liar, sizeof(liar));
     CHECK(!olc::readBodies(rl, bodiesBack));
 
-    // Каждое обрезанное тело списка - битое.
+    // Every truncated list body is broken.
     for (size_t size = 0; size < wv.bytes().size(); size++) {
         olc::Reader r(wv.bytes().data(), size);
         CHECK(!olc::readVessels(r, vesselsBack));
@@ -206,7 +206,7 @@ void testShortMessages() {
     std::string reason;
     CHECK(olc::readBye(rbye, reason) && reason == "Host closed the session");
 
-    // Лишний байт после короткого сообщения - битое.
+    // An extra byte after a short message is broken.
     olc::Writer extra;
     olc::writeUdpReady(extra, 1);
     extra.writeU8(0);
@@ -214,7 +214,7 @@ void testShortMessages() {
     CHECK(!olc::readUdpReady(re, port));
 }
 
-// Пакет WORLD_STATE из двух кораблей: один летит, другой стоит на поверхности.
+// A WORLD_STATE packet with two vessels: one is flying, the other is landed.
 olc::WorldState makeWorldState() {
     olc::VesselState flying;
     flying.netId = 7;
@@ -230,7 +230,7 @@ olc::WorldState makeWorldState() {
     landed.netId = 8;
     landed.status = static_cast<uint8_t>(olc::VesselStatus::Landed);
     landed.refBody = 4;
-    landed.rpos = {1.0, 2.0, 3.0};  // не передаётся: на поверхности положение из LANDED
+    landed.rpos = {1.0, 2.0, 3.0};  // not sent: a landed vessel's position comes from LANDED
 
     olc::WorldState world;
     world.simTime = 1234.5;
@@ -244,7 +244,7 @@ olc::WorldState makeWorldState() {
 void testWorldState() {
     olc::WorldState world = makeWorldState();
 
-    // Полный путь через UDP: заголовок, тело, проверка заголовка, разбор тела.
+    // The full path over UDP: header, body, header check, body parsing.
     olc::Writer w;
     olc::UdpHeader header;
     header.type = static_cast<uint8_t>(olc::UdpType::WorldState);
@@ -252,8 +252,8 @@ void testWorldState() {
     header.seq = 1000;
     olc::writeUdpHeader(w, header);
     CHECK(olc::writeWorldState(w, world));
-    // Заголовок 15; общая часть 8*3 + 1 + 1 = 26; летящий 2 + 1 + 2 + 4*24 + 1 + 3 = 105;
-    // стоящий 2 + 1 + 2 + 1 = 6.
+    // Header 15; common part 8*3 + 1 + 1 = 26; flying 2 + 1 + 2 + 4*24 + 1 + 3 = 105;
+    // landed 2 + 1 + 2 + 1 = 6.
     CHECK(w.bytes().size() == 15 + 26 + 105 + 6);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
@@ -262,7 +262,7 @@ void testWorldState() {
     CHECK(headerBack.type == static_cast<uint8_t>(olc::UdpType::WorldState));
 
     olc::WorldState back;
-    back.vessels.resize(5);  // старое содержимое должно замениться
+    back.vessels.resize(5);  // the old contents must be replaced
     CHECK(olc::readWorldState(r, back));
     CHECK(back.simTime == 1234.5 && back.mjd == 51983.5 && back.warp == 10.0);
     CHECK(back.paused == 0);
@@ -281,7 +281,7 @@ void testWorldState() {
         CHECK(b.thrusters.empty());
     }
 
-    // Пустой пакет тоже допустим: например, пауза без кораблей.
+    // An empty packet is allowed too: for example, a pause without vessels.
     olc::WorldState empty;
     empty.paused = 1;
     olc::Writer we;
@@ -291,7 +291,7 @@ void testWorldState() {
     CHECK(olc::readWorldState(rempty, emptyBack));
     CHECK(emptyBack.paused == 1 && emptyBack.vessels.empty());
 
-    // Пределы: 256 двигателей или 256 кораблей не упаковываются.
+    // Limits: 256 thrusters or 256 vessels are not packed.
     olc::WorldState tooManyThrusters = makeWorldState();
     tooManyThrusters.vessels[0].thrusters.assign(256, 1);
     olc::Writer wt;
@@ -308,7 +308,7 @@ void testBrokenWorldState() {
     CHECK(olc::writeWorldState(w, makeWorldState()));
     const std::vector<uint8_t>& good = w.bytes();
 
-    // Обрезанный пакет любой длины - битый.
+    // A truncated packet of any length is broken.
     bool anyTruncatedAccepted = false;
     for (size_t size = 0; size < good.size(); size++) {
         olc::Reader r(good.data(), size);
@@ -319,21 +319,21 @@ void testBrokenWorldState() {
     }
     CHECK(!anyTruncatedAccepted);
 
-    // Лишний байт в конце - битый.
+    // An extra byte at the end is broken.
     std::vector<uint8_t> extra = good;
     extra.push_back(0);
     olc::Reader re(extra.data(), extra.size());
     olc::WorldState back;
     CHECK(!olc::readWorldState(re, back));
 
-    // Неизвестный status - битый: непонятно, какие поля дальше.
-    // status первого корабля стоит после общей части (26 байтов) и net_id (2 байта).
+    // An unknown status is broken: unclear which fields follow.
+    // The first vessel's status comes after the common part (26 bytes) and net_id (2 bytes).
     std::vector<uint8_t> badStatus = good;
     badStatus[26 + 2] = 2;
     olc::Reader rs(badStatus.data(), badStatus.size());
     CHECK(!olc::readWorldState(rs, back));
 
-    // count больше, чем кораблей в пакете, - битый.
+    // count larger than the vessels in the packet is broken.
     std::vector<uint8_t> badCount = good;
     badCount[25] = 3;
     olc::Reader rc(badCount.data(), badCount.size());
@@ -344,11 +344,11 @@ void testVesselAdded() {
     olc::VesselAdded added;
     added.name = "GL-02";
     added.className = "DeltaGlider";
-    added.state = makeWorldState().vessels[0];  // летящий корабль с net_id 7
+    added.state = makeWorldState().vessels[0];  // a flying vessel with net_id 7
 
     olc::Writer w;
     CHECK(olc::writeVesselAdded(w, added));
-    // (1 + 5) + (1 + 11) + состояние летящего корабля 105.
+    // (1 + 5) + (1 + 11) + the flying vessel state 105.
     CHECK(w.bytes().size() == 6 + 12 + 105);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
@@ -358,7 +358,7 @@ void testVesselAdded() {
     CHECK(back.state.netId == 7 && back.state.rpos.x == 6.771e6);
     CHECK(back.state.thrusters == std::vector<uint8_t>({255, 0, 128}));
 
-    // Обрезанное и с лишним байтом - битое.
+    // Truncated and with an extra byte - broken.
     const std::vector<uint8_t>& good = w.bytes();
     bool anyTruncatedAccepted = false;
     for (size_t size = 0; size < good.size(); size++) {
@@ -373,7 +373,7 @@ void testVesselAdded() {
     olc::Reader re(extra.data(), extra.size());
     CHECK(!olc::readVesselAdded(re, back));
 
-    // Слишком длинный класс не упаковывается.
+    // A too long class is not packed.
     added.className = std::string(256, 'x');
     olc::Writer tooLong;
     CHECK(!olc::writeVesselAdded(tooLong, added));
@@ -382,13 +382,13 @@ void testVesselAdded() {
 void testInputAndPing() {
     olc::Input input;
     input.netId = 7;
-    input.keys = (1u << 13) | (1u << 0);  // полный главный и RCS тангаж +
+    input.keys = (1u << 13) | (1u << 0);  // full main thrust and RCS pitch +
     input.rot[0] = -1.0f;
     input.rot[2] = 0.5f;
     input.lin[1] = 0.25f;
     input.throttle = 0.75f;
 
-    // Полный путь через UDP-заголовок.
+    // The full path through the UDP header.
     olc::Writer w;
     olc::UdpHeader header;
     header.type = static_cast<uint8_t>(olc::UdpType::Input);
@@ -396,7 +396,7 @@ void testInputAndPing() {
     header.seq = 5;
     olc::writeUdpHeader(w, header);
     olc::writeInput(w, input);
-    // Заголовок 15; тело 2 + 4 + 4 * 7 = 34.
+    // Header 15; body 2 + 4 + 4 * 7 = 34.
     CHECK(w.bytes().size() == 15 + 34);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
@@ -409,16 +409,16 @@ void testInputAndPing() {
     CHECK(back.rot[0] == -1.0f && back.rot[1] == 0.0f && back.rot[2] == 0.5f);
     CHECK(back.lin[1] == 0.25f && back.throttle == 0.75f);
 
-    // По умолчанию ручки газа нет.
+    // By default there is no throttle lever.
     CHECK(olc::Input().throttle == olc::kNoThrottle);
 
-    // Обрезанный INPUT - битый.
+    // A truncated INPUT is broken.
     olc::Writer body;
     olc::writeInput(body, input);
     olc::Reader rt(body.bytes().data(), body.bytes().size() - 1);
     CHECK(!olc::readInput(rt, back));
 
-    // PING и PONG: одно и то же тело из 9 байтов - время и номер клиента.
+    // PING and PONG: the same 9-byte body - time and client number.
     olc::Ping ping;
     ping.time = 12.625;
     ping.clientId = 3;
@@ -434,7 +434,7 @@ void testInputAndPing() {
     olc::Reader rpe(extra.data(), extra.size());
     CHECK(!olc::readPing(rpe, pingBack));
 
-    olc::Reader rps(wp.bytes().data(), wp.bytes().size() - 1);  // без номера клиента
+    olc::Reader rps(wp.bytes().data(), wp.bytes().size() - 1);  // without the client number
     CHECK(!olc::readPing(rps, pingBack));
 }
 
@@ -443,10 +443,10 @@ void testScenario() {
     scenario.name = "OLC session";
     scenario.data = {'B', 'E', 'G', 'I', 'N', '\n'};
 
-    // Полный путь через TCP-кадр.
+    // The full path through a TCP frame.
     olc::Writer w;
     CHECK(olc::writeScenario(w, scenario));
-    // (1 + 11) + 4 + 6 байтов.
+    // (1 + 11) + 4 + 6 bytes.
     CHECK(w.bytes().size() == 12 + 4 + 6);
     std::vector<uint8_t> frame =
         olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Scenario), w.bytes());
@@ -462,7 +462,7 @@ void testScenario() {
     CHECK(olc::readScenario(r, back));
     CHECK(back.name == "OLC session" && back.data == scenario.data);
 
-    // Пустой файл допустим.
+    // An empty file is allowed.
     olc::Scenario empty;
     empty.name = "x";
     olc::Writer we;
@@ -470,8 +470,8 @@ void testScenario() {
     olc::Reader rempty(we.bytes().data(), we.bytes().size());
     CHECK(olc::readScenario(rempty, back) && back.data.empty());
 
-    // size не совпадает с числом оставшихся байтов - битое. Поле size стоит после
-    // имени (12 байтов).
+    // size does not match the remaining bytes - broken. The size field comes after
+    // the name (12 bytes).
     std::vector<uint8_t> bigger = w.bytes();
     bigger[12] = 7;
     olc::Reader rb(bigger.data(), bigger.size());
@@ -481,7 +481,7 @@ void testScenario() {
     olc::Reader rs(smaller.data(), smaller.size());
     CHECK(!olc::readScenario(rs, back));
 
-    // Обрезанное - битое.
+    // Truncated - broken.
     bool anyTruncatedAccepted = false;
     for (size_t size = 0; size < w.bytes().size(); size++) {
         olc::Reader rt(w.bytes().data(), size);
@@ -491,8 +491,8 @@ void testScenario() {
     }
     CHECK(!anyTruncatedAccepted);
 
-    // Самый большой сценарий с самым длинным именем помещается в TCP-кадр,
-    // а на байт больше - уже не упаковывается.
+    // The largest scenario with the longest name fits into a TCP frame,
+    // and one byte more is no longer packed.
     olc::Scenario largest;
     largest.name = std::string(olc::kMaxStringLength, 'n');
     largest.data.assign(olc::kMaxScenarioSize, 'a');
@@ -511,19 +511,19 @@ void testFuel() {
     a.netId = 7;
     a.emptyMass = 11000.0;
     a.tankLevels = {1.0f, 0.25f, 0.0f};
-    olc::VesselFuel b;  // корабль без баков
+    olc::VesselFuel b;  // a vessel without tanks
     b.netId = 8;
     b.emptyMass = 500.0;
     fuel.vessels = {a, b};
 
     olc::Writer w;
     CHECK(olc::writeFuel(w, fuel));
-    // count 1; корабль: 2 + 8 + 1 + 4 * баки.
+    // count 1; vessel: 2 + 8 + 1 + 4 * tanks.
     CHECK(w.bytes().size() == 1 + (11 + 12) + 11);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
     olc::Fuel back;
-    back.vessels.resize(5);  // старое содержимое должно замениться
+    back.vessels.resize(5);  // the old contents must be replaced
     CHECK(olc::readFuel(r, back));
     CHECK(back.vessels.size() == 2);
     if (back.vessels.size() == 2) {
@@ -532,7 +532,7 @@ void testFuel() {
         CHECK(back.vessels[1].netId == 8 && back.vessels[1].tankLevels.empty());
     }
 
-    // Обрезанный пакет любой длины и лишний байт в конце - битые.
+    // A truncated packet of any length and an extra byte at the end are broken.
     const std::vector<uint8_t>& good = w.bytes();
     bool anyTruncatedAccepted = false;
     for (size_t size = 0; size < good.size(); size++) {
@@ -548,7 +548,7 @@ void testFuel() {
     olc::Reader re(extra.data(), extra.size());
     CHECK(!olc::readFuel(re, back));
 
-    // Пределы: 256 баков или 256 кораблей не упаковываются.
+    // Limits: 256 tanks or 256 vessels are not packed.
     olc::Fuel tooManyTanks = fuel;
     tooManyTanks.vessels[0].tankLevels.assign(256, 0.5f);
     olc::Writer wt;

@@ -1,23 +1,23 @@
-// Сетевая часть клиента: подключение к хосту и приём состояния мира.
+// Client network side: connecting to the host and receiving the world state.
 //
-// Что делает (docs/PROTOCOL.md, раздел 3):
-// - подключается по TCP и шлёт HELLO;
-// - принимает WELCOME (или REJECT), BODIES, VESSELS, OWNERSHIP и заполняет таблицу сессии;
-// - после VESSELS отвечает CLASSES_MISSING (какие классы есть, решает плагин через
-//   classExists), открывает UDP-сокет и шлёт UDP_READY;
-// - принимает WORLD_STATE: проверяет номер сессии и порядок пакетов, раскладывает
-//   состояния по буферам интерполяции кораблей (InterpolationBuffer) и подводит часы
-//   показа (ClientClock);
-// - принимает FUEL и LANDED и отдаёт их плагину (takeFuel, takeLanded);
-// - раз в секунду шлёт PING и считает задержку туда-обратно по PONG.
+// What it does (docs/PROTOCOL.md, section 3):
+// - connects over TCP and sends HELLO;
+// - receives WELCOME (or REJECT), BODIES, VESSELS, OWNERSHIP and fills the session table;
+// - after VESSELS answers CLASSES_MISSING (which classes exist is decided by the plugin via
+//   classExists), opens a UDP socket and sends UDP_READY;
+// - receives WORLD_STATE: checks the session number and packet order, puts the
+//   states into the vessels' interpolation buffers (InterpolationBuffer) and adjusts the
+//   display clock (ClientClock);
+// - receives FUEL and LANDED and hands them to the plugin (takeFuel, takeLanded);
+// - sends PING once per second and measures the round trip time from PONG.
 //
-// Orbiter здесь не нужен: плагин спрашивает состояние корабля на нужный момент
-// (sampleVessel) и сам навязывает его кораблю. Поэтому ClientLink проверяется тестами
-// на loopback вместе с HostLink.
+// Orbiter is not needed here: the plugin asks for a vessel state at the needed moment
+// (sampleVessel) and imposes it on the vessel itself. So ClientLink is tested
+// on loopback together with HostLink.
 //
-// Все функции ничего не ждут: poll вызывается каждый кадр (и по таймеру на паузе) из
-// главного потока Orbiter (решение 23). Сообщения для Orbiter.log копятся и забираются
-// takeLog - строки на английском.
+// No function waits: poll is called every frame (and by a timer while paused) from
+// Orbiter's main thread (decision 23). Messages for Orbiter.log accumulate and are taken
+// with takeLog - the lines are in English.
 #pragma once
 
 #include <cstdint>
@@ -35,39 +35,39 @@
 
 namespace olc {
 
-// Сколько секунд клиент ждёт подключения и WELCOME.
+// How many seconds the client waits for the connection and WELCOME.
 constexpr double kConnectTimeout = 5.0;
 
-// Как часто клиент шлёт PING, секунды.
+// How often the client sends PING, seconds.
 constexpr double kPingInterval = 1.0;
 
-// Настройки клиента.
+// Client settings.
 struct ClientConfig {
-    Endpoint host;                // адрес и порт хоста
-    std::string player;           // имя игрока для HELLO
-    uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion, уходит в HELLO
-    std::string pluginVersion;    // версия плагина, уходит в HELLO
-    std::string system;           // своя планетная система; другая у хоста - отключение
+    Endpoint host;                // host address and port
+    std::string player;           // player name for HELLO
+    uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion, goes into HELLO
+    std::string pluginVersion;    // plugin version, goes into HELLO
+    std::string system;           // own planetary system; a different one on the host - disconnect
     double displayDelay = kDefaultDisplayDelay;
-    // Есть ли у клиента класс корабля. Классы, для которых вернёт false, уходят хосту в
-    // CLASSES_MISSING. Если не задано - считается, что есть все.
+    // Whether the client has a vessel class. Classes for which it returns false go to the host in
+    // CLASSES_MISSING. If not set, all classes are assumed to exist.
     std::function<bool(const std::string& className)> classExists;
 };
 
-// Статистика для лога.
+// Statistics for the log.
 struct ClientStats {
-    uint64_t worldStatePackets = 0;  // принятые WORLD_STATE
-    uint64_t droppedPackets = 0;     // чужая сессия, старый seq, битые
-    uint64_t starvedSamples = 0;     // sampleVessel, когда буфер кончился
+    uint64_t worldStatePackets = 0;  // received WORLD_STATE
+    uint64_t droppedPackets = 0;     // foreign session, old seq, broken
+    uint64_t starvedSamples = 0;     // sampleVessel when the buffer ran out
 };
 
 class ClientLink {
 public:
     enum class State {
-        Idle,        // start ещё не вызывали
-        Connecting,  // идёт TCP-подключение и рукопожатие
-        Ready,       // UDP_READY отправлен, идёт обмен состояниями
-        Closed,      // отключились; причина - closeReason
+        Idle,        // start has not been called yet
+        Connecting,  // TCP connection and handshake in progress
+        Ready,       // UDP_READY sent, states are being exchanged
+        Closed,      // disconnected; the reason is closeReason
     };
 
     ClientLink() = default;
@@ -75,68 +75,68 @@ public:
     ClientLink(const ClientLink&) = delete;
     ClientLink& operator=(const ClientLink&) = delete;
 
-    // Начинает подключение. false - сразу ошибка (причина - в closeReason и takeLog).
-    // Сеть уже должна быть запущена (startNetwork). now - реальное время, секунды.
+    // Starts connecting. false - immediate error (the reason is in closeReason and takeLog).
+    // The network must already be started (startNetwork). now - real time, seconds.
     bool start(const ClientConfig& config, double now);
 
-    // Шлёт хосту BYE с причиной и закрывает сокеты.
+    // Sends BYE with a reason to the host and closes the sockets.
     void stop(const std::string& reason);
 
-    // Принимает и отправляет всё, что нужно. now - реальное время (oapiGetSysTime).
+    // Receives and sends everything needed. now - real time (oapiGetSysTime).
     void poll(double now);
 
     State state() const { return state_; }
     const std::string& closeReason() const { return closeReason_; }
 
-    // ----- Что прислал хост -----
+    // ----- What the host sent -----
 
     const SessionTable& table() const { return table_; }
     const std::vector<BodyEntry>& bodies() const { return bodies_; }
     uint8_t clientId() const { return clientId_; }
     uint8_t stateRateHz() const { return stateRateHz_; }
 
-    // Пришёл ли хоть один WORLD_STATE. До этого время и состояния не известны.
+    // Whether at least one WORLD_STATE has arrived. Before that time and states are unknown.
     bool hasWorld() const { return clock_.started(); }
 
-    // Сим-время хоста, которое показывать сейчас (ClientClock).
+    // The host sim time to display now (ClientClock).
     double displayTime(double now) { return clock_.displayTime(now); }
 
-    // Ускорение и пауза хоста из последнего WORLD_STATE.
+    // Host time acceleration and pause from the last WORLD_STATE.
     double hostWarp() const { return hostWarp_; }
     bool hostPaused() const { return hostPaused_; }
 
-    // MJD, соответствующий сим-времени хоста simTime (по последнему WORLD_STATE:
-    // mjd = mjd_пакета + (simTime − sim_time_пакета) / 86400).
+    // MJD corresponding to the host sim time simTime (from the last WORLD_STATE:
+    // mjd = packet_mjd + (simTime − packet_sim_time) / 86400).
     double hostMjdAt(double simTime) const;
 
-    // Состояние корабля netId на сим-время хоста simTime (InterpolationBuffer::sample).
-    // false - по этому кораблю ещё не было ни одного пакета.
+    // State of vessel netId at host sim time simTime (InterpolationBuffer::sample).
+    // false - no packet has arrived for this vessel yet.
     bool sampleVessel(uint16_t netId, double simTime, VesselState& result, bool& starved);
 
-    // Забирает топливо из FUEL, пришедших с прошлого вызова (по последнему на корабль).
+    // Takes fuel from FUEL messages received since the last call (the latest per vessel).
     std::vector<VesselFuel> takeFuel();
 
-    // Забирает LANDED, пришедшие с прошлого вызова, по порядку прихода.
+    // Takes LANDED messages received since the last call, in arrival order.
     std::vector<Landed> takeLanded();
 
-    // Последняя задержка туда-обратно, секунды; меньше 0 - ещё не измерена.
+    // The latest round trip time, seconds; below 0 - not measured yet.
     double rtt() const { return rtt_; }
 
     const ClientStats& stats() const { return stats_; }
 
-    // Забирает накопленные строки для лога.
+    // Takes the accumulated log lines.
     std::vector<std::string> takeLog();
 
 private:
-    // Разбирает TCP-сообщения хоста. false - соединение надо закрыть (причина в closeReason_).
+    // Parses the host's TCP messages. false - the connection must be closed (the reason is in closeReason_).
     bool handleFrames(double now);
-    // Разбор отдельных сообщений. При ошибке или отказе вызывают close.
+    // Parsing of individual messages. On error or rejection they call close.
     void handleWelcome(Reader& reader);
     void handleReject(Reader& reader);
     void handleVessels(Reader& reader, double now);
     void handleVesselAdded(Reader& reader);
     void handleVesselRemoved(Reader& reader);
-    // Кладёт TCP-сообщение в очередь и отправляет сколько получится.
+    // Puts a TCP message into the queue and sends as much as it can.
     void sendMessage(TcpType type, const Writer& body);
     void handleUdp(double now);
     void sendPing(double now);
@@ -160,15 +160,15 @@ private:
     std::vector<BodyEntry> bodies_;
 
     ClientClock clock_;
-    std::map<uint16_t, InterpolationBuffer> buffers_;  // по net_id
+    std::map<uint16_t, InterpolationBuffer> buffers_;  // by net_id
     bool haveSeq_ = false;
-    uint32_t lastSeq_ = 0;  // последний принятый seq WORLD_STATE и FUEL
+    uint32_t lastSeq_ = 0;  // last accepted seq of WORLD_STATE and FUEL
     double hostWarp_ = 1.0;
     bool hostPaused_ = false;
     double lastPacketSimTime_ = 0.0;
     double lastPacketMjd_ = 0.0;
 
-    std::map<uint16_t, VesselFuel> fuel_;  // по net_id, ещё не забранное
+    std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
 
     uint32_t pingSeq_ = 0;

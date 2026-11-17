@@ -1,5 +1,5 @@
-// Тесты заголовков: UDP-заголовок и сборка TCP-сообщений из потока,
-// включая битые и чужие пакеты.
+// Header tests: the UDP header and assembling TCP messages from a stream,
+// including broken and foreign packets.
 
 #include <vector>
 
@@ -12,7 +12,7 @@ namespace {
 using olc::UdpHeaderResult;
 using Frame = olc::TcpFrameReader::Result;
 
-// Пакет с правильным заголовком и телом из двух байтов.
+// A packet with a correct header and a two-byte body.
 std::vector<uint8_t> makeUdpPacket() {
     olc::Writer w;
     olc::UdpHeader header;
@@ -33,7 +33,7 @@ UdpHeaderResult parsePacket(const std::vector<uint8_t>& packet, olc::UdpHeader& 
 void testUdpHeader() {
     std::vector<uint8_t> packet = makeUdpPacket();
     CHECK(packet.size() == olc::kUdpHeaderSize + 2);
-    // Начало пакета: сигнатура OLC0 и версия протокола little-endian.
+    // Start of the packet: the OLC0 signature and the protocol version, little-endian.
     CHECK(packet[0] == 'O' && packet[1] == 'L' && packet[2] == 'C' && packet[3] == '0');
     CHECK(packet[4] == (olc::kProtocolVersion & 0xFF) && packet[5] == (olc::kProtocolVersion >> 8));
 
@@ -41,7 +41,7 @@ void testUdpHeader() {
     olc::UdpHeader header;
     CHECK(olc::readUdpHeader(r, header) == UdpHeaderResult::Ok);
     CHECK(header.type == 7 && header.session == 123456 && header.seq == 42);
-    // Reader стоит на теле сообщения.
+    // Reader is at the message body.
     uint8_t first = 0;
     CHECK(r.readU8(first) && first == 0xAA);
 }
@@ -49,23 +49,23 @@ void testUdpHeader() {
 void testBrokenUdp() {
     olc::UdpHeader header;
 
-    // Короче заголовка, в том числе пустой пакет.
+    // Shorter than the header, including an empty packet.
     std::vector<uint8_t> packet = makeUdpPacket();
     packet.resize(olc::kUdpHeaderSize - 1);
     CHECK(parsePacket(packet, header) == UdpHeaderResult::TooShort);
     CHECK(parsePacket({}, header) == UdpHeaderResult::TooShort);
 
-    // Чужая сигнатура.
+    // Foreign signature.
     packet = makeUdpPacket();
     packet[3] = '1';
     CHECK(parsePacket(packet, header) == UdpHeaderResult::WrongMagic);
 
-    // Другая версия протокола.
+    // Another protocol version.
     packet = makeUdpPacket();
     packet[4] = static_cast<uint8_t>(olc::kProtocolVersion + 1);
     CHECK(parsePacket(packet, header) == UdpHeaderResult::WrongVersion);
 
-    // Больше предельного размера.
+    // Larger than the size limit.
     packet = makeUdpPacket();
     packet.resize(olc::kMaxUdpPacketSize + 1);
     CHECK(parsePacket(packet, header) == UdpHeaderResult::TooLong);
@@ -75,10 +75,10 @@ void testBrokenUdp() {
 
 void testTcpFrame() {
     std::vector<uint8_t> frame = olc::makeTcpFrame(3, {10, 20, 30});
-    // Длина 4 (тип + 3 байта тела), тип, тело.
+    // Length 4 (type + 3 body bytes), type, body.
     CHECK(frame == std::vector<uint8_t>({4, 0, 0, 0, 3, 10, 20, 30}));
 
-    // Два сообщения, пришедшие по одному байту: собираются целиком и по порядку.
+    // Two messages arriving one byte at a time: assembled whole and in order.
     std::vector<uint8_t> stream = frame;
     std::vector<uint8_t> second = olc::makeTcpFrame(9, {});
     stream.insert(stream.end(), second.begin(), second.end());
@@ -104,7 +104,7 @@ void testTcpFrame() {
     CHECK(ready == 2);
     CHECK(reader.next(type, body) == Frame::NeedMore);
 
-    // Два сообщения одним куском.
+    // Two messages in one chunk.
     olc::TcpFrameReader together;
     together.append(stream.data(), stream.size());
     CHECK(together.next(type, body) == Frame::Ready && type == 3);
@@ -116,23 +116,23 @@ void testBrokenTcp() {
     uint8_t type = 0;
     std::vector<uint8_t> body;
 
-    // Длина 0: даже типа нет.
+    // Length 0: not even a type.
     olc::TcpFrameReader zero;
     const uint8_t zeroLength[4] = {0, 0, 0, 0};
     zero.append(zeroLength, sizeof(zeroLength));
     CHECK(zero.next(type, body) == Frame::Broken);
 
-    // Длина больше 1 МБ: поток испорчен, и дальше он не разбирается,
-    // даже если потом придёт правильное сообщение.
+    // Length above 1 MB: the stream is corrupted and is not parsed any further,
+    // even if a correct message comes later.
     olc::TcpFrameReader huge;
-    const uint8_t hugeLength[4] = {0x01, 0x00, 0x10, 0x00};  // 1 МБ + 1
+    const uint8_t hugeLength[4] = {0x01, 0x00, 0x10, 0x00};  // 1 MB + 1
     huge.append(hugeLength, sizeof(hugeLength));
     CHECK(huge.next(type, body) == Frame::Broken);
     std::vector<uint8_t> good = olc::makeTcpFrame(1, {});
     huge.append(good.data(), good.size());
     CHECK(huge.next(type, body) == Frame::Broken);
 
-    // Ровно 1 МБ - допустимо: ждём остальные байты.
+    // Exactly 1 MB is allowed: we wait for the remaining bytes.
     olc::TcpFrameReader limit;
     const uint8_t limitLength[4] = {0x00, 0x00, 0x10, 0x00};
     limit.append(limitLength, sizeof(limitLength));

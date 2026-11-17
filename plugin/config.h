@@ -1,8 +1,8 @@
-// Настройки плагина из файла Config\OrbiterLanCoop.cfg в каталоге Orbiter.
+// Plugin settings from the file Config\OrbiterLanCoop.cfg in the Orbiter folder.
 //
-// На этапе 1 настройки задаются файлом: так хост и клиент запускаются без интерфейса,
-// в том числе по SSH без графики. Окно в Launchpad появится позже
-// (docs/ARCHITECTURE.md, раздел «Интерфейс»). Пример файла - plugin/OrbiterLanCoop.cfg.
+// At stage 1 settings come from a file: this way host and client start without a UI,
+// including over SSH without graphics. A Launchpad window will come later
+// (docs/ARCHITECTURE.md, section "Interface"). Example file - plugin/OrbiterLanCoop.cfg.
 #pragma once
 
 #include <string>
@@ -10,30 +10,30 @@
 namespace olcplugin {
 
 enum class Role {
-    Off,     // плагин загружен, но ничего не делает
+    Off,     // the plugin is loaded but does nothing
     Host,
     Client,
 };
 
 struct Config {
     Role role = Role::Off;
-    std::string hostAddress = "127.0.0.1";  // клиент: адрес хоста
-    int port = 47800;                       // хост и клиент
-    std::string player = "player";          // клиент: имя игрока
-    int maxPlayers = 4;                     // хост: предел игроков, хост тоже игрок
-    int stateRateHz = 30;                   // хост: частота WORLD_STATE
-    double displayDelay = 0.1;              // клиент: задержка показа, секунды
-    // Клиент: расхождение сим-времени с хостом (секунды × ускорение), после которого
-    // время клиента подтягивается прыжком.
+    std::string hostAddress = "127.0.0.1";  // client: host address
+    int port = 47800;                       // host and client
+    std::string player = "player";          // client: player name
+    int maxPlayers = 4;                     // host: player limit, the host is a player too
+    int stateRateHz = 30;                   // host: WORLD_STATE rate
+    double displayDelay = 0.1;              // client: display delay, seconds
+    // Client: sim time error against the host (seconds × warp) after which
+    // the client time catches up with a jump.
     double timeSyncThreshold = 0.1;
-    // Если не пусто - каждый кадр писать положение этого корабля в файл trace (CSV) для
-    // сравнения хоста и клиента после прогона.
+    // If not empty - write this vessel's position to the trace file (CSV) every frame to
+    // compare host and client after a run.
     std::string traceVessel;
     std::string traceFile = "olc-trace.csv";
 };
 
-// Читает Config\OrbiterLanCoop.cfg. Если файла нет - Role::Off. Ошибки в значениях
-// пишутся в Orbiter.log, а для такого поля остаётся значение по умолчанию.
+// Reads Config\OrbiterLanCoop.cfg. No file - Role::Off. Errors in values
+// are written to Orbiter.log, and such a field keeps its default value.
 Config loadConfig();
 
 const char* roleName(Role role);

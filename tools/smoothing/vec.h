@@ -1,4 +1,4 @@
-// Минимальные трёхмерный вектор и кватернион для симуляции сглаживания.
+// A minimal 3D vector and quaternion for the smoothing simulation.
 #pragma once
 
 #include <cmath>
@@ -15,7 +15,7 @@ inline Vec3 operator*(Vec3 a, double k) { return {a.x * k, a.y * k, a.z * k}; }
 
 inline double length(Vec3 a) { return std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z); }
 
-// Единичный вектор того же направления. Для нулевого вектора возвращает ноль.
+// A unit vector of the same direction. For a zero vector returns zero.
 inline Vec3 normalize(Vec3 a) {
     double len = length(a);
     if (len == 0.0) {
@@ -24,11 +24,11 @@ inline Vec3 normalize(Vec3 a) {
     return a * (1.0 / len);
 }
 
-// Линейная интерполяция: s = 0 даёт a, s = 1 даёт b.
+// Linear interpolation: s = 0 gives a, s = 1 gives b.
 inline Vec3 lerp(Vec3 a, Vec3 b, double s) { return a + (b - a) * s; }
 
-// Кубическая интерполяция Эрмита между точками p0 и p1 со скоростями v0 и v1.
-// h - длина интервала по времени, s - положение внутри интервала от 0 до 1.
+// Cubic Hermite interpolation between points p0 and p1 with velocities v0 and v1.
+// h - interval length in time, s - position within the interval from 0 to 1.
 inline Vec3 hermite(Vec3 p0, Vec3 v0, Vec3 p1, Vec3 v1, double h, double s) {
     double s2 = s * s;
     double s3 = s2 * s;
@@ -39,7 +39,7 @@ inline Vec3 hermite(Vec3 p0, Vec3 v0, Vec3 p1, Vec3 v1, double h, double s) {
     return p0 * h00 + v0 * (h10 * h) + p1 * h01 + v1 * (h11 * h);
 }
 
-// Кватернион поворота (w - скалярная часть), используем только единичные.
+// Rotation quaternion (w - scalar part); only unit quaternions are used.
 struct Quat {
     double w = 1.0;
     double x = 0.0;
@@ -47,7 +47,7 @@ struct Quat {
     double z = 0.0;
 };
 
-// Произведение Гамильтона: сначала поворот b, потом a.
+// Hamilton product: first rotation b, then a.
 inline Quat operator*(Quat a, Quat b) {
     return {a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
             a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
@@ -60,14 +60,14 @@ inline Quat normalize(Quat q) {
     return {q.w / len, q.x / len, q.y / len, q.z / len};
 }
 
-// Поворот на angle радиан вокруг оси axis (ось не обязана быть единичной).
+// Rotation by angle radians around axis (the axis need not be unit length).
 inline Quat quatFromAxisAngle(Vec3 axis, double angle) {
     Vec3 n = normalize(axis);
     double s = std::sin(angle / 2.0);
     return {std::cos(angle / 2.0), n.x * s, n.y * s, n.z * s};
 }
 
-// Поворачивает q за время dt с угловой скоростью w (вектор в осях тела).
+// Rotates q over time dt with angular velocity w (a vector in body axes).
 inline Quat rotateBy(Quat q, Vec3 w, double dt) {
     double speed = length(w);
     if (speed == 0.0) {
@@ -76,16 +76,16 @@ inline Quat rotateBy(Quat q, Vec3 w, double dt) {
     return normalize(q * quatFromAxisAngle(w, speed * dt));
 }
 
-// Сферическая интерполяция: s = 0 даёт a, s = 1 даёт b, путь по короткой дуге.
+// Spherical interpolation: s = 0 gives a, s = 1 gives b, along the short arc.
 inline Quat slerp(Quat a, Quat b, double s) {
     double d = a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
-    if (d < 0.0) {  // q и -q задают один и тот же поворот
+    if (d < 0.0) {  // q and -q give the same rotation
         b = {-b.w, -b.x, -b.y, -b.z};
         d = -d;
     }
     double ka = 1.0 - s;
     double kb = s;
-    if (d < 0.9995) {  // обычный случай; при почти равных кватернионах хватает линейной смеси
+    if (d < 0.9995) {  // the usual case; for almost equal quaternions a linear blend is enough
         double theta = std::acos(d);
         ka = std::sin((1.0 - s) * theta) / std::sin(theta);
         kb = std::sin(s * theta) / std::sin(theta);
@@ -94,9 +94,9 @@ inline Quat slerp(Quat a, Quat b, double s) {
                       a.y * ka + b.y * kb, a.z * ka + b.z * kb});
 }
 
-// Угол в радианах между двумя ориентациями.
+// Angle in radians between two attitudes.
 inline double angleBetween(Quat a, Quat b) {
-    // Разностный поворот: conj(a) * b
+    // Difference rotation: conj(a) * b
     Quat conjA = {a.w, -a.x, -a.y, -a.z};
     Quat d = conjA * b;
     double vectorPart = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);

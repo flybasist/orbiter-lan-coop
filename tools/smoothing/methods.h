@@ -1,27 +1,27 @@
-// Способы восстановления движения на клиенте.
+// Ways of reconstructing motion on the client.
 #pragma once
 
 #include <vector>
 
 #include "trajectory.h"
 
-// Что клиент рисует в данный кадр.
+// What the client draws in a given frame.
 struct Display {
     Vec3 pos;
     Quat att;
-    bool starved = false;  // буфер кончился: пришлось экстраполировать (только для интерполяции)
+    bool starved = false;  // the buffer ran out: had to extrapolate (interpolation only)
 };
 
-// 1. Как обычный DefSetStateEx в Orbiter: последнее состояние, перенесённое
-//    до момента nowSim только под действием гравитации.
+// 1. Like a plain DefSetStateEx in Orbiter: the last state carried forward
+//    to moment nowSim under gravity only.
 Display snapGravity(const State& newest, double nowSim);
 
-// 2. Последнее состояние, перенесённое до nowSim с постоянным ускорением из пакета.
+// 2. The last state carried to nowSim with the constant acceleration from the packet.
 Display extrapolate(const State& newest, double nowSim);
 
-// 3. Линейная интерполяция положения между пакетами, slerp для ориентации.
-//    buffer - принятые пакеты по возрастанию времени, tDisp - показываемое время.
+// 3. Linear interpolation of position between packets, slerp for attitude.
+//    buffer - received packets in ascending time, tDisp - displayed time.
 Display interpLinear(const std::vector<State>& buffer, double tDisp);
 
-// 4. Кубическая интерполяция Эрмита по положениям и скоростям, slerp для ориентации.
+// 4. Cubic Hermite interpolation over positions and velocities, slerp for attitude.
 Display interpHermite(const std::vector<State>& buffer, double tDisp);

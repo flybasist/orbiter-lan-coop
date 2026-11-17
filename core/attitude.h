@@ -1,17 +1,17 @@
-// Ориентация корабля: углы Эйлера Orbiter, кватернионы и плавный переход между ними.
+// Vessel attitude: Orbiter Euler angles, quaternions and a smooth transition between them.
 //
-// По сети ориентация идёт углами Эйлера, как в VESSELSTATUS2::arot (PROTOCOL.md,
-// раздел 6). Углы нельзя интерполировать по отдельности: например, между 3,1 и -3,1 рад
-// (почти один и тот же поворот) получился бы 0 - разворот на 180°. Поэтому углы
-// переводятся в кватернион, кватернионы интерполируются (slerp), и результат
-// переводится обратно в углы.
+// Over the network attitude goes as Euler angles, as in VESSELSTATUS2::arot (PROTOCOL.md,
+// section 6). The angles cannot be interpolated one by one: for example, between 3.1 and -3.1 rad
+// (almost the same rotation) we would get 0 - a 180° turn. So the angles
+// are converted into a quaternion, the quaternions are interpolated (slerp), and the result
+// is converted back into angles.
 #pragma once
 
 #include "messages.h"
 
 namespace olc {
 
-// Кватернион поворота единичной длины: w - скалярная часть, x, y, z - векторная.
+// Unit rotation quaternion: w - scalar part, x, y, z - vector part.
 struct Quat {
     double w = 1.0;
     double x = 0.0;
@@ -19,16 +19,16 @@ struct Quat {
     double z = 0.0;
 };
 
-// Углы arot (рад) → кватернион. Матрица поворота из углов строится так же, как в
-// ядре Orbiter (Src/Orbiter/Vessel.cpp:900, Vessel::SetGlobalOrientation).
+// arot angles (rad) → quaternion. The rotation matrix is built from the angles the same way as in
+// the Orbiter core (Src/Orbiter/Vessel.cpp:900, Vessel::SetGlobalOrientation).
 Quat eulerToQuat(const Vec3& arot);
 
-// Кватернион → углы arot (рад): x и z в пределах -π…π, y в пределах -π/2…π/2.
-// Если y = ±π/2 (корабль смотрит строго вдоль оси), x и z по отдельности не
-// определены: тогда x = 0, а весь поворот вокруг оси приходится на z.
+// Quaternion → arot angles (rad): x and z within -π…π, y within -π/2…π/2.
+// If y = ±π/2 (the vessel points exactly along the axis), x and z are not defined
+// separately: then x = 0, and the whole rotation around the axis goes into z.
 Vec3 quatToEuler(const Quat& q);
 
-// Поворот, лежащий между a и b на доле s (0 - a, 1 - b), по кратчайшему пути.
+// The rotation between a and b at fraction s (0 - a, 1 - b), along the shortest path.
 Quat slerp(const Quat& a, const Quat& b, double s);
 
 }  // namespace olc

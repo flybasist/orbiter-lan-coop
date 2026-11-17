@@ -26,7 +26,7 @@ bool SessionTable::addPlayer(uint8_t& clientId) {
         return false;
     }
 
-    // Наименьший номер, которого ещё нет среди клиентов.
+    // The lowest number not yet used by a client.
     for (int id = kMinClientId; id <= kMaxClientId; id++) {
         if (std::find(clients_.begin(), clients_.end(), id) == clients_.end()) {
             clients_.push_back(static_cast<uint8_t>(id));
@@ -34,7 +34,7 @@ bool SessionTable::addPlayer(uint8_t& clientId) {
             return true;
         }
     }
-    return false;  // недостижимо: клиентов меньше 8, а номеров 254
+    return false;  // unreachable: fewer than 8 clients and 254 numbers
 }
 
 bool SessionTable::removePlayer(uint8_t clientId) {
@@ -72,7 +72,7 @@ bool SessionTable::insertVessel(uint16_t netId, const std::string& name,
         return false;
     }
 
-    // Первое место, где номер уже не меньше нового: туда и вставляем.
+    // The first place where the number is not less than the new one: insert there.
     auto it = vessels_.begin();
     while (it != vessels_.end() && it->netId < netId) {
         ++it;

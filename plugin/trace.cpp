@@ -8,7 +8,7 @@ Trace::~Trace() {
 
 bool Trace::open(const std::string& path) {
     close();
-    // fopen_s вместо fopen: MSVC считает fopen небезопасной и предупреждает.
+    // fopen_s instead of fopen: MSVC considers fopen unsafe and warns.
     if (fopen_s(&file_, path.c_str(), "w") != 0) {
         file_ = nullptr;
         return false;
@@ -28,7 +28,7 @@ void Trace::write(double mjd, const char* refBody, double x, double y, double z,
     if (!file_) {
         return;
     }
-    // MJD с 12 знаками после точки - это точность около 0,1 мкс.
+    // MJD with 12 decimal places is a precision of about 0.1 µs.
     std::fprintf(file_, "%.12f,%s,%.3f,%.3f,%.3f,%d\n", mjd, refBody, x, y, z, starved ? 1 : 0);
 }
 

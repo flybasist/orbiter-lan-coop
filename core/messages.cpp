@@ -4,12 +4,12 @@ namespace olc {
 
 namespace {
 
-// Общая проверка в конце разбора: все чтения удались и лишних байтов нет.
+// Common check at the end of parsing: all reads succeeded and there are no extra bytes.
 bool finished(const Reader& reader) {
     return reader.ok() && reader.remaining() == 0;
 }
 
-// Пишет число элементов списка; false, если их больше, чем помещается в u16.
+// Writes the list item count; false if there are more than fit into u16.
 bool writeCount(Writer& writer, size_t count) {
     if (count > 65535) {
         return false;
@@ -60,9 +60,9 @@ bool readReject(Reader& reader, Reject& message) {
     return finished(reader);
 }
 
-// ---------- Списки ----------
-// При разборе списка число элементов из пакета заранее не резервируем: битый пакет
-// может обещать 65535 элементов. Цикл прерывается на первой неудачной записи.
+// ---------- Lists ----------
+// When parsing a list we do not reserve the item count from the packet in advance: a broken packet
+// may promise 65535 items. The loop stops at the first failed read.
 
 bool writeBodies(Writer& writer, const std::vector<BodyEntry>& bodies) {
     if (!writeCount(writer, bodies.size())) {
@@ -165,7 +165,7 @@ bool readOwnership(Reader& reader, std::vector<OwnerEntry>& owners) {
     return finished(reader);
 }
 
-// ---------- Короткие сообщения ----------
+// ---------- Short messages ----------
 
 void writeVesselRemoved(Writer& writer, uint16_t netId) {
     writer.writeU16(netId);
@@ -262,7 +262,7 @@ bool writeVesselState(Writer& writer, const VesselState& state) {
     writer.writeU16(state.netId);
     writer.writeU8(state.status);
     writer.writeU16(state.refBody);
-    // Положение и ориентацию стоящего на поверхности корабля не передаём.
+    // Position and attitude of a landed vessel are not sent.
     if (state.status == static_cast<uint8_t>(VesselStatus::Flying)) {
         writeVec3(writer, state.rpos);
         writeVec3(writer, state.rvel);
@@ -290,13 +290,13 @@ bool readVesselState(Reader& reader, VesselState& state) {
         readVec3(reader, state.arot);
         readVec3(reader, state.vrot);
     } else if (state.status == static_cast<uint8_t>(VesselStatus::Landed)) {
-        // Полей положения нет: обнуляем, чтобы не осталось значений от прошлого пакета.
+        // No position fields: zero them so that no values remain from the previous packet.
         state.rpos = Vec3();
         state.rvel = Vec3();
         state.arot = Vec3();
         state.vrot = Vec3();
     } else {
-        return false;  // неизвестный status: непонятно, какие поля дальше
+        return false;  // unknown status: unclear which fields follow
     }
 
     uint8_t count = 0;
@@ -335,8 +335,8 @@ bool readWorldState(Reader& reader, WorldState& message) {
     if (!reader.ok()) {
         return false;
     }
-    // Число кораблей пришло из сети, поэтому место не резервируем заранее, а добавляем
-    // корабли по одному, пока они действительно читаются.
+    // The vessel count came from the network, so we do not reserve space in advance but add
+    // vessels one by one while they actually read.
     message.vessels.clear();
     for (int i = 0; i < count; i++) {
         VesselState state;
@@ -375,7 +375,7 @@ bool readFuel(Reader& reader, Fuel& message) {
     if (!reader.ok()) {
         return false;
     }
-    // Как в WORLD_STATE: числа пришли из сети, поэтому добавляем по одному, пока читается.
+    // As in WORLD_STATE: the numbers came from the network, so add one by one while reading works.
     message.vessels.clear();
     for (int i = 0; i < count; i++) {
         VesselFuel fuel;
@@ -468,8 +468,8 @@ bool readScenario(Reader& reader, Scenario& message) {
     uint32_t size = 0;
     reader.readString(message.name);
     reader.readU32(size);
-    // size пришёл из сети: сначала сверяем его с тем, что действительно есть в пакете,
-    // и только потом читаем столько байтов.
+    // size came from the network: first compare it with what is actually in the packet,
+    // and only then read that many bytes.
     if (!reader.ok() || size > kMaxScenarioSize || size != reader.remaining()) {
         return false;
     }

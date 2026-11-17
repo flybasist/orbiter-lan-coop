@@ -4,16 +4,16 @@
 
 namespace {
 
-// Ориентация, продолженная с последней угловой скоростью.
+// Attitude continued with the last angular velocity.
 Quat advanceAttitude(const State& s, double t) {
     return rotateBy(s.att, s.angVel, t - s.time);
 }
 
-// Общая часть интерполяции; useHermite выбирает способ для положения.
+// The common part of interpolation; useHermite chooses the method for position.
 Display interpolate(const std::vector<State>& buffer, double tDisp, bool useHermite) {
     const State& newest = buffer.back();
 
-    // Показываемое время за краем буфера: движемся дальше с последней скоростью.
+    // Displayed time past the buffer end: keep moving with the last velocity.
     if (buffer.size() < 2 || tDisp >= newest.time) {
         Display d;
         d.pos = newest.pos + newest.vel * (tDisp - newest.time);
@@ -22,8 +22,8 @@ Display interpolate(const std::vector<State>& buffer, double tDisp, bool useHerm
         return d;
     }
 
-    // Ищем с конца пару пакетов, между которыми лежит tDisp
-    // (если tDisp раньше первого пакета, берём первую пару).
+    // Search from the end for a pair of packets around tDisp
+    // (if tDisp is earlier than the first packet, take the first pair).
     size_t i = buffer.size() - 2;
     while (i > 0 && buffer[i].time > tDisp) {
         i--;
@@ -53,7 +53,7 @@ Display snapGravity(const State& newest, double nowSim) {
 }
 
 Display extrapolate(const State& newest, double nowSim) {
-    // Тяга в момент отправки = полное ускорение минус гравитация; держим её постоянной.
+    // Thrust at the send moment = total acceleration minus gravity; keep it constant.
     Forces forces;
     forces.constantAcc = newest.acc - gravityAccel(newest.pos);
 

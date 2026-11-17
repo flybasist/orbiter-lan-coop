@@ -1,27 +1,27 @@
-# Пример списка стендов OLC.
+# Example list of OLC test rigs.
 #
-# Скопируйте файл в stands.yaml (он в .gitignore и в git не попадает) и опишите свои машины.
-# ИИ-агент работает только с машинами из stands.yaml; если файла нет — стендов нет.
-# Как подготовить машину и какие системы поддерживаются — docs/STANDS.md.
+# Copy this file to stands.yaml (it is in .gitignore and never gets into git) and describe your machines.
+# The AI agent works only with machines from stands.yaml; no file - no test rigs.
+# How to prepare a machine and which systems are supported - docs/STANDS.md.
 #
-# Адреса, пользователь и ключ здесь не пишутся: они живут в ~/.ssh/config, а в этом файле
-# указывается только имя машины оттуда (поле ssh). Паролей нет нигде.
+# Addresses, user and key are not written here: they live in ~/.ssh/config, and this file
+# gives only the machine name from there (the ssh field). There are no passwords anywhere.
 #
-# Поля машины:
-#   ssh       - имя хоста в ~/.ssh/config, по нему агент подключается
-#   where     - где работает: parallels, vmware, hyper-v, proxmox, hardware, steam-deck
-#   os        - система: windows-11, windows-10, debian-13, ubuntu-26.04, steamos и т. п.
-#   arch      - архитектура: x64 или arm64
-#   roles     - для чего машина (список; значения - docs/STANDS.md, раздел «Роли машин»):
+# Machine fields:
+#   ssh       - host name in ~/.ssh/config, the agent connects by it
+#   where     - where it runs: parallels, vmware, hyper-v, proxmox, hardware, steam-deck
+#   os        - system: windows-11, windows-10, debian-13, ubuntu-26.04, steamos, etc.
+#   arch      - architecture: x64 or arm64
+#   roles     - what the machine is for (a list; values - docs/STANDS.md, section "Machine roles"):
 #               build, client, host, headless-host, core-tests
-#   access    - что агенту можно на машине (docs/STANDS.md, раздел 6):
-#               limited - только сборка, запуск и остановка Orbiter, файлы OLC, логи;
-#               full    - машина отдана агенту: пакеты, перезагрузка, настройки
-#   screen    - как увидеть картинку: none, mac-window (окно ВМ на экране Mac),
-#               console (консоль гипервизора, входит владелец), physical (только у машины)
-#   orbiter   - каталог установки Orbiter на машине (пусто, если Orbiter не ставится)
-#   checked   - дата последней проверки, что машина готова (ГГГГ-ММ-ДД)
-#   notes     - что угодно ещё: особенности, ограничения
+#   access    - what the agent may do on the machine (docs/STANDS.md, section 6):
+#               limited - only build, start and stop Orbiter, OLC files, logs;
+#               full    - the machine is given to the agent: packages, reboots, settings
+#   screen    - how to see the picture: none, mac-window (VM window on the Mac screen),
+#               console (hypervisor console, the owner logs in), physical (only at the machine)
+#   orbiter   - Orbiter install folder on the machine (empty if Orbiter is not installed)
+#   checked   - date of the last check that the machine is ready (YYYY-MM-DD)
+#   notes     - anything else: features, limitations
 
 machines:
   - ssh: olc-win-arm
@@ -33,7 +33,7 @@ machines:
     screen: mac-window
     orbiter: 'C:\olc\orbiter'
     checked: 2026-01-01
-    notes: Orbiter x64 через эмуляцию - FPS не показатель
+    notes: Orbiter x64 via emulation - FPS is not meaningful
 
   - ssh: olc-win-x86
     where: proxmox
@@ -44,4 +44,4 @@ machines:
     screen: console
     orbiter: 'C:\olc\orbiter'
     checked: 2026-01-01
-    notes: без видеокарты
+    notes: no graphics card

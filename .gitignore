@@ -1,31 +1,31 @@
 ##############################
-# Системные файлы macOS
+# macOS system files
 ##############################
 
 .DS_Store
 **/.DS_Store
 
 ##############################
-# Редакторы
+# Editors
 ##############################
 
 .vscode/
 .idea/
 
 ##############################
-# Секреты, логи и локальные настройки
+# Secrets, logs and local settings
 ##############################
 
 .env
 *.log
 
-# Список стендов владельца копии (пример - stands.example.yaml)
+# The copy owner's list of test rigs (example - stands.example.yaml)
 stands.yaml
 
 ##############################
-# Результаты проверочных сборок
-# (для проверки всегда используем одно имя: orbiter-lan-coop.out —
-# это каталог сборки CMake: DLL, pdb и промежуточные файлы)
+# Check build results
+# (we always use one name for checks: orbiter-lan-coop.out —
+# it is the CMake build folder: DLL, pdb and intermediate files)
 ##############################
 
 /orbiter-lan-coop.out

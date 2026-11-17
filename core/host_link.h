@@ -1,23 +1,23 @@
-// Сетевая часть хоста: подключение клиентов и рассылка состояния мира.
+// Host network side: client connections and world state broadcast.
 //
-// Что делает (docs/PROTOCOL.md, раздел 3):
-// - слушает TCP и UDP на одном порту;
-// - ведёт рукопожатие: HELLO → WELCOME (или REJECT) → BODIES → VESSELS → OWNERSHIP;
-//   затем ждёт от клиента CLASSES_MISSING и UDP_READY;
-// - отвечает PONG на PING и по PING узнаёт настоящий UDP-адрес клиента (клиент за NAT);
-// - рассылает WORLD_STATE и FUEL клиентам, у которых уже известен UDP-порт; состояние,
-//   которое не помещается в один пакет (kMaxUdpPacketSize), делит на несколько пакетов
-//   с одним и тем же sim_time;
-// - рассылает TCP-сообщения (LANDED) всем клиентам, прошедшим рукопожатие;
-// - ушедшего клиента (BYE, обрыв, нет HELLO за kHelloTimeout) удаляет из таблицы сессии.
+// What it does (docs/PROTOCOL.md, section 3):
+// - listens for TCP and UDP on one port;
+// - runs the handshake: HELLO → WELCOME (or REJECT) → BODIES → VESSELS → OWNERSHIP;
+//   then waits for CLASSES_MISSING and UDP_READY from the client;
+// - answers PING with PONG and learns the client's real UDP address from PING (client behind NAT);
+// - sends WORLD_STATE and FUEL to clients whose UDP port is known; a state that does
+//   not fit into one packet (kMaxUdpPacketSize) is split into several packets
+//   with the same sim_time;
+// - sends TCP messages (LANDED) to all clients that finished the handshake;
+// - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout) from the session table.
 //
-// Orbiter здесь не нужен: корабли и тела описывает плагин через SessionTable и
-// setBodies, а состояние мира он собирает сам и передаёт в sendWorldState. Поэтому
-// HostLink проверяется тестами на loopback вместе с ClientLink.
+// Orbiter is not needed here: the plugin describes vessels and bodies via SessionTable and
+// setBodies, collects the world state itself and passes it to sendWorldState. So
+// HostLink is tested on loopback together with ClientLink.
 //
-// Все функции ничего не ждут: poll вызывается каждый кадр (и по таймеру на паузе) из
-// главного потока Orbiter (решение 23). Сообщения для Orbiter.log копятся и забираются
-// takeLog - строки на английском.
+// No function waits: poll is called every frame (and by a timer while paused) from
+// Orbiter's main thread (decision 23). Messages for Orbiter.log accumulate and are taken
+// with takeLog - the lines are in English.
 #pragma once
 
 #include <cstdint>
@@ -31,100 +31,100 @@
 
 namespace olc {
 
-// Сколько секунд хост ждёт HELLO после подключения клиента.
+// How many seconds the host waits for HELLO after a client connects.
 constexpr double kHelloTimeout = 5.0;
 
-// Настройки хоста.
+// Host settings.
 struct HostConfig {
-    uint16_t port = 0;            // TCP и UDP; 0 - любой свободный (для тестов)
-    uint32_t session = 0;         // номер сессии, пишется в каждый UDP-пакет
-    uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; другая версия у клиента - REJECT
-    std::string system;           // имя планетной системы, уходит в WELCOME
-    uint8_t stateRateHz = 30;     // частота WORLD_STATE, уходит в WELCOME
+    uint16_t port = 0;            // TCP and UDP; 0 - any free port (for tests)
+    uint32_t session = 0;         // session number, written into every UDP packet
+    uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; a different client version gets REJECT
+    std::string system;           // planetary system name, goes into WELCOME
+    uint8_t stateRateHz = 30;     // WORLD_STATE rate, goes into WELCOME
 };
 
-// Статистика для лога.
+// Statistics for the log.
 struct HostStats {
     uint64_t udpPacketsSent = 0;
-    uint64_t udpBadPackets = 0;   // чужие и битые входящие UDP-пакеты
+    uint64_t udpBadPackets = 0;   // foreign and broken incoming UDP packets
 };
 
 class HostLink {
 public:
-    // table - таблица сессии плагина: игроки, корабли и владельцы. HostLink добавляет и
-    // удаляет в ней игроков, корабли заводит плагин. Таблица должна жить дольше HostLink.
+    // table - the plugin's session table: players, vessels and owners. HostLink adds and
+    // removes players in it; the plugin registers vessels. The table must outlive HostLink.
     explicit HostLink(SessionTable& table);
     ~HostLink();
     HostLink(const HostLink&) = delete;
     HostLink& operator=(const HostLink&) = delete;
 
-    // Открывает TCP-слушатель и UDP-сокет на config.port. false - порт занят или ошибка
-    // (причина - в takeLog). Сеть уже должна быть запущена (startNetwork).
+    // Opens the TCP listener and the UDP socket on config.port. false - the port is busy or an error
+    // (the reason is in takeLog). The network must already be started (startNetwork).
     bool start(const HostConfig& config);
 
-    // Шлёт всем клиентам BYE с причиной и закрывает сокеты. Повторный вызов ничего не делает.
+    // Sends BYE with a reason to all clients and closes the sockets. A repeated call does nothing.
     void stop(const std::string& reason);
 
-    // Порт после start (с port 0 его выбирает система); 0, если хост не запущен.
+    // The port after start (with port 0 the system chooses it); 0 if the host is not running.
     uint16_t port() const;
 
-    // Небесные тела для BODIES. Задаётся до подключения клиентов.
+    // Celestial bodies for BODIES. Set before clients connect.
     void setBodies(const std::vector<BodyEntry>& bodies);
 
-    // Принимает подключения и сообщения, ведёт рукопожатие, отвечает на PING, досылает
-    // TCP-очереди. now - реальное время в секундах (oapiGetSysTime), нужно для kHelloTimeout.
+    // Accepts connections and messages, runs the handshake, answers PING, sends the rest of
+    // the TCP queues. now - real time in seconds (oapiGetSysTime), needed for kHelloTimeout.
     void poll(double now);
 
-    // Рассылает WORLD_STATE клиентам с известным UDP-портом. Кораблей может быть сколько
-    // угодно: они делятся на пакеты не больше kMaxUdpPacketSize.
+    // Sends WORLD_STATE to clients with a known UDP port. There may be any number of
+    // vessels: they are split into packets no larger than kMaxUdpPacketSize.
     void sendWorldState(const WorldState& state);
 
-    // Рассылает FUEL так же, делением на пакеты.
+    // Sends FUEL the same way, split into packets.
     void sendFuel(const Fuel& fuel);
 
-    // Рассылает LANDED по TCP всем клиентам, прошедшим рукопожатие.
+    // Sends LANDED over TCP to all clients that finished the handshake.
     void sendLanded(const Landed& landed);
 
-    // Сколько клиентов прошло рукопожатие (получили WELCOME).
+    // How many clients finished the handshake (got WELCOME).
     int clientCount() const;
 
-    // Сколько из них прислали UDP_READY и получают WORLD_STATE.
+    // How many of them sent UDP_READY and receive WORLD_STATE.
     int readyClientCount() const;
 
     const HostStats& stats() const { return stats_; }
 
-    // Забирает накопленные строки для лога.
+    // Takes the accumulated log lines.
     std::vector<std::string> takeLog();
 
 private:
-    // Один подключённый клиент.
+    // One connected client.
     struct Client {
         TcpConnection tcp;
         TcpFrameReader frames;
-        double connectedAt = 0.0;  // реальное время подключения
-        bool welcomed = false;     // получил WELCOME
-        uint8_t clientId = 0;      // номер из таблицы, когда welcomed
+        double connectedAt = 0.0;  // real time of connection
+        bool welcomed = false;     // got WELCOME
+        uint8_t clientId = 0;      // number from the table once welcomed
         std::string player;
-        bool udpReady = false;     // прислал UDP_READY
-        Endpoint udp;              // куда слать UDP
-        bool udpFromPing = false;  // адрес взят из PING, а не из UDP_READY (см. handleUdp)
-        std::string leaveReason;   // почему отключаем; заполняется, когда handleFrames вернул false
+        bool udpReady = false;     // sent UDP_READY
+        Endpoint udp;              // where to send UDP
+        bool udpFromPing = false;  // address taken from PING, not from UDP_READY (see handleUdp)
+        std::string leaveReason;   // why we disconnect; set when handleFrames returned false
     };
 
-    // Разбирает TCP-сообщения клиента. false - клиента надо отключить.
+    // Parses the client's TCP messages. false - the client must be disconnected.
     bool handleFrames(Client& client);
     bool handleHello(Client& client, Reader& reader);
-    // Отправляет клиенту BODIES, VESSELS и OWNERSHIP. false - не удалось собрать сообщение.
+    // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
     bool sendWorldLists(Client& client);
-    // Кладёт TCP-сообщение в очередь клиента.
+    // Puts a TCP message into the client's queue.
     bool sendMessage(Client& client, TcpType type, const Writer& body);
-    // Отправляет REJECT и запоминает причину отключения. Всегда возвращает false:
-    // handleHello возвращает его как "клиента надо отключить".
+    // Sends REJECT and remembers the disconnect reason. Always returns false:
+    // handleHello returns it as "disconnect the client".
     bool reject(Client& client, RejectReason reason, const std::string& text);
-    // Отправляет UDP-пакет всем клиентам с udpReady.
+    // Sends a UDP packet to all clients with udpReady.
     void sendUdpToReady(uint8_t type, const std::vector<uint8_t>& body);
     void handleUdp();
-    // Запоминает адрес, с которого пришёл PING клиента clientId: туда и шлём ему UDP.
+    // Remembers the address the PING of client clientId came from: UDP for it goes there.
     void learnUdpAddress(uint8_t clientId, const Endpoint& from);
     void dropClient(size_t index, const std::string& reason);
     void log(const std::string& line);
@@ -136,7 +136,7 @@ private:
     UdpSocket udp_;
     std::vector<Client> clients_;
     std::vector<BodyEntry> bodies_;
-    uint32_t seq_ = 0;  // порядковый номер исходящих UDP-пакетов
+    uint32_t seq_ = 0;  // sequence number of outgoing UDP packets
     HostStats stats_;
     std::vector<std::string> log_;
 };

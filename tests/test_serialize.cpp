@@ -1,5 +1,5 @@
-// Тесты записи и чтения полей протокола: точный порядок байтов, туда-обратно,
-// строки и битые данные.
+// Tests of writing and reading protocol fields: exact byte order, round trip,
+// strings and broken data.
 
 #include <cmath>
 #include <limits>
@@ -11,20 +11,20 @@
 
 namespace {
 
-// Совпадают ли байты, записанные Writer, с ожидаемыми.
+// Whether the bytes written by Writer match the expected ones.
 bool bytesEqual(const olc::Writer& writer, const std::vector<uint8_t>& expected) {
     return writer.bytes() == expected;
 }
 
 void testByteOrder() {
-    // Порядок байтов задан протоколом, поэтому проверяем его побайтно.
+    // The byte order is set by the protocol, so we check it byte by byte.
     olc::Writer w;
     w.writeU8(0xAB);
     w.writeU16(0x1234);
     w.writeU32(0x89ABCDEF);
     CHECK(bytesEqual(w, {0xAB, 0x34, 0x12, 0xEF, 0xCD, 0xAB, 0x89}));
 
-    // 1.0 в IEEE 754: f32 = 0x3F800000, f64 = 0x3FF0000000000000.
+    // 1.0 in IEEE 754: f32 = 0x3F800000, f64 = 0x3FF0000000000000.
     olc::Writer f;
     f.writeF32(1.0f);
     f.writeF64(1.0);
@@ -37,7 +37,7 @@ void testRoundTrip() {
     w.writeU16(65535);
     w.writeU32(4294967295u);
     w.writeF32(-0.5f);
-    w.writeF64(6.771e6);  // радиус низкой орбиты, м
+    w.writeF64(6.771e6);  // low orbit radius, m
     w.writeF64(-1.0e-300);
     w.writeF64(std::numeric_limits<double>::infinity());
 
@@ -57,7 +57,7 @@ void testRoundTrip() {
     CHECK(r.remaining() == 0);
     CHECK(r.ok());
 
-    // f64 передаётся без потерь: важна точность до миллиметра на радиусе 7000 км.
+    // f64 is sent without loss: millimetre precision at a 7000 km radius matters.
     olc::Writer precise;
     double position = 6771000.0012345678;
     precise.writeF64(position);
@@ -70,10 +70,10 @@ void testStrings() {
     olc::Writer w;
     CHECK(w.writeString(""));
     CHECK(w.writeString("DeltaGlider"));
-    CHECK(w.writeString("Пилот"));  // UTF-8: 5 букв, 10 байтов
+    CHECK(w.writeString("Пилот"));  // UTF-8 (Russian "pilot"): 5 letters, 10 bytes
     CHECK(w.writeString(std::string(255, 'x')));
     size_t sizeBefore = w.bytes().size();
-    CHECK(!w.writeString(std::string(256, 'x')));  // длиннее 255 - не пишется
+    CHECK(!w.writeString(std::string(256, 'x')));  // longer than 255 - not written
     CHECK(w.bytes().size() == sizeBefore);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
@@ -84,14 +84,14 @@ void testStrings() {
     CHECK(r.readString(s) && s == std::string(255, 'x'));
     CHECK(r.remaining() == 0);
 
-    // Байт длины и сами байты строки.
+    // The length byte and the string bytes themselves.
     olc::Writer ab;
     ab.writeString("ab");
     CHECK(bytesEqual(ab, {2, 'a', 'b'}));
 }
 
 void testTruncated() {
-    // Байтов меньше, чем нужно полю: чтение не удаётся, значение не меняется.
+    // Fewer bytes than the field needs: the read fails, the value does not change.
     const uint8_t data[3] = {1, 2, 3};
     olc::Reader r(data, sizeof(data));
     uint32_t value = 77;
@@ -99,12 +99,12 @@ void testTruncated() {
     CHECK(value == 77);
     CHECK(!r.ok());
 
-    // После ошибки не читается ничего, даже то, на что байтов хватает.
+    // After an error nothing is read, not even what there are enough bytes for.
     uint8_t small = 9;
     CHECK(!r.readU8(small));
     CHECK(small == 9);
 
-    // Пустые данные.
+    // Empty data.
     olc::Reader empty(nullptr, 0);
     double d = 1.5;
     CHECK(!empty.readF64(d) && d == 1.5);
@@ -114,16 +114,16 @@ void testTruncated() {
 }
 
 void testBrokenString() {
-    // Длина строки обещает 10 байтов, а есть только 3.
+    // The string length promises 10 bytes, but there are only 3.
     const uint8_t data[4] = {10, 'a', 'b', 'c'};
     olc::Reader r(data, sizeof(data));
     std::string s = "keep";
     CHECK(!r.readString(s));
     CHECK(s == "keep");
     CHECK(!r.ok());
-    CHECK(r.remaining() == 4);  // позиция не сдвинулась
+    CHECK(r.remaining() == 4);  // the position did not move
 
-    // Правильные поля, а за ними обрезанное: первые читаются, последнее - нет.
+    // Correct fields followed by a truncated one: the first ones read, the last does not.
     const uint8_t packet[5] = {0x34, 0x12, 0x01, 0x02, 0x03};
     olc::Reader p(packet, sizeof(packet));
     uint16_t first = 0;
@@ -142,14 +142,14 @@ void testBytes() {
     CHECK(w.bytes() == std::vector<uint8_t>({1, 2, 3, 9}));
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
-    std::vector<uint8_t> value = {7, 7, 7, 7, 7};  // старое содержимое должно замениться
+    std::vector<uint8_t> value = {7, 7, 7, 7, 7};  // the old contents must be replaced
     CHECK(r.readBytes(value, 3));
     CHECK(value == std::vector<uint8_t>({1, 2, 3}));
 
-    // Нуль байтов читается всегда.
+    // Zero bytes can always be read.
     CHECK(r.readBytes(value, 0) && value.empty());
 
-    // Байтов не хватает: значение не меняется, ошибка запоминается.
+    // Not enough bytes: the value does not change, the error is remembered.
     value = {5};
     CHECK(!r.readBytes(value, 2));
     CHECK(value == std::vector<uint8_t>({5}));

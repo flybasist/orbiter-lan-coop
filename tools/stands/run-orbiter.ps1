@@ -1,11 +1,11 @@
-﻿# Запуск Orbiter на видимом рабочем столе Windows-стенда (docs/STANDS.md, раздел 6).
+﻿# Starts Orbiter on the visible desktop of a Windows test rig (docs/STANDS.md, section 6).
 #
-# Программа, запущенная по SSH, работает в невидимой служебной сессии. Поэтому агент не
-# запускает Orbiter напрямую, а кладёт задание в C:\olc\run-orbiter.json и запускает задачу
-# планировщика «OLC Run Orbiter», которая выполняет этот скрипт в сессии пользователя с
-# автовходом. Задача создаётся один раз скриптом register-run-task.ps1.
+# A program started over SSH runs in an invisible service session. So the agent does not
+# start Orbiter directly but puts a job into C:\olc\run-orbiter.json and starts the scheduled
+# task "OLC Run Orbiter", which runs this script in the session of the auto-logged-on
+# user. The task is created once by register-run-task.ps1.
 #
-# Формат задания (все поля, кроме instances, необязательны):
+# Job format (all fields except instances are optional):
 #   {
 #     "instances": [
 #       { "dir": "C:\\olc\\host",   "args": "-s \"Checklists\\Quickstart\" -T 60 -x",
@@ -13,16 +13,16 @@
 #       { "dir": "C:\\olc\\client", "args": "-s \"Checklists\\Quickstart\" -T 60 -x",
 #         "window": [642, 0] }
 #     ],
-#     "screenshots": [10, 30],   - через сколько секунд после запуска снять экран
-#     "timeout": 120             - через сколько секунд закрыть экземпляры, если не закрылись сами
+#     "screenshots": [10, 30],   - how many seconds after start to take a screenshot
+#     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
-# window - куда сдвинуть окно с картинкой (x, y), чтобы окна двух копий Orbiter не закрывали
-# друг друга. Координаты и размер окна (WindowWidth, WindowHeight в Orbiter.cfg копии) - в
-# логических пикселях: при масштабе экрана 200% окно 640 пикселей займёт 1280 точек.
-# Окно ищется по заголовку «OpenOrbiter [...]», то есть только у Orbiter с графическим клиентом.
+# window - where to move the window with the picture (x, y), so that the windows of two Orbiter
+# copies do not cover each other. Coordinates and window size (WindowWidth, WindowHeight in the
+# copy's Orbiter.cfg) are in logical pixels: at 200% screen scaling a 640 pixel window takes 1280 dots.
+# The window is found by the title "OpenOrbiter [...]", that is, only for Orbiter with a graphics client.
 #
-# Результат - в C:\olc\run-orbiter: run.log (что запущено, коды выхода) и снимки shot-<сек>.png.
-# Файл done.txt появляется последним: по нему агент понимает, что запуск закончен.
+# The result is in C:\olc\run-orbiter: run.log (what was started, exit codes) and screenshots shot-<sec>.png.
+# The file done.txt appears last: by it the agent knows the run is over.
 
 $ErrorActionPreference = 'Stop'
 $jobFile = 'C:\olc\run-orbiter.json'
@@ -37,7 +37,7 @@ function Write-Log($text) {
     Add-Content -Path $log -Value $line
 }
 
-# Снимок всего экрана в PNG.
+# A screenshot of the whole screen as PNG.
 function Save-Screenshot($path) {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
     $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
@@ -49,7 +49,7 @@ function Save-Screenshot($path) {
     $bitmap.Dispose()
 }
 
-# Функция Windows для перемещения окна.
+# The Windows function for moving a window.
 Add-Type -Namespace Olc -Name Win32 -MemberDefinition @'
 [DllImport("user32.dll")]
 public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
@@ -64,7 +64,7 @@ try {
     if ($job.screenshots) { $shots = @($job.screenshots | ForEach-Object { [int]$_ } | Sort-Object) }
 
     $processes = @()
-    $placements = @()   # окна, которые ещё надо сдвинуть: процесс и координаты
+    $placements = @()   # windows still to be moved: process and coordinates
     foreach ($instance in $job.instances) {
         $exe = Join-Path $instance.dir 'Orbiter.exe'
         Write-Log "start $exe $($instance.args)"
@@ -79,14 +79,14 @@ try {
     $start = Get-Date
     while ($true) {
         $elapsed = ((Get-Date) - $start).TotalSeconds
-        # Окно появляется не сразу после запуска: двигаем его, как только оно есть.
+        # A window does not appear right after start: move it as soon as it exists.
         $waiting = @()
         foreach ($placement in $placements) {
             $process = $placement.process
             $process.Refresh()
             if ($process.HasExited) { continue }
-            # Сначала главное окно - лаунчер, двигать нужно окно с картинкой: его заголовок
-            # «OpenOrbiter [имя графического клиента]».
+            # The main window is the launcher at first; the window to move is the one with the picture, titled
+            # "OpenOrbiter [graphics client name]".
             if ($process.MainWindowTitle -notlike 'OpenOrbiter `[*') { $waiting += $placement; continue }
             [Olc.Win32]::SetWindowPos($process.MainWindowHandle, [IntPtr]::Zero, $placement.x,
                 $placement.y, 0, 0, $SWP_NOSIZE -bor $SWP_NOZORDER) | Out-Null

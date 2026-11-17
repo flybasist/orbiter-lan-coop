@@ -1,15 +1,15 @@
-// Простейшие проверки для тестов без сторонних библиотек.
+// The simplest checks for tests without third-party libraries.
 //
-// CHECK(условие) - если условие ложно, печатает файл, строку и текст условия
-// и запоминает ошибку; тест продолжается, чтобы показать все ошибки сразу.
-// В конце main тест возвращает checkResult(): 0 - всё прошло, 1 - были ошибки.
+// CHECK(condition) - if the condition is false, prints the file, line and condition text
+// and remembers the failure; the test continues to show all failures at once.
+// At the end of main the test returns checkResult(): 0 - all passed, 1 - there were failures.
 #pragma once
 
 #include <cstdio>
 
 namespace check {
 
-// Сколько проверок не прошло. inline - одна переменная на всю программу.
+// How many checks failed. inline - one variable for the whole program.
 inline int failures = 0;
 
 inline void report(bool ok, const char* expression, const char* file, int line) {
@@ -23,7 +23,7 @@ inline void report(bool ok, const char* expression, const char* file, int line) 
 
 #define CHECK(condition) check::report((condition), #condition, __FILE__, __LINE__)
 
-// Итог теста для return в main.
+// The test result for return in main.
 inline int checkResult() {
     if (check::failures == 0) {
         std::printf("All checks passed\n");

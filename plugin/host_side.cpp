@@ -10,13 +10,13 @@ namespace olcplugin {
 
 namespace {
 
-// Частота WORLD_STATE на паузе: состояние не меняется, нужен только флаг паузы.
+// WORLD_STATE rate while paused: the state does not change, only the pause flag is needed.
 constexpr double kPausedStateRate = 5.0;
 
-// Как часто повторять LANDED для стоящих кораблей, секунды.
+// How often to repeat LANDED for landed vessels, seconds.
 constexpr double kLandedRepeat = 2.0;
 
-// Как часто писать статистику в лог, секунды.
+// How often to write statistics to the log, seconds.
 constexpr double kStatsInterval = 10.0;
 
 std::string objectName(OBJHANDLE object) {
@@ -33,7 +33,7 @@ olc::Vec3 toVec3(const VECTOR3& v) {
     return result;
 }
 
-// Уровень двигателя 0…1 → байт 0…255.
+// Thruster level 0…1 → byte 0…255.
 uint8_t levelToByte(double level) {
     if (level <= 0.0) {
         return 0;
@@ -64,11 +64,11 @@ bool HostSide::start() {
 
     olc::HostConfig hostConfig;
     hostConfig.port = static_cast<uint16_t>(config_.port);
-    // Номер сессии - случайный: пакеты от прошлой сессии хоста клиент отбросит.
+    // The session number is random: the client drops packets from a previous host session.
     std::random_device random;
     hostConfig.session = random();
     hostConfig.orbiterVersion = static_cast<uint32_t>(oapiGetOrbiterVersion());
-    // Имя звезды (тело с номером 0) отличает одну планетную систему от другой.
+    // The star's name (the body with number 0) tells one planetary system from another.
     hostConfig.system = bodies_.empty() ? std::string() : objectName(bodies_[0]);
     hostConfig.stateRateHz = static_cast<uint8_t>(config_.stateRateHz);
 
@@ -116,7 +116,7 @@ void HostSide::buildShips() {
         VESSEL* vessel = oapiGetVesselInterface(handle);
         const char* className = vessel->GetClassName();
         uint16_t netId = 0;
-        // Хост - владелец всех кораблей: на этапе 1 клиенты только смотрят.
+        // The host owns all vessels: at stage 1 clients only watch.
         if (!table_.addVessel(vessel->GetName(), className ? className : "", netId)) {
             oapiWriteLogV("OLC host: vessel '%s' skipped (duplicate or too long name)",
                           vessel->GetName());
@@ -146,7 +146,7 @@ void HostSide::tick(double now, bool paused) {
     const double rate = paused ? kPausedStateRate : static_cast<double>(config_.stateRateHz);
     if (now >= nextState_) {
         sendWorld(paused);
-        // Отсчёт от now, а не от nextState_: после долгого кадра не шлём пачку пакетов подряд.
+        // Count from now, not from nextState_: after a long frame do not send a burst of packets.
         nextState_ = now + 1.0 / rate;
     }
     if (now >= nextFuel_) {
@@ -186,12 +186,12 @@ void HostSide::sendWorld(bool paused) {
         olc::VesselState state;
         state.netId = ship.netId;
         if (!bodyId(status.rbody, state.refBody)) {
-            continue;  // тело не из списка - такого быть не должно
+            continue;  // body not in the list - this must not happen
         }
         const bool landed = status.status == 1;
         if (landed && !ship.landed) {
-            // Корабль только что встал: клиент ставит его один раз (ORBITER-INTERNALS.md,
-            // раздел 6).
+            // The vessel just came to rest: the client puts it down once (ORBITER-INTERNALS.md,
+            // section 6).
             olc::Landed message;
             message.netId = ship.netId;
             message.longitude = status.surf_lng;
@@ -266,7 +266,7 @@ void HostSide::repeatLanded() {
         status.version = 2;
         vessel->GetStatusEx(&status);
         if (status.status != 1) {
-            continue;  // уже взлетел - узнаем при следующем снятии состояния
+            continue;  // already took off - we learn it at the next capture
         }
         olc::Landed message;
         message.netId = ship.netId;
@@ -291,7 +291,7 @@ void HostSide::onDeleteVessel(OBJHANDLE vessel) {
 }
 
 void HostSide::onNewVessel(OBJHANDLE vessel) {
-    // VESSEL_ADDED - этап 2. Пока только отмечаем, что такой корабль клиенты не увидят.
+    // VESSEL_ADDED is stage 2. For now only note that clients will not see this vessel.
     oapiWriteLogV("OLC host: vessel '%s' created during the session is not synced yet",
                   objectName(vessel).c_str());
 }

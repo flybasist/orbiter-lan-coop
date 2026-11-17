@@ -1,5 +1,5 @@
-// olc-smoothing: измеряет, насколько плавно и точно клиент показывает корабль хоста
-// при разных способах восстановления движения по пакетам с задержкой, джиттером и потерями.
+// olc-smoothing: measures how smoothly and accurately the client shows the host's vessel
+// with different ways of reconstructing motion from packets with delay, jitter and loss.
 
 #include <algorithm>
 #include <cmath>
@@ -15,17 +15,17 @@
 
 namespace {
 
-constexpr double kFps = 60.0;       // частота кадров клиента (реальное время)
-constexpr double kWarmupSim = 5.0;  // первые секунды симуляции в метриках не учитываем
+constexpr double kFps = 60.0;       // client frame rate (real time)
+constexpr double kWarmupSim = 5.0;  // the first seconds of simulation are not counted in the metrics
 constexpr double kRadToDeg = 57.29577951308232;
 constexpr int kMethodCount = 4;
 
 const char* const kMethodNames[kMethodCount] = {"snap_gravity", "extrapolate", "interp_linear",
                                                 "interp_hermite"};
-// Интерполяционные методы показывают время с задержкой и могут "голодать" без пакетов.
+// Interpolation methods show time with a delay and may "starve" without packets.
 const bool kIsInterp[kMethodCount] = {false, false, true, true};
 
-// Название профиля для вывода.
+// Profile name for output.
 const char* profileName(Profile profile) {
     return profile == Profile::Smooth ? "smooth" : "pilot";
 }
@@ -34,7 +34,7 @@ const char* const kCsvHeader =
     "rate,warp,loss,latency_ms,jitter_ms,delay_ms,profile,method,pos_mean_m,pos_p95_m,pos_max_m,"
     "att_max_deg,jump_max_m,starved_pct,lag_sim_s";
 
-// Параметры запуска: числа симуляции и режим вывода.
+// Run parameters: simulation numbers and output mode.
 struct Options {
     Config config;
     bool csv = false;
@@ -42,7 +42,7 @@ struct Options {
     bool help = false;
 };
 
-// Итог по одному методу.
+// The result for one method.
 struct Result {
     double posMean = 0.0;
     double posP95 = 0.0;
@@ -52,17 +52,17 @@ struct Result {
     double starvedPct = 0.0;
 };
 
-// Накопитель метрик одного метода по кадрам.
+// Accumulates one method's metrics frame by frame.
 class Accumulator {
 public:
-    // Новый кадр: d - что показали, truth - как должно быть в это же время.
+    // A new frame: d - what was shown, truth - what it should be at the same time.
     void addFrame(const Display& d, const State& truth) {
         posErrors_.push_back(length(d.pos - truth.pos));
         attMaxRad_ = std::max(attMaxRad_, angleBetween(d.att, truth.att));
         if (d.starved) {
             starvedFrames_++;
         }
-        // Рывок: насколько сдвиг показанного отличается от сдвига истинного за кадр.
+        // Jerk: how much the shift of the shown state differs from the shift of the true one over a frame.
         if (hasPrev_) {
             Vec3 shown = d.pos - prevShown_;
             Vec3 real = truth.pos - prevTruth_;
@@ -73,7 +73,7 @@ public:
         hasPrev_ = true;
     }
 
-    // Кадр пропущен (прогрев): следующий кадр не должен сравниваться с предыдущим.
+    // A frame was skipped (warm-up): the next frame must not be compared with the previous one.
     void skipFrame() { hasPrev_ = false; }
 
     size_t frameCount() const { return posErrors_.size(); }
@@ -105,23 +105,23 @@ private:
     Vec3 prevTruth_;
 };
 
-// Прогоняет клиента по потоку пакетов, возвращает итоги для всех методов.
-// Возвращает false, если не набралось ни одного кадра для метрик.
+// Runs the client over the packet stream and returns results for all methods.
+// Returns false if not a single frame was collected for the metrics.
 bool runClient(const Config& config, const Trajectory& truth, const std::vector<Packet>& packets,
                Result results[kMethodCount]) {
     Accumulator accumulators[kMethodCount];
 
-    std::vector<State> buffer;  // принятые пакеты по возрастанию симуляционного времени
+    std::vector<State> buffer;  // received packets in ascending simulation time
     double newestArrival = 0.0;
     size_t nextPacket = 0;
 
-    double delaySim = config.delayMs / 1000.0 * config.warp;  // задержка интерполяции в симуляционных секундах
+    double delaySim = config.delayMs / 1000.0 * config.warp;  // interpolation delay in simulation seconds
     long lastFrame = static_cast<long>(config.duration / config.warp * kFps);
 
     for (long k = 0; k <= lastFrame; k++) {
         double wall = k / kFps;
 
-        // Принимаем всё, что пришло к этому кадру. Пакет старее уже имеющегося отбрасываем.
+        // Accept everything that arrived by this frame. A packet older than one we have is dropped.
         while (nextPacket < packets.size() && packets[nextPacket].arrivalWall <= wall) {
             const Packet& p = packets[nextPacket];
             if (buffer.empty() || p.state.time > buffer.back().time) {
@@ -134,9 +134,9 @@ bool runClient(const Config& config, const Trajectory& truth, const std::vector<
             continue;
         }
 
-        // Оценка текущего симуляционного времени хоста: время последнего пакета плюс
-        // реальное время с его прихода, умноженное на варп. Это упрощение:
-        // настоящая синхронизация времени - отдельная задача.
+        // Estimate of the current host simulation time: the time of the last packet plus
+        // the real time since it arrived, multiplied by warp. This is a simplification:
+        // real time synchronization is a separate task.
         double nowSim = buffer.back().time + (wall - newestArrival) * config.warp;
 
         Display shown[kMethodCount];
@@ -149,9 +149,9 @@ bool runClient(const Config& config, const Trajectory& truth, const std::vector<
         shown[2] = interpLinear(buffer, shownTime[2]);
         shown[3] = interpHermite(buffer, shownTime[3]);
 
-        // Кадры прогрева и кадры, где показываемое время раньше первого пакета, не считаем:
-        // настоящий клиент начинает показ, только когда у него есть данные за это время.
-        // Без этого при редких пакетах (×100, 10 Гц) в ошибку попадает запуск клиента.
+        // Warm-up frames and frames where the displayed time is earlier than the first packet are not counted:
+        // a real client starts showing only when it has data for that time.
+        // Without this, at rare packets (×100, 10 Hz) the client start gets into the error.
         for (int m = 0; m < kMethodCount; m++) {
             if (shownTime[m] < kWarmupSim || shownTime[m] < buffer.front().time) {
                 accumulators[m].skipFrame();
@@ -170,7 +170,7 @@ bool runClient(const Config& config, const Trajectory& truth, const std::vector<
     return true;
 }
 
-// Печать в виде CSV: по строке на метод.
+// CSV output: one line per method.
 void printCsv(const Config& c, const Result results[kMethodCount]) {
     for (int m = 0; m < kMethodCount; m++) {
         const Result& r = results[m];
@@ -187,7 +187,7 @@ void printCsv(const Config& c, const Result results[kMethodCount]) {
     }
 }
 
-// Печать выровненной таблицы.
+// Aligned table output.
 void printTable(const Config& c, const Result results[kMethodCount]) {
     std::printf("rate=%g Hz  warp=%g  loss=%g%%  latency=%g ms  jitter=%g ms  delay=%g ms  "
                 "seed=%u  duration=%g s  profile=%s\n\n",
@@ -229,14 +229,14 @@ void printUsage() {
         "  --help          print this text\n");
 }
 
-// Читает число из текста; false, если в тексте не только число.
+// Reads a number from text; false if the text is not just a number.
 bool parseNumber(const char* text, double& value) {
     char* end = nullptr;
     value = std::strtod(text, &end);
     return end != text && *end == '\0' && std::isfinite(value);
 }
 
-// Разбирает аргументы командной строки. При ошибке пишет сообщение и возвращает false.
+// Parses command line arguments. On error prints a message and returns false.
 bool parseArgs(int argc, char** argv, Options& options) {
     Config& c = options.config;
     for (int i = 1; i < argc; i++) {
@@ -263,7 +263,7 @@ bool parseArgs(int argc, char** argv, Options& options) {
                 return false;
             }
         } else {
-            // Остальные параметры принимают одно число.
+            // The other parameters take one number.
             double* target = nullptr;
             double seedValue = 0.0;
             if (std::strcmp(arg, "--rate") == 0) target = &c.rate;
@@ -298,7 +298,7 @@ bool parseArgs(int argc, char** argv, Options& options) {
         }
     }
 
-    // Проверка допустимых диапазонов.
+    // Checking allowed ranges.
     if (c.rate <= 0.0 || c.warp <= 0.0 || c.duration <= kWarmupSim) {
         std::fprintf(stderr, "Error: --rate and --warp must be positive, --duration must exceed %g\n",
                      kWarmupSim);

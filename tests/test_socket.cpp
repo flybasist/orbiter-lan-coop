@@ -1,7 +1,7 @@
-// Тесты обёртки над сокетами: разбор адреса, TCP (кадры, большое сообщение, обрыв,
-// отказ в подключении) и UDP. Только loopback 127.0.0.1 и порт 0 (любой свободный):
-// фиксированных портов нет, поэтому тест не мешает другим программам.
-// Ожидание ограничено 2 секундами, так что тест не может зависнуть.
+// Socket wrapper tests: address parsing, TCP (frames, a large message, a broken connection,
+// a refused connection) and UDP. Loopback 127.0.0.1 and port 0 (any free one) only:
+// there are no fixed ports, so the test does not disturb other programs.
+// Waiting is limited to 2 seconds, so the test cannot hang.
 
 #include <chrono>
 #include <cstdint>
@@ -20,8 +20,8 @@ namespace {
 
 constexpr uint32_t kLoopback = 0x7F000001;  // 127.0.0.1
 
-// Повторяет проверку condition раз в 1 мс, пока она не вернёт true.
-// Возвращает false, если за 2 секунды не дождались.
+// Repeats the condition check every 1 ms until it returns true.
+// Returns false if it did not succeed within 2 seconds.
 bool waitFor(const std::function<bool()>& condition) {
     for (int i = 0; i < 2000; i++) {
         if (condition()) {
@@ -50,7 +50,7 @@ void testParseIpv4() {
     CHECK(olc::parseIpv4("255.255.255.255", ip));
     CHECK(ip == 0xFFFFFFFF);
 
-    // Ошибки: ip остаётся прежним.
+    // Errors: ip stays as it was.
     ip = 0x12345678;
     const char* bad[] = {"256.1.1.1", "1.2.3",   "1.2.3.4.5", "a.b.c.d", "",
                          " 1.2.3.4",  "1..2.3",  "01234.1.1.1", "1.2.3.4 ", "1.2.3.",
@@ -72,7 +72,7 @@ void testParseIpv4() {
     CHECK(!(endpoint == other));
 }
 
-// Принимает входящее подключение и ждёт, пока клиент станет Connected.
+// Accepts an incoming connection and waits until the client is Connected.
 bool connectPair(olc::TcpListener& listener, olc::TcpConnection& client,
                  olc::TcpConnection& host) {
     if (!client.startConnect(loopbackEndpoint(listener.localPort()))) {
@@ -84,8 +84,8 @@ bool connectPair(olc::TcpListener& listener, olc::TcpConnection& client,
     return accepted && connected && host.state() == olc::TcpConnection::State::Connected;
 }
 
-// Крутит receive, пока не придёт целое сообщение. Обе стороны обслуживаются в одном
-// цикле: sender досылает очередь (flush), receiver читает.
+// Spins receive until a whole message arrives. Both sides are served in one
+// loop: the sender flushes its queue, the receiver reads.
 bool receiveMessage(olc::TcpConnection& sender, olc::TcpConnection& receiver,
                     olc::TcpFrameReader& reader, uint8_t& type, std::vector<uint8_t>& body) {
     return waitFor([&]() {
@@ -114,7 +114,7 @@ void testTcpMessages() {
     uint8_t type = 0;
     std::vector<uint8_t> body;
 
-    // HELLO от клиента к хосту.
+    // HELLO from the client to the host.
     olc::Hello hello;
     hello.protocol = olc::kProtocolVersion;
     hello.orbiterVersion = 260101;
@@ -134,7 +134,7 @@ void testTcpMessages() {
     CHECK(gotHello.pluginVersion == "0.1");
     CHECK(gotHello.player == "Alex");
 
-    // WELCOME от хоста к клиенту.
+    // WELCOME from the host to the client.
     olc::Welcome welcome;
     welcome.clientId = 1;
     welcome.session = 0xABCDEF01;
@@ -154,7 +154,7 @@ void testTcpMessages() {
     CHECK(gotWelcome.stateRateHz == 30);
     CHECK(gotWelcome.system == "Sol");
 
-    // Большой SCENARIO (~600 КБ): отправка уходит частями, остаток досылает flush.
+    // A large SCENARIO (~600 KB): the send goes out in parts, flush sends the rest.
     olc::Scenario scenario;
     scenario.name = "big.scn";
     scenario.data.resize(600 * 1000);
@@ -173,16 +173,16 @@ void testTcpMessages() {
     CHECK(olc::readScenario(scenarioReader, gotScenario));
     CHECK(gotScenario.name == "big.scn");
     CHECK(gotScenario.data.size() == scenario.data.size());
-    CHECK(gotScenario.data == scenario.data);  // побайтное сравнение
+    CHECK(gotScenario.data == scenario.data);  // byte by byte comparison
 
-    // Клиент закрылся: хост узнаёт об этом при чтении.
+    // The client closed: the host learns it when reading.
     client.close();
     CHECK(client.state() == olc::TcpConnection::State::Closed);
     CHECK(!client.send(std::vector<uint8_t>(1, 0)));
     CHECK(waitFor([&]() { return !host.receive(hostReader); }));
     CHECK(host.state() == olc::TcpConnection::State::Closed);
 
-    // Перемещение: сокет переходит к новому объекту, старый пуст.
+    // Move: the socket goes to the new object, the old one is empty.
     olc::TcpConnection client2;
     olc::TcpConnection host2;
     CHECK(connectPair(listener, client2, host2));
@@ -195,7 +195,7 @@ void testTcpMessages() {
 }
 
 void testConnectRefused() {
-    // Порт, на котором точно никто не слушает: открыли слушатель и сразу закрыли.
+    // A port nobody listens on for sure: open a listener and close it at once.
     uint16_t port = 0;
     {
         olc::TcpListener listener;
@@ -223,12 +223,12 @@ void testUdp() {
     CHECK(b.localPort() != 0);
     CHECK(a.localPort() != b.localPort());
 
-    // На пустом сокете receiveFrom сразу возвращает false.
+    // On an empty socket receiveFrom returns false at once.
     std::vector<uint8_t> packet;
     olc::Endpoint from;
     CHECK(!b.receiveFrom(packet, from));
 
-    // WORLD_STATE с UDP-заголовком от a к b.
+    // WORLD_STATE with a UDP header from a to b.
     olc::UdpHeader header;
     header.type = static_cast<uint8_t>(olc::UdpType::WorldState);
     header.session = 77;
@@ -268,7 +268,7 @@ void testUdp() {
     CHECK(gotState.vessels[0].rpos.x == 6.5e6);
     CHECK(gotState.vessels[0].thrusters == vessel.thrusters);
 
-    // Пакет ровно предельного размера проходит, на байт больше - отказ.
+    // A packet of exactly the limit size passes, one byte more is refused.
     CHECK(a.sendTo(loopbackEndpoint(b.localPort()),
                    std::vector<uint8_t>(olc::kMaxUdpPacketSize, 1)));
     CHECK(waitFor([&]() { return b.receiveFrom(packet, from); }));
@@ -277,7 +277,7 @@ void testUdp() {
                     std::vector<uint8_t>(olc::kMaxUdpPacketSize + 1, 1)));
     CHECK(!b.receiveFrom(packet, from));
 
-    // Закрытый сокет ничего не принимает и не отправляет.
+    // A closed socket neither receives nor sends.
     a.close();
     CHECK(!a.isOpen());
     CHECK(!a.sendTo(loopbackEndpoint(b.localPort()), std::vector<uint8_t>(10, 1)));

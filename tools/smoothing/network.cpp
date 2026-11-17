@@ -4,16 +4,16 @@
 #include <random>
 
 std::vector<Packet> simulateNetwork(const Trajectory& truth, const Config& config) {
-    // seed_seq перемешивает начальное число: если завести mt19937 напрямую маленьким
-    // числом (1, 2, 3...), первые случайные значения у разных seed получаются похожими.
+    // seed_seq mixes the initial number: if mt19937 is seeded directly with a small
+    // number (1, 2, 3...), the first random values for different seeds come out similar.
     std::seed_seq seedSequence{config.seed};
     std::mt19937 generator(seedSequence);
     std::uniform_real_distribution<double> unit(0.0, 1.0);
 
-    // Хост начинает отправку не точно в момент 0, а со случайным сдвигом в пределах
-    // одного интервала. Иначе моменты отправки совпадают с началом и концом импульсов
-    // двигателей (целые и половинные секунды), и экстраполяция с интерполяцией
-    // получают нечестное преимущество: в настоящей игре пилот не ждёт пакета.
+    // The host does not start sending exactly at moment 0 but with a random offset within
+    // one interval. Otherwise the send moments coincide with the start and end of thruster
+    // pulses (whole and half seconds), and extrapolation and interpolation
+    // get an unfair advantage: in a real game the pilot does not wait for a packet.
     double phase = unit(generator);
 
     std::vector<Packet> packets;
@@ -24,11 +24,11 @@ std::vector<Packet> simulateNetwork(const Trajectory& truth, const Config& confi
             break;
         }
 
-        // Оба случайных числа берём всегда, чтобы потери не сдвигали последовательность.
+        // Both random numbers are always taken, so that loss does not shift the sequence.
         double lossRoll = unit(generator);
         double jitterRoll = unit(generator);
         if (lossRoll * 100.0 < config.lossPercent) {
-            continue;  // пакет потерян
+            continue;  // packet lost
         }
 
         Packet packet;
@@ -37,7 +37,7 @@ std::vector<Packet> simulateNetwork(const Trajectory& truth, const Config& confi
         packets.push_back(packet);
     }
 
-    // Клиент получает пакеты в порядке прихода, а не отправки.
+    // The client gets packets in arrival order, not in send order.
     std::stable_sort(packets.begin(), packets.end(),
                      [](const Packet& a, const Packet& b) { return a.arrivalWall < b.arrivalWall; });
     return packets;

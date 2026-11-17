@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Прогон модели сглаживания по сетке параметров (задача Д2 плана).
+# Runs the smoothing model over a parameter grid (plan task D2).
 #
-# Запуск из корня репозитория после сборки:
+# Run from the repository root after building:
 #   cmake -S . -B orbiter-lan-coop.out && cmake --build orbiter-lan-coop.out
 #   tools/smoothing/run-grid.sh
 #
-# Результат пишется в orbiter-lan-coop.out/smoothing/:
-#   grid-raw.csv     - строка на каждый метод каждого прогона (с номером seed);
-#   grid-summary.csv - то же, сведённое по seed: средние ошибки усредняются,
-#                      максимальные берутся худшими из всех seed.
-# Выводы по этим файлам - в docs/SMOOTHING.md.
+# The result goes to orbiter-lan-coop.out/smoothing/:
+#   grid-raw.csv     - a line per method of every run (with the seed number);
+#   grid-summary.csv - the same, merged over seeds: mean errors are averaged,
+#                      maximum errors take the worst over all seeds.
+# Conclusions from these files - in docs/SMOOTHING.md.
 
 set -euo pipefail
 
@@ -22,13 +22,13 @@ if [[ ! -x "$BIN" ]]; then
 fi
 mkdir -p "$OUT_DIR"
 
-# Сетка из PLAN.md, Д2. Задержка до сервера в LAN - 1 мс, к ней добавляется разброс.
-RATES="10 20 30"            # частота отправки, Гц
-LOSSES="0 5 20"             # потери, %
-JITTERS="1 20 50"           # разброс задержки, мс
-WARPS="1 10 100"            # ускорение времени
-DELAYS="50 100 150 200 300" # задержка буфера интерполяции на клиенте, мс
-SEEDS="1 2 3 4 5"           # разные случайные потери и разброс
+# The grid from PLAN.md, D2. Delay to the server on a LAN is 1 ms, jitter is added to it.
+RATES="10 20 30"            # send rate, Hz
+LOSSES="0 5 20"             # loss, %
+JITTERS="1 20 50"           # delay jitter, ms
+WARPS="1 10 100"            # time acceleration
+DELAYS="50 100 150 200 300" # client interpolation buffer delay, ms
+SEEDS="1 2 3 4 5"           # different random loss and jitter
 
 RAW="$OUT_DIR/grid-raw.csv"
 SUMMARY="$OUT_DIR/grid-summary.csv"
@@ -41,7 +41,7 @@ for rate in $RATES; do
       for warp in $WARPS; do
         for delay in $DELAYS; do
           for seed in $SEEDS; do
-            # Перед каждой строкой вывода дописываем номер seed.
+            # The seed number is prepended to each output line.
             "$BIN" --csv --rate "$rate" --loss "$loss" --jitter "$jitter" --warp "$warp" \
                 --delay "$delay" --seed "$seed" | sed "s/^/$seed,/" >> "$RAW"
           done
@@ -51,7 +51,7 @@ for rate in $RATES; do
   done
 done
 
-# Сводка по seed. Колонки grid-raw.csv:
+# Summary over seeds. Columns of grid-raw.csv:
 #  1 seed, 2 rate, 3 warp, 4 loss, 5 latency_ms, 6 jitter_ms, 7 delay_ms, 8 profile, 9 method,
 # 10 pos_mean_m, 11 pos_p95_m, 12 pos_max_m, 13 att_max_deg, 14 jump_max_m, 15 starved_pct,
 # 16 lag_sim_s

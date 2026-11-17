@@ -1,13 +1,13 @@
-// Таблица кораблей и владения одной сессии.
+// Vessel and ownership table of one session.
 //
-// Хост ведёт таблицу сам: принимает клиентов (addPlayer), заводит корабли и выдаёт им
-// net_id (addVessel), назначает владельцев (setOwner) и по таблице проверяет, чей ввод
-// можно применять (isControlledBy). Клиент не выдаёт номера: он повторяет таблицу
-// хоста по сообщениям VESSELS и VESSEL_ADDED (addVesselWithId), VESSEL_REMOVED
-// (removeVessel) и OWNERSHIP (setOwner).
-// Корабли хранятся в простом std::vector с линейным поиском: кораблей в сессии десятки,
-// и такой код проще, чем карта или индекс по имени.
-// Подробнее: docs/PROTOCOL.md, разделы 3 и 5; docs/ARCHITECTURE.md, раздел 1.
+// The host keeps the table itself: accepts clients (addPlayer), registers vessels and gives them
+// net_id (addVessel), assigns owners (setOwner) and uses the table to check whose input
+// may be applied (isControlledBy). The client does not hand out numbers: it mirrors the host's
+// table from the messages VESSELS and VESSEL_ADDED (addVesselWithId), VESSEL_REMOVED
+// (removeVessel) and OWNERSHIP (setOwner).
+// Vessels are kept in a plain std::vector with linear search: a session has tens of vessels,
+// and this code is simpler than a map or a name index.
+// More: docs/PROTOCOL.md, sections 3 and 5; docs/ARCHITECTURE.md, section 1.
 #pragma once
 
 #include <cstdint>
@@ -18,81 +18,81 @@
 
 namespace olc {
 
-// Предел игроков (docs/DECISIONS.md, решение 14). Игроки - хост и все клиенты.
+// Player limit (docs/DECISIONS.md, decision 14). Players are the host and all clients.
 constexpr int kDefaultMaxPlayers = 4;
 constexpr int kMaxPlayersLimit = 8;
-constexpr uint8_t kHostOwner = 0;  // владелец "хост" в OWNERSHIP
+constexpr uint8_t kHostOwner = 0;  // the "host" owner in OWNERSHIP
 
-// Один корабль в таблице.
+// One vessel in the table.
 struct VesselRecord {
     uint16_t netId = 0;
     std::string name;
     std::string className;
-    uint8_t owner = kNoOwner;  // 0 - хост, 1…254 - клиент, kNoOwner - никто
+    uint8_t owner = kNoOwner;  // 0 - host, 1…254 - client, kNoOwner - nobody
 };
 
 class SessionTable {
 public:
-    // maxPlayers приводится к пределам 2…kMaxPlayersLimit (меньше 2 - некому подключаться).
+    // maxPlayers is clamped to 2…kMaxPlayersLimit (below 2 nobody could connect).
     explicit SessionTable(int maxPlayers = kDefaultMaxPlayers);
 
-    // ----- Игроки (только на хосте) -----
+    // ----- Players (host only) -----
 
-    // Принимает клиента: выдаёт наименьший свободный номер 1…254. Возвращает false, если
-    // клиентов уже maxPlayers - 1 (хост - тоже игрок): хост ответит REJECT с причиной
+    // Accepts a client: gives the lowest free number 1…254. Returns false if there are
+    // already maxPlayers - 1 clients (the host is a player too): the host answers REJECT with reason
     // NoFreeSlots.
     bool addPlayer(uint8_t& clientId);
 
-    // Клиент ушёл: его номер освобождается, его корабли становятся ничьими (kNoOwner).
-    // Возвращает false, если такого клиента нет.
+    // A client left: its number is freed and its vessels become ownerless (kNoOwner).
+    // Returns false if there is no such client.
     bool removePlayer(uint8_t clientId);
 
-    int playerCount() const;  // хост + клиенты
+    int playerCount() const;  // host + clients
     int maxPlayers() const;
 
-    // ----- Корабли -----
+    // ----- Vessels -----
 
-    // Хост: новый корабль, выдаёт следующий net_id. Номера выдаются по порядку с 0 и за
-    // сессию не переиспользуются (опоздавший пакет не должен попасть на другой корабль).
-    // Возвращает false, если имя пустое, длиннее kMaxStringLength или уже есть в таблице,
-    // класс длиннее kMaxStringLength или номера кончились (выдано 65536).
-    // На одной таблице не смешивайте addVessel и addVesselWithId.
+    // Host: a new vessel, gets the next net_id. Numbers are given in order from 0 and are
+    // not reused during the session (a late packet must not land on another vessel).
+    // Returns false if the name is empty, longer than kMaxStringLength or already in the table,
+    // the class is longer than kMaxStringLength, or numbers ran out (65536 given).
+    // Do not mix addVessel and addVesselWithId on one table.
     bool addVessel(const std::string& name, const std::string& className, uint16_t& netId);
 
-    // Клиент: корабль с номером, который выдал хост (VESSELS, VESSEL_ADDED). Возвращает
-    // false, если такой номер или имя уже есть, имя пустое или строки длиннее
+    // Client: a vessel with the number the host gave (VESSELS, VESSEL_ADDED). Returns
+    // false if such a number or name already exists, the name is empty, or strings are longer than
     // kMaxStringLength.
     bool addVesselWithId(uint16_t netId, const std::string& name, const std::string& className);
 
-    bool removeVessel(uint16_t netId);  // false, если нет такого
+    bool removeVessel(uint16_t netId);  // false if there is no such vessel
 
-    const VesselRecord* findById(uint16_t netId) const;             // nullptr, если нет
-    const VesselRecord* findByName(const std::string& name) const;  // nullptr, если нет
+    const VesselRecord* findById(uint16_t netId) const;             // nullptr if none
+    const VesselRecord* findByName(const std::string& name) const;  // nullptr if none
 
-    // ----- Владение -----
+    // ----- Ownership -----
 
-    // Не проверяет, подключён ли такой клиент: на клиенте список игроков неизвестен, а
-    // хост передаёт только номера из addPlayer. Возвращает false, если корабля нет.
+    // Does not check whether such a client is connected: the client does not know the player list,
+    // and the host passes only numbers from addPlayer. Returns false if there is no vessel.
     bool setOwner(uint16_t netId, uint8_t owner);
 
-    // Можно ли применять ввод клиента clientId к кораблю netId: корабль есть и его
-    // владелец - этот клиент. Номера kHostOwner и kNoOwner клиентами не бывают, для них
-    // всегда false.
+    // Whether input from client clientId may be applied to vessel netId: the vessel exists and its
+    // owner is this client. kHostOwner and kNoOwner are never client numbers, so for them
+    // it is always false.
     bool isControlledBy(uint16_t netId, uint8_t clientId) const;
 
-    // ----- Для сообщений -----
+    // ----- For messages -----
 
-    std::vector<VesselEntry> vesselEntries() const;  // для VESSELS, по возрастанию net_id
-    std::vector<OwnerEntry> ownerEntries() const;    // для OWNERSHIP, по возрастанию net_id
+    std::vector<VesselEntry> vesselEntries() const;  // for VESSELS, ascending net_id
+    std::vector<OwnerEntry> ownerEntries() const;    // for OWNERSHIP, ascending net_id
 
 private:
-    // Проверяет имя и класс и вставляет корабль с сохранением порядка по netId.
+    // Checks the name and class and inserts the vessel keeping netId order.
     bool insertVessel(uint16_t netId, const std::string& name, const std::string& className);
 
     int maxPlayers_;
-    std::vector<uint8_t> clients_;       // номера подключённых клиентов
-    std::vector<VesselRecord> vessels_;  // по возрастанию netId
-    uint32_t nextNetId_ = 0;             // следующий номер для addVessel; 65536 - номера кончились
+    std::vector<uint8_t> clients_;       // numbers of connected clients
+    std::vector<VesselRecord> vessels_;  // ascending netId
+    uint32_t nextNetId_ = 0;             // next number for addVessel; 65536 - numbers ran out
 };
 
 }  // namespace olc

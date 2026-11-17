@@ -1,14 +1,14 @@
-// Буфер интерполяции: плавное движение корабля на клиенте между пакетами WORLD_STATE.
+// Interpolation buffer: smooth vessel motion on the client between WORLD_STATE packets.
 //
-// Клиент показывает мир с небольшой задержкой и восстанавливает состояние корабля
-// между двумя принятыми пакетами (docs/SMOOTHING.md):
-// - положение - кубическая интерполяция Эрмита по положениям и скоростям;
-// - скорость и угловая скорость - линейная интерполяция;
-// - ориентация - slerp (attitude.h);
-// - уровни двигателей - из более раннего пакета.
-// Один буфер - один корабль. Буфер считает в сим-времени хоста; какой момент показывать,
-// решает вызывающий: по SMOOTHING.md - на 100 мс реального времени позади хоста, то есть
-// на 0,1 × ускорение секунд сим-времени.
+// The client shows the world with a small delay and reconstructs the vessel state
+// between two received packets (docs/SMOOTHING.md):
+// - position - cubic Hermite interpolation over positions and velocities;
+// - velocity and angular velocity - linear interpolation;
+// - attitude - slerp (attitude.h);
+// - thruster levels - from the earlier packet.
+// One buffer - one vessel. The buffer works in host sim time; which moment to display
+// is decided by the caller: per SMOOTHING.md, 100 ms of real time behind the host, that is
+// 0.1 × warp seconds of sim time.
 #pragma once
 
 #include <vector>
@@ -17,24 +17,24 @@
 
 namespace olc {
 
-// Сколько последних пакетов хранит буфер: 64 пакета - больше 2 с при 30 Гц, с
-// большим запасом над задержкой показа.
+// How many recent packets the buffer keeps: 64 packets - more than 2 s at 30 Hz, with
+// a large margin over the display delay.
 constexpr size_t kInterpolationBufferSize = 64;
 
 class InterpolationBuffer {
 public:
-    // Добавляет состояние корабля на сим-время simTime (из WORLD_STATE).
-    // Возвращает false и ничего не добавляет, если simTime не новее последнего пакета:
-    // пакет опоздал или повторился.
+    // Adds a vessel state at sim time simTime (from WORLD_STATE).
+    // Returns false and adds nothing if simTime is not newer than the last packet:
+    // the packet is late or repeated.
     bool add(double simTime, const VesselState& state);
 
-    // Состояние корабля на сим-время simTime. Возвращает false, если буфер пуст.
-    // starved = true, если simTime новее последнего пакета (буфер кончился): тогда
-    // корабль движется дальше по последней скорости, а ориентация остаётся последней.
-    // Если simTime раньше первого пакета, возвращается первый пакет как есть.
+    // Vessel state at sim time simTime. Returns false if the buffer is empty.
+    // starved = true if simTime is newer than the last packet (the buffer ran out): then
+    // the vessel keeps moving with the last velocity, and the attitude stays the last one.
+    // If simTime is earlier than the first packet, the first packet is returned as is.
     bool sample(double simTime, VesselState& result, bool& starved) const;
 
-    // Сколько пакетов в буфере.
+    // How many packets are in the buffer.
     size_t size() const { return entries_.size(); }
 
 private:
@@ -43,7 +43,7 @@ private:
         VesselState state;
     };
 
-    std::vector<Entry> entries_;  // по возрастанию simTime
+    std::vector<Entry> entries_;  // ascending simTime
 };
 
 }  // namespace olc

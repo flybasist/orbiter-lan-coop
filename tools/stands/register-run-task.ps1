@@ -1,14 +1,14 @@
-﻿# Создаёт задачу планировщика «OLC Run Orbiter» (docs/STANDS.md, раздел 6).
+﻿# Creates the scheduled task "OLC Run Orbiter" (docs/STANDS.md, section 6).
 #
-# Задача запускает C:\olc\run-orbiter.ps1 в сессии вошедшего пользователя - так Orbiter
-# появляется на видимом рабочем столе, даже если его запускают по SSH:
+# The task runs C:\olc\run-orbiter.ps1 in the logged-on user's session - so Orbiter
+# appears on the visible desktop even when it is started over SSH:
 #   schtasks /run /tn "OLC Run Orbiter"
-# Расписания у задачи нет: она выполняется только по такой команде.
-# Нужен автовход пользователя, иначе рабочего стола нет и задача не запустится.
+# The task has no schedule: it runs only on such a command.
+# The user must be logged on automatically, otherwise there is no desktop and the task does not start.
 #
-# Запуск один раз от имени того пользователя, на чьём рабочем столе будет Orbiter:
+# Run once as the user on whose desktop Orbiter will appear:
 #   powershell -ExecutionPolicy Bypass -File .\register-run-task.ps1
-# Удаление задачи: Unregister-ScheduledTask -TaskName 'OLC Run Orbiter'
+# Removing the task: Unregister-ScheduledTask -TaskName 'OLC Run Orbiter'
 
 $ErrorActionPreference = 'Stop'
 $taskName = 'OLC Run Orbiter'
@@ -16,8 +16,8 @@ $script = 'C:\olc\run-orbiter.ps1'
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$script`""
-# Interactive - только в уже открытой сессии пользователя, пароль не хранится.
-# Имя берётся из токена, а не из USERDOMAIN: в сессии SSH эта переменная бывает другой.
+# Interactive - only in an already open user session, no password is stored.
+# The name comes from the token, not from USERDOMAIN: in an SSH session that variable can differ.
 $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `

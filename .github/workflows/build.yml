@@ -1,12 +1,12 @@
-# Сборка OLC под Windows x64: сетевое ядро с тестами и плагин OrbiterLanCoop.dll.
+# OLC build for Windows x64: the network core with tests and the OrbiterLanCoop.dll plugin.
 #
-# Плагину нужны Orbiter.lib и Orbitersdk.lib - они появляются только после сборки
-# Orbiter. Поэтому workflow собирает ядро Orbiter из базового коммита (решение 25 в
-# docs/DECISIONS.md) и кеширует результат по хешу коммита: полная сборка - только при
-# первом запуске и после переноса базового коммита.
+# The plugin needs Orbiter.lib and Orbitersdk.lib - they appear only after Orbiter is
+# built. So the workflow builds the Orbiter core from the base commit (decision 25 in
+# docs/DECISIONS.md) and caches the result by the commit hash: a full build happens only on
+# the first run and after the base commit moves.
 #
-# При переносе базового коммита (docs/ORBITER-INTERNALS.md, раздел 13) поменять
-# ORBITER_COMMIT ниже.
+# When the base commit moves (docs/ORBITER-INTERNALS.md, section 13) change
+# ORBITER_COMMIT below.
 
 name: Build
 
@@ -37,7 +37,7 @@ jobs:
       with:
         arch: x64
 
-    # ---------- SDK Orbiter: из кеша или сборкой ----------
+    # ---------- Orbiter SDK: from the cache or by building ----------
 
     - name: Cache Orbiter SDK
       id: sdk-cache
@@ -54,8 +54,8 @@ jobs:
         ref: ${{ env.ORBITER_COMMIT }}
         path: orbiter-src
 
-    # Нужно только ядро: без графического клиента D3D9 (ему нужен DirectX SDK),
-    # без XRSound и без тестов Orbiter.
+    # Only the core is needed: without the D3D9 graphics client (it needs the DirectX SDK),
+    # without XRSound and without Orbiter's tests.
     - name: Build Orbiter core
       if: steps.sdk-cache.outputs.cache-hit != 'true'
       working-directory: orbiter-src
@@ -63,7 +63,7 @@ jobs:
         cmake . --preset windows-x64-release -DORBITER_BUILD_D3D9CLIENT=OFF -DORBITER_BUILD_XRSOUND=OFF -DORBITER_MAKE_TESTS=OFF
         cmake --build --preset windows-x64-release --target Orbiter Orbitersdk --jobs 2
 
-    # Заголовки берутся из репозитория, библиотеки - из каталога сборки.
+    # Headers come from the repository, libraries from the build folder.
     - name: Collect Orbiter SDK
       if: steps.sdk-cache.outputs.cache-hit != 'true'
       shell: pwsh

@@ -1,14 +1,14 @@
-// Роль «хост»: снимает состояние кораблей и рассылает его клиентам.
+// The "host" role: captures vessel states and sends them to clients.
 //
-// Каждый кадр (clbkPreStep) и по таймеру на паузе вызывается tick:
-// - принять подключения и сообщения клиентов (HostLink::poll);
-// - с частотой StateRate снять состояния всех кораблей (GetStatusEx) и разослать
-//   WORLD_STATE; на паузе - не чаще kPausedStateRate раз в секунду;
-// - раз в секунду разослать FUEL;
-// - корабль встал на поверхность - сразу LANDED; стоящие корабли повторяются в LANDED
-//   раз в kLandedRepeat секунд, чтобы о них узнали и клиенты, подключившиеся позже.
-// Корабли и тела берутся один раз при старте сессии (этап 1). Корабли, появившиеся во
-// время сессии, на этапе 1 не передаются - только запись в лог (VESSEL_ADDED - этап 2).
+// tick is called every frame (clbkPreStep) and by a timer while paused:
+// - accept client connections and messages (HostLink::poll);
+// - at StateRate capture the states of all vessels (GetStatusEx) and send
+//   WORLD_STATE; while paused - at most kPausedStateRate times per second;
+// - send FUEL once per second;
+// - a vessel came to rest on a surface - LANDED at once; landed vessels are repeated in LANDED
+//   every kLandedRepeat seconds, so that clients that connect later learn about them too.
+// Vessels and bodies are taken once at session start (stage 1). Vessels that appear during
+// the session are not sent at stage 1 - only a log line (VESSEL_ADDED is stage 2).
 #pragma once
 
 #include <cstdint>
@@ -28,32 +28,32 @@ class HostSide {
 public:
     explicit HostSide(const Config& config);
 
-    // Начало сессии: таблицы кораблей и тел, запуск сети. false - не запустился (в логе).
+    // Session start: vessel and body tables, network start. false - did not start (see the log).
     bool start();
 
-    // Конец сессии: BYE клиентам, закрыть сеть. Корабли уже удалены - не трогаем.
+    // Session end: BYE to clients, close the network. Vessels are already deleted - do not touch them.
     void stop();
 
-    // now - oapiGetSysTime; paused - Orbiter на паузе (вызов из таймера).
+    // now - oapiGetSysTime; paused - Orbiter is paused (call from the timer).
     void tick(double now, bool paused);
 
-    // Корабль удалён: больше не трогаем его handle.
+    // A vessel was deleted: do not touch its handle any more.
     void onDeleteVessel(OBJHANDLE vessel);
 
-    // Корабль создан во время сессии.
+    // A vessel was created during the session.
     void onNewVessel(OBJHANDLE vessel);
 
 private:
-    // Корабль хоста: номер в таблице и handle в Orbiter.
+    // A host vessel: number in the table and handle in Orbiter.
     struct Ship {
         uint16_t netId = 0;
-        OBJHANDLE handle = nullptr;  // nullptr - корабль удалён
-        bool landed = false;         // стоял на поверхности при последнем снятии
+        OBJHANDLE handle = nullptr;  // nullptr - the vessel is deleted
+        bool landed = false;         // was landed at the last capture
     };
 
     void buildBodies();
     void buildShips();
-    // Номер тела по handle; false - тела нет в списке.
+    // Body number by handle; false - the body is not in the list.
     bool bodyId(OBJHANDLE body, uint16_t& id) const;
     void sendWorld(bool paused);
     void sendFuel();
@@ -64,7 +64,7 @@ private:
     Config config_;
     olc::SessionTable table_;
     olc::HostLink link_;
-    std::vector<OBJHANDLE> bodies_;  // индекс - net_id тела
+    std::vector<OBJHANDLE> bodies_;  // index - body net_id
     std::vector<Ship> ships_;
     Trace trace_;
     OBJHANDLE traceHandle_ = nullptr;

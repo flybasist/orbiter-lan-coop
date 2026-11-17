@@ -1,22 +1,22 @@
-// olc-netcheck: проверка сети между двумя машинами без Orbiter.
+// olc-netcheck: a network check between two machines without Orbiter.
 //
-// Использует то же сетевое ядро, что и плагин (olc-core): сокеты, заголовки и сообщения
-// протокола. Поэтому если olc-netcheck работает между двумя машинами, то и плагину сеть
-// не помешает: адреса, порты, брандмауэр и NAT проверены.
+// It uses the same network core as the plugin (olc-core): sockets, headers and protocol
+// messages. So if olc-netcheck works between two machines, the network will not get in the
+// plugin's way either: addresses, ports and firewall are checked.
 //
 //   olc-netcheck server [port]
 //   olc-netcheck client <server-ip> [port] [seconds] [rate-hz]
 //
-// Сервер (как хост OLC) слушает TCP и UDP на одном порту (по умолчанию 47800) и работает,
-// пока его не остановят (Ctrl+C). Клиент:
-//   1. подключается по TCP и проходит рукопожатие HELLO → WELCOME;
-//   2. шлёт UDP PING с частотой rate-hz (по умолчанию 30, как WORLD_STATE) seconds секунд
-//      (по умолчанию 10); сервер отвечает PONG с тем же временем;
-//   3. прощается сообщением BYE и печатает отчёт: потери, задержку туда-обратно
-//      (минимум, среднее, перцентили, максимум), разброс задержки, пакеты не по порядку,
-//      и долю ответов позже 100 и 200 мс - с этим сравнивается задержка буфера
-//      сглаживания (docs/SMOOTHING.md).
-// Клиент завершается с кодом 0, если пришёл хотя бы один PONG, иначе с кодом 1.
+// The server (like an OLC host) listens for TCP and UDP on one port (47800 by default) and runs
+// until stopped (Ctrl+C). The client:
+//   1. connects over TCP and goes through the HELLO → WELCOME handshake;
+//   2. sends UDP PING at rate-hz (30 by default, like WORLD_STATE) for seconds seconds
+//      (10 by default); the server answers PONG with the same time;
+//   3. says goodbye with BYE and prints a report: loss, round trip time
+//      (minimum, average, percentiles, maximum), delay jitter, out-of-order packets,
+//      and the share of replies later than 100 and 200 ms - this is compared with the smoothing
+//      buffer delay (docs/SMOOTHING.md).
+// The client exits with code 0 if at least one PONG arrived, otherwise with code 1.
 
 #include <algorithm>
 #include <chrono>
@@ -37,16 +37,16 @@
 
 namespace {
 
-// Номер сессии, который сервер выдаёт в WELCOME. Сервер один, сессия тоже одна.
+// The session number the server gives in WELCOME. There is one server, so one session.
 constexpr uint32_t kSession = 1;
 
-// Сколько ждать подключения и ответа на HELLO, секунд.
+// How long to wait for the connection and the reply to HELLO, seconds.
 constexpr double kHandshakeTimeout = 5.0;
 
-// Сколько после последнего PING ждать опоздавшие PONG, секунд.
+// How long to wait for late PONGs after the last PING, seconds.
 constexpr double kLateWait = 1.0;
 
-// Секунды от запуска программы.
+// Seconds since program start.
 double now() {
     static const auto start = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
@@ -57,7 +57,7 @@ void pause1ms() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
-// Собирает UDP-пакет PING или PONG: заголовок и время.
+// Builds a PING or PONG UDP packet: header and time.
 std::vector<uint8_t> makePingPacket(olc::UdpType type, uint32_t seq, double time) {
     olc::Writer writer;
     olc::UdpHeader header;
@@ -65,15 +65,15 @@ std::vector<uint8_t> makePingPacket(olc::UdpType type, uint32_t seq, double time
     header.session = kSession;
     header.seq = seq;
     olc::writeUdpHeader(writer, header);
-    // Номер клиента в PING нужен плагину (адрес клиента за NAT); здесь сервер отвечает
-    // туда, откуда пришёл пакет, и номер не смотрит.
+    // The client number in PING is needed by the plugin (client address behind NAT); here the server
+    // replies to where the packet came from and ignores the number.
     olc::Ping ping;
     ping.time = time;
     olc::writePing(writer, ping);
     return writer.bytes();
 }
 
-// Разбирает PING или PONG нужного типа. false - чужой или битый пакет.
+// Parses a PING or PONG of the needed type. false - a foreign or broken packet.
 bool readPingPacket(const std::vector<uint8_t>& packet, olc::UdpType type, double& time) {
     olc::Reader reader(packet.data(), packet.size());
     olc::UdpHeader header;
@@ -91,17 +91,17 @@ bool readPingPacket(const std::vector<uint8_t>& packet, olc::UdpType type, doubl
     return true;
 }
 
-// ---------- Сервер ----------
+// ---------- Server ----------
 
-// Подключённый по TCP клиент.
+// A client connected over TCP.
 struct ServerClient {
-    uint8_t id = 0;      // номер клиента для WELCOME
+    uint8_t id = 0;      // client number for WELCOME
     olc::TcpConnection connection;
     olc::TcpFrameReader frames;
-    std::string player;  // имя из HELLO; пусто, пока HELLO не пришёл
+    std::string player;  // name from HELLO; empty until HELLO arrives
 };
 
-// Разбирает принятые от клиента TCP-сообщения. false - соединение надо закрыть.
+// Parses TCP messages received from the client. false - the connection must be closed.
 bool handleClientFrames(ServerClient& client) {
     uint8_t type = 0;
     std::vector<uint8_t> body;
@@ -136,7 +136,7 @@ bool handleClientFrames(ServerClient& client) {
                         reason.c_str());
             return false;
         }
-        // Остальные сообщения olc-netcheck не нужны - пропускаем.
+        // olc-netcheck does not need other messages - skip them.
     }
     return result != olc::TcpFrameReader::Result::Broken;
 }
@@ -159,7 +159,7 @@ int runServer(uint16_t port) {
     double nextReport = now() + 10.0;
 
     while (true) {
-        // Новые подключения.
+        // New connections.
         ServerClient incoming;
         while (listener.accept(incoming.connection)) {
             std::printf("client %s: connected\n",
@@ -170,7 +170,7 @@ int runServer(uint16_t port) {
             incoming = ServerClient();
         }
 
-        // TCP-сообщения клиентов. Закрытые соединения удаляются из списка.
+        // Client TCP messages. Closed connections are removed from the list.
         for (size_t i = 0; i < clients.size();) {
             ServerClient& client = clients[i];
             bool alive = client.connection.receive(client.frames);
@@ -184,7 +184,7 @@ int runServer(uint16_t port) {
                 clients.erase(clients.begin() + static_cast<std::ptrdiff_t>(i));
             }
         }
-        // UDP: на каждый PING - PONG с тем же временем тому, кто прислал.
+        // UDP: every PING gets a PONG with the same time, sent back to the sender.
         std::vector<uint8_t> packet;
         olc::Endpoint from;
         while (udp.receiveFrom(packet, from)) {
@@ -204,9 +204,9 @@ int runServer(uint16_t port) {
     }
 }
 
-// ---------- Клиент ----------
+// ---------- Client ----------
 
-// Ждёт подключения и WELCOME. Возвращает false и печатает причину, если не дождался.
+// Waits for the connection and WELCOME. Returns false and prints the reason if it did not come.
 bool handshake(olc::TcpConnection& tcp, const olc::Endpoint& server) {
     if (!tcp.startConnect(server)) {
         std::printf("error: cannot start TCP connection to %s\n",
@@ -220,7 +220,7 @@ bool handshake(olc::TcpConnection& tcp, const olc::Endpoint& server) {
     hello.player = "netcheck";
     olc::Writer writer;
     olc::writeHello(writer, hello);
-    // Пока идёт подключение, кадр ждёт в очереди и уйдёт сразу после него.
+    // While connecting, the frame waits in the queue and goes out right after.
     tcp.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Hello), writer.bytes()));
 
     const double start = now();
@@ -256,13 +256,13 @@ bool handshake(olc::TcpConnection& tcp, const olc::Endpoint& server) {
     return false;
 }
 
-// Итоги обмена PING и PONG.
+// Results of the PING and PONG exchange.
 struct PingStats {
     uint64_t sent = 0;
     uint64_t received = 0;
-    uint64_t outOfOrder = 0;  // PONG пришёл раньше ответа на более ранний PING
-    std::vector<double> rtts;  // задержки туда-обратно всех PONG, секунды
-    double jitterSum = 0.0;   // сумма |разница соседних задержек|
+    uint64_t outOfOrder = 0;  // a PONG arrived before the reply to an earlier PING
+    std::vector<double> rtts;  // round trip times of all PONGs, seconds
+    double jitterSum = 0.0;   // sum of |difference between neighbouring delays|
     double lastRtt = -1.0;
     double lastPingTime = -1.0;
 
@@ -281,14 +281,14 @@ struct PingStats {
     }
 };
 
-// Значение, которого не превышает доля part задержек (0.95 - перцентиль 95).
-// sorted - задержки по возрастанию, не пустой.
+// The value not exceeded by the share part of the delays (0.95 - the 95th percentile).
+// sorted - delays in ascending order, not empty.
 double percentile(const std::vector<double>& sorted, double part) {
     const size_t index = static_cast<size_t>(part * static_cast<double>(sorted.size() - 1));
     return sorted[index];
 }
 
-// Доля задержек больше limit, в процентах.
+// Share of delays above limit, in percent.
 double percentAbove(const std::vector<double>& rtts, double limit) {
     const auto count = std::count_if(rtts.begin(), rtts.end(),
                                      [limit](double rtt) { return rtt > limit; });
@@ -358,7 +358,7 @@ int runClient(const olc::Endpoint& server, double seconds, double rateHz) {
                 stats.addPong(pingTime, now() - pingTime);
             }
         }
-        // TCP держим живым: обрыв во время замера - тоже результат.
+        // Keep TCP alive: a broken connection during the measurement is a result too.
         if (!tcp.flush() || tcp.state() == olc::TcpConnection::State::Closed) {
             std::printf("error: TCP connection lost during the test\n");
             break;
@@ -375,7 +375,7 @@ int runClient(const olc::Endpoint& server, double seconds, double rateHz) {
     return stats.received > 0 ? 0 : 1;
 }
 
-// ---------- Разбор командной строки ----------
+// ---------- Command line parsing ----------
 
 void printUsage() {
     std::printf("usage:\n"
@@ -385,7 +385,7 @@ void printUsage() {
                 static_cast<unsigned>(olc::kDefaultPort));
 }
 
-// Читает целое число в пределах [low, high]. false - не число или вне пределов.
+// Reads an integer within [low, high]. false - not a number or out of range.
 bool parseNumber(const char* text, long low, long high, long& value) {
     char* end = nullptr;
     const long parsed = std::strtol(text, &end, 10);
@@ -423,7 +423,7 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    // Без буфера: вывод сервера сразу виден, даже если он идёт в файл.
+    // No buffering: server output is visible at once, even if it goes to a file.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
 
     if (!olc::startNetwork()) {

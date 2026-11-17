@@ -1,8 +1,8 @@
-// Запись и чтение полей протокола (docs/PROTOCOL.md, раздел 2).
+// Writing and reading protocol fields (docs/PROTOCOL.md, section 2).
 //
-// Каждое поле пишется отдельно, little-endian (младший байт первым), с фиксированным
-// размером. Структуры C++ целиком в сеть не копируются: так формат не зависит от
-// компилятора, выравнивания и порядка байтов процессора.
+// Each field is written separately, little-endian (low byte first), with a fixed
+// size. C++ structs are never copied to the network as a whole: that way the format does not
+// depend on the compiler, alignment or the processor's byte order.
 #pragma once
 
 #include <cstddef>
@@ -12,10 +12,10 @@
 
 namespace olc {
 
-// Наибольшая длина строки str: длина пишется одним байтом.
+// Largest length of a str string: the length is written as one byte.
 constexpr size_t kMaxStringLength = 255;
 
-// Собирает сообщение: поля дописываются в конец.
+// Builds a message: fields are appended at the end.
 class Writer {
 public:
     void writeU8(uint8_t value);
@@ -24,11 +24,11 @@ public:
     void writeF32(float value);
     void writeF64(double value);
 
-    // Строка: байт длины и байты UTF-8 без завершающего нуля.
-    // Если строка длиннее kMaxStringLength, ничего не пишет и возвращает false.
+    // String: a length byte and UTF-8 bytes without a terminating zero.
+    // If the string is longer than kMaxStringLength, writes nothing and returns false.
     bool writeString(const std::string& value);
 
-    // Байты как есть, без длины: длину сообщение пишет отдельным полем.
+    // Bytes as is, without a length: the message writes the length as a separate field.
     void writeBytes(const std::vector<uint8_t>& value);
 
     const std::vector<uint8_t>& bytes() const { return bytes_; }
@@ -37,13 +37,13 @@ private:
     std::vector<uint8_t> bytes_;
 };
 
-// Читает поля из принятых байтов по порядку.
-// Каждая функция возвращает false, если байтов не хватает; тогда значение не меняется,
-// а все следующие чтения тоже вернут false. Поэтому можно прочитать все поля подряд
-// и проверить результат один раз: битый пакет никогда не читается за своей границей.
+// Reads fields from received bytes in order.
+// Every function returns false if bytes are missing; then the value is unchanged,
+// and all later reads return false too. So all fields can be read in a row
+// and the result checked once: a broken packet is never read past its end.
 class Reader {
 public:
-    // data должен жить, пока используется Reader: байты не копируются.
+    // data must outlive the Reader: the bytes are not copied.
     Reader(const uint8_t* data, size_t size);
 
     bool readU8(uint8_t& value);
@@ -53,17 +53,17 @@ public:
     bool readF64(double& value);
     bool readString(std::string& value);
 
-    // Ровно count байтов как есть (пара к Writer::writeBytes).
+    // Exactly count bytes as is (the counterpart of Writer::writeBytes).
     bool readBytes(std::vector<uint8_t>& value, size_t count);
 
-    // Сколько байтов ещё не прочитано.
+    // How many bytes are not read yet.
     size_t remaining() const { return size_ - position_; }
 
-    // Не было ли ошибки чтения.
+    // Whether there was a read error.
     bool ok() const { return ok_; }
 
 private:
-    // Проверяет, что впереди есть count байтов; при нехватке запоминает ошибку.
+    // Checks that count bytes are ahead; if not, remembers the error.
     bool canRead(size_t count);
 
     const uint8_t* data_;

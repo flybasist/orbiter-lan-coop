@@ -1,8 +1,8 @@
-# Плагин OrbiterLanCoop.dll для Orbiter (только Windows x64).
-# Нужен собранный Orbiter: каталог OLC_ORBITER_SDK_DIR с подкаталогами
-#   include - заголовки SDK (Orbitersdk/include из репозитория Orbiter);
-#   lib     - Orbiter.lib (библиотека импорта orbiter.exe) и Orbitersdk.lib.
-# Как его получить - docs/QUICKSTART.md и .github/workflows/build.yml.
+# The OrbiterLanCoop.dll plugin for Orbiter (Windows x64 only).
+# Needs a built Orbiter: the folder OLC_ORBITER_SDK_DIR with subfolders
+#   include - SDK headers (Orbitersdk/include from the Orbiter repository);
+#   lib     - Orbiter.lib (import library of orbiter.exe) and Orbitersdk.lib.
+# How to get it - docs/QUICKSTART.md and .github/workflows/build.yml.
 
 add_library(OrbiterLanCoop SHARED
     OrbiterLanCoop.cpp
@@ -12,7 +12,7 @@ add_library(OrbiterLanCoop SHARED
     trace.cpp
 )
 
-# Заголовки SDK - системные: предупреждения в них не наши.
+# SDK headers are system headers: warnings in them are not ours.
 target_include_directories(OrbiterLanCoop SYSTEM PRIVATE ${OLC_ORBITER_SDK_DIR}/include)
 
 target_link_libraries(OrbiterLanCoop PRIVATE

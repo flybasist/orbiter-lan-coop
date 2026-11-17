@@ -6,7 +6,7 @@ namespace olcplugin {
 
 namespace {
 
-// Файловые функции SDK принимают имя поля как char*, а не const char*: передаём копию.
+// SDK file functions take the item name as char*, not const char*: we pass a copy.
 bool readString(FILEHANDLE file, const char* item, std::string& value) {
     std::string name = item;
     char buffer[1024] = {};
@@ -49,7 +49,7 @@ void readDouble(FILEHANDLE file, const char* item, double low, double high, doub
 
 Config loadConfig() {
     Config config;
-    // FILE_IN_ZEROONFAIL: если файла нет, вернёт 0 (FILE_IN вернул бы пустой файл).
+    // FILE_IN_ZEROONFAIL: if there is no file, returns 0 (FILE_IN would return an empty file).
     FILEHANDLE file = oapiOpenFile("OrbiterLanCoop.cfg", FILE_IN_ZEROONFAIL, CONFIG);
     if (!file) {
         oapiWriteLogV("OLC: Config\\OrbiterLanCoop.cfg not found, plugin is off");

@@ -5,8 +5,8 @@
 
 namespace olc {
 
-// f32 и f64 передаются как числа IEEE 754. На всех платформах Orbiter (Windows x64)
-// и на Mac/Linux float и double именно такие; проверяем это при сборке.
+// f32 and f64 are sent as IEEE 754 numbers. On all Orbiter platforms (Windows x64)
+// and on Mac/Linux float and double are exactly that; we check it at build time.
 static_assert(std::numeric_limits<float>::is_iec559 && sizeof(float) == 4,
               "float must be IEEE 754 single precision");
 static_assert(std::numeric_limits<double>::is_iec559 && sizeof(double) == 8,
@@ -30,8 +30,8 @@ void Writer::writeU32(uint32_t value) {
 }
 
 void Writer::writeF32(float value) {
-    // Биты числа переносим в целое через memcpy (так по стандарту можно)
-    // и пишем как обычное целое little-endian.
+    // We move the number's bits into an integer with memcpy (the standard allows this)
+    // and write it as an ordinary little-endian integer.
     uint32_t bits = 0;
     std::memcpy(&bits, &value, sizeof(bits));
     writeU32(bits);
@@ -124,8 +124,8 @@ bool Reader::readF64(double& value) {
 }
 
 bool Reader::readString(std::string& value) {
-    // Длину читаем сами, а не через readU8: если байтов строки не хватит,
-    // позиция не должна сдвинуться наполовину.
+    // We read the length ourselves, not with readU8: if the string bytes are missing,
+    // the position must not move halfway.
     if (!canRead(1)) {
         return false;
     }

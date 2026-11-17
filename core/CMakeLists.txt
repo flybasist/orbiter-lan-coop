@@ -1,5 +1,5 @@
-# olc-core: сетевое ядро OLC. Не зависит от Orbiter, поэтому собирается и
-# тестируется на любой системе. Его использует плагин (plugin/).
+# olc-core: the OLC network core. It does not depend on Orbiter, so it builds and
+# is tested on any system. The plugin (plugin/) uses it.
 add_library(olc-core STATIC
     attitude.cpp
     client_clock.cpp
@@ -15,7 +15,7 @@ add_library(olc-core STATIC
 )
 target_include_directories(olc-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Winsock на Windows
+# Winsock on Windows
 if(WIN32)
     target_link_libraries(olc-core PUBLIC ws2_32)
 endif()

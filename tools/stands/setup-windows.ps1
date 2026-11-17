@@ -1,33 +1,33 @@
-﻿# Подготовка Windows-машины к сборке Orbiter и OLC (docs/STANDS.md, раздел 8.1).
+﻿# Prepares a Windows machine for building Orbiter and OLC (docs/STANDS.md, section 8.1).
 #
-# Ставит то, чего ещё нет:
-#   1. Git для Windows;
-#   2. Visual Studio 2022 Community с C++, MFC и средствами сборки x64
-#      (если Visual Studio уже стоит - только добавляет недостающие компоненты);
+# Installs what is not there yet:
+#   1. Git for Windows;
+#   2. Visual Studio 2022 Community with C++, MFC and x64 build tools
+#      (if Visual Studio is already installed - only adds the missing components);
 #   3. DirectX SDK (June 2010);
-#   4. правила брандмауэра для порта OLC 47800 (TCP и UDP, только частная сеть);
-#   5. автозапуск службы OpenSSH Server, если она установлена.
+#   4. firewall rules for the OLC port 47800 (TCP and UDP, private network only);
+#   5. automatic start of the OpenSSH Server service, if it is installed.
 #
-# Запуск: PowerShell от имени администратора, из каталога со скриптом:
+# Run: PowerShell as administrator, from the script's folder:
 #   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 #
-# Скрипт можно запускать повторно: уже сделанное он пропускает. Visual Studio и
-# DirectX SDK скачиваются из интернета (несколько гигабайт), установка идёт долго.
+# The script can be run again: it skips what is already done. Visual Studio and
+# DirectX SDK are downloaded from the internet (several gigabytes), installation takes long.
 
 $ErrorActionPreference = 'Stop'
 
-# Порт OLC по умолчанию (core/protocol.h, kDefaultPort).
+# Default OLC port (core/protocol.h, kDefaultPort).
 $olcPort = 47800
 
-# Компоненты Visual Studio: набор «Desktop development with C++», MFC и средства сборки
-# x64 (на Windows ARM они не ставятся по умолчанию).
+# Visual Studio components: the "Desktop development with C++" workload, MFC and x64
+# build tools (on Windows ARM they are not installed by default).
 $vsComponents = @(
     'Microsoft.VisualStudio.Workload.NativeDesktop',
     'Microsoft.VisualStudio.Component.VC.ATLMFC',
     'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
 )
 
-# Официальный установщик DirectX SDK (June 2010) с сайта Microsoft.
+# The official DirectX SDK (June 2010) installer from Microsoft's site.
 $dxsdkUrl = 'https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe'
 $dxsdkDir = "${env:ProgramFiles(x86)}\Microsoft DirectX SDK (June 2010)"
 
@@ -36,7 +36,7 @@ function Write-Step($text) {
     Write-Host "== $text" -ForegroundColor Cyan
 }
 
-# ---------- Проверки перед началом ----------
+# ---------- Checks before starting ----------
 
 $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -67,12 +67,12 @@ if (Test-Path $vswhere) {
 }
 
 if ($vsPath) {
-    # Visual Studio уже есть: через её установщик добавляем недостающие компоненты.
+    # Visual Studio is already there: add the missing components through its installer.
     Write-Host "Found Visual Studio at $vsPath, adding missing components."
     $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
     $process = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList `
         "modify --installPath `"$vsPath`" $addArgs --includeRecommended --quiet --norestart"
-    # 3010 - установка прошла, нужна перезагрузка.
+    # 3010 - installation succeeded, a reboot is needed.
     if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 3010) {
         throw "Visual Studio modify failed (exit code $($process.ExitCode))."
     }
@@ -86,16 +86,16 @@ if ($vsPath) {
 # ---------- 3. DirectX SDK ----------
 
 Write-Step 'DirectX SDK (June 2010)'
-# Проверяем по заголовку, а не по каталогу: неудачная установка оставляет пустой каталог
-# с одной папкой system.
+# Check by the header, not by the folder: a failed installation leaves an empty folder
+# with a single system subfolder.
 $dxsdkHeader = Join-Path $dxsdkDir 'Include\d3dx9.h'
 if (Test-Path $dxsdkHeader) {
     Write-Host 'DirectX SDK is already installed, skipping.'
 } else {
-    # Установщик SDK падает с ошибкой S1023 и не ставит SDK, если в системе уже есть
-    # Visual C++ 2010 Redistributable новее, чем в нём самом. Обход от Microsoft
-    # (KB2728613): удалить Visual C++ 2010 Redistributable, поставить SDK, вернуть
-    # Redistributable последней версии.
+    # The SDK installer fails with error S1023 and does not install the SDK if the system already has
+    # a Visual C++ 2010 Redistributable newer than its own. Microsoft's workaround
+    # (KB2728613): remove Visual C++ 2010 Redistributable, install the SDK, put back the
+    # latest Redistributable.
     $uninstallKeys = @(
         'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
         'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -110,11 +110,11 @@ if (Test-Path $dxsdkHeader) {
     $setup = Join-Path $env:TEMP 'DXSDK_Jun10.exe'
     Write-Host 'Downloading DirectX SDK (about 570 MB)...'
     Invoke-WebRequest -Uri $dxsdkUrl -OutFile $setup -UseBasicParsing
-    # /U - установка без вопросов.
+    # /U - silent installation.
     Start-Process -FilePath $setup -ArgumentList '/U' -Wait
     Remove-Item $setup -ErrorAction SilentlyContinue
 
-    # Возвращаем только те разрядности, что были удалены.
+    # Put back only the architectures that were removed.
     foreach ($package in $vc2010) {
         $id = if ($package.DisplayName -match 'x64') { 'Microsoft.VCRedist.2010.x64' } else { 'Microsoft.VCRedist.2010.x86' }
         Write-Host "Restoring $id."
@@ -123,7 +123,7 @@ if (Test-Path $dxsdkHeader) {
     if (-not (Test-Path $dxsdkHeader)) { throw "DirectX SDK was not installed: $dxsdkHeader not found." }
 }
 
-# ---------- 4. Брандмауэр ----------
+# ---------- 4. Firewall ----------
 
 Write-Step "Firewall rules for port $olcPort"
 foreach ($protocol in 'TCP', 'UDP') {

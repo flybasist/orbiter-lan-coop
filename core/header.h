@@ -1,4 +1,4 @@
-// Заголовки сообщений (docs/PROTOCOL.md, раздел 4): UDP-заголовок и TCP-кадры с длиной.
+// Message headers (docs/PROTOCOL.md, section 4): the UDP header and length-prefixed TCP frames.
 #pragma once
 
 #include <cstddef>
@@ -9,57 +9,57 @@
 
 namespace olc {
 
-// Размер UDP-заголовка: magic 4 + version 2 + type 1 + session 4 + seq 4 байта.
+// UDP header size: magic 4 + version 2 + type 1 + session 4 + seq 4 bytes.
 constexpr size_t kUdpHeaderSize = 15;
 
-// Поля UDP-заголовка, которые различаются от пакета к пакету.
+// UDP header fields that differ from packet to packet.
 struct UdpHeader {
-    uint8_t type = 0;      // тип сообщения (PROTOCOL.md, раздел 6)
-    uint32_t session = 0;  // номер сессии из WELCOME
-    uint32_t seq = 0;      // порядковый номер у отправителя
+    uint8_t type = 0;      // message type (PROTOCOL.md, section 6)
+    uint32_t session = 0;  // session number from WELCOME
+    uint32_t seq = 0;      // sender's sequence number
 };
 
-// Итог проверки UDP-заголовка. Всё, кроме Ok, - пакет отбрасывается
-// и учитывается в статистике по причине.
+// Result of checking a UDP header. Anything but Ok means the packet is dropped
+// and counted in the statistics by reason.
 enum class UdpHeaderResult {
     Ok,
-    TooShort,      // меньше заголовка
-    TooLong,       // больше kMaxUdpPacketSize
-    WrongMagic,    // не пакет OLC
-    WrongVersion,  // другая версия протокола
+    TooShort,      // shorter than the header
+    TooLong,       // longer than kMaxUdpPacketSize
+    WrongMagic,    // not an OLC packet
+    WrongVersion,  // another protocol version
 };
 
-// Пишет UDP-заголовок: сигнатуру, текущую версию протокола и поля header.
+// Writes the UDP header: the signature, the current protocol version and the header fields.
 void writeUdpHeader(Writer& writer, const UdpHeader& header);
 
-// Читает и проверяет UDP-заголовок в начале пакета. reader должен стоять в начале
-// пакета; при Ok он остаётся сразу за заголовком, на первом поле сообщения.
-// Номер сессии и seq здесь не проверяются: это знает только тот, кто принимает.
+// Reads and checks the UDP header at the start of a packet. reader must be at the start
+// of the packet; on Ok it is left right after the header, at the first message field.
+// The session number and seq are not checked here: only the receiver knows them.
 UdpHeaderResult readUdpHeader(Reader& reader, UdpHeader& header);
 
-// Собирает TCP-кадр: длина (u32), тип (u8) и тело сообщения.
-// Длина считает тип и тело, но не саму себя.
+// Builds a TCP frame: length (u32), type (u8) and message body.
+// The length counts the type and the body, but not itself.
 std::vector<uint8_t> makeTcpFrame(uint8_t type, const std::vector<uint8_t>& body);
 
-// TCP - это поток: сообщение может прийти по частям или вместе с соседними.
-// TcpFrameReader копит принятые байты и выдаёт сообщения целиком.
+// TCP is a stream: a message may arrive in parts or together with its neighbours.
+// TcpFrameReader collects received bytes and returns whole messages.
 class TcpFrameReader {
 public:
     enum class Result {
-        Ready,     // сообщение готово
-        NeedMore,  // сообщения целиком ещё нет, ждём байтов
-        Broken,    // длина 0 или больше kMaxTcpMessageSize: соединение надо закрыть
+        Ready,     // a message is ready
+        NeedMore,  // no whole message yet, waiting for bytes
+        Broken,    // length is 0 or larger than kMaxTcpMessageSize: close the connection
     };
 
-    // Добавляет байты, принятые из сокета.
+    // Adds bytes received from the socket.
     void append(const uint8_t* data, size_t size);
 
-    // Достаёт следующее целое сообщение: type - тип, body - тело без длины и типа.
-    // После Broken поток уже не разобрать, и все следующие вызовы тоже вернут Broken.
+    // Takes the next whole message: type - its type, body - the body without length and type.
+    // After Broken the stream cannot be parsed, and all later calls return Broken too.
     Result next(uint8_t& type, std::vector<uint8_t>& body);
 
 private:
-    std::vector<uint8_t> pending_;  // принятые, но ещё не выданные байты
+    std::vector<uint8_t> pending_;  // received but not yet returned bytes
     bool broken_ = false;
 };
 

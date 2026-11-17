@@ -1,9 +1,9 @@
-// Запись положения одного корабля в CSV для сравнения хоста и клиента после прогона.
+// Writes the position of one vessel to CSV to compare host and client after a run.
 //
-// Включается полем TraceVessel в Config\OrbiterLanCoop.cfg. Хост пишет настоящее
-// положение, клиент - то, которое навязал. Оба пишут MJD хоста, к которому относится
-// положение, поэтому строки двух файлов можно сопоставить по времени и посчитать
-// расхождение (критерий этапа 1 в docs/PLAN.md).
+// Turned on by the TraceVessel field in Config\OrbiterLanCoop.cfg. The host writes the real
+// position, the client - the one it imposed. Both write the host MJD the position
+// refers to, so the lines of the two files can be matched by time and the
+// error computed (stage 1 criterion in docs/PLAN.md).
 #pragma once
 
 #include <cstdio>
@@ -18,13 +18,13 @@ public:
     Trace(const Trace&) = delete;
     Trace& operator=(const Trace&) = delete;
 
-    // Открывает файл заново и пишет строку заголовка. false - не открылся.
+    // Opens the file anew and writes the header line. false - it did not open.
     bool open(const std::string& path);
     void close();
     bool isOpen() const { return file_ != nullptr; }
 
-    // Одна строка: MJD хоста, имя опорного тела, положение относительно него, м,
-    // и признак "буфер кончился" (только у клиента; у хоста всегда 0).
+    // One line: host MJD, reference body name, position relative to it, m,
+    // and the "buffer ran out" flag (client only; always 0 on the host).
     void write(double mjd, const char* refBody, double x, double y, double z, bool starved);
 
 private:

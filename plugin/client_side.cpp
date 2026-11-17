@@ -8,18 +8,18 @@
 
 namespace olcplugin {
 
-// std::max в скобках: windows.h (через Orbitersdk.h) определяет макрос max.
+// std::max in parentheses: windows.h (via Orbitersdk.h) defines a max macro.
 
 namespace {
 
-// Не прыгать во времени чаще, чем раз в столько секунд: прыжок тяжёлый
-// (ORBITER-INTERNALS.md, раздел 4), а сразу после него расхождение ещё не устоялось.
+// Do not jump in time more often than once per this many seconds: a jump is heavy
+// (ORBITER-INTERNALS.md, section 4), and right after it the error has not settled yet.
 constexpr double kTimeJumpPause = 2.0;
 
-// Как часто проверять, не изменил ли игрок ускорение сам, секунды.
+// How often to check whether the player changed time acceleration, seconds.
 constexpr double kWarpCheckInterval = 1.0;
 
-// Не повторять запрос паузы чаще: oapiSetPause срабатывает только в следующем кадре.
+// Do not repeat a pause request more often: oapiSetPause takes effect only in the next frame.
 constexpr double kPauseRequestPause = 0.5;
 
 constexpr double kStatsInterval = 10.0;
@@ -51,10 +51,10 @@ bool ClientSide::start() {
     clientConfig.player = config_.player;
     clientConfig.orbiterVersion = static_cast<uint32_t>(oapiGetOrbiterVersion());
     clientConfig.pluginVersion = "0.1-stage1";
-    // Как у хоста: имя звезды - тела с номером 0.
+    // As on the host: the name of the star - the body with number 0.
     clientConfig.system = oapiGetGbodyCount() > 0 ? objectName(oapiGetGbodyByIndex(0)) : "";
     clientConfig.displayDelay = config_.displayDelay;
-    // Класс есть, если на клиенте есть его файл конфигурации.
+    // A class exists if the client has its configuration file.
     clientConfig.classExists = [](const std::string& className) {
         std::string path = "Vessels\\" + className + ".cfg";
         FILEHANDLE file = oapiOpenFile(path.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
@@ -79,7 +79,7 @@ void ClientSide::stop() {
 void ClientSide::tick(double now, bool paused) {
     link_.poll(now);
 
-    // Подключение и отключение пишет в лог сам ClientLink.
+    // ClientLink logs connecting and disconnecting itself.
     if (link_.state() == olc::ClientLink::State::Ready && link_.hasWorld()) {
         const double displayTime = link_.displayTime(now);
         followTime(now, displayTime);
@@ -99,7 +99,7 @@ void ClientSide::tick(double now, bool paused) {
 }
 
 void ClientSide::followTime(double now, double displayTime) {
-    // Пауза - как у хоста.
+    // Pause follows the host.
     const bool hostPaused = link_.hostPaused();
     if (oapiGetPause() != hostPaused && now - lastPauseRequest_ > kPauseRequestPause) {
         oapiSetPause(hostPaused);
@@ -107,8 +107,8 @@ void ClientSide::followTime(double now, double displayTime) {
         oapiWriteLogV("OLC client: following host pause %s", hostPaused ? "on" : "off");
     }
 
-    // Ускорение - как у хоста. Повторяем запрос, только если хост сменил ускорение или
-    // игрок поменял его сам (проверка раз в kWarpCheckInterval).
+    // Time acceleration follows the host. Repeat the request only if the host changed it or
+    // the player changed it (checked once per kWarpCheckInterval).
     const double hostWarp = link_.hostWarp();
     if (hostWarp != requestedWarp_ ||
         (now >= nextWarpCheck_ && std::fabs(oapiGetTimeAcceleration() - hostWarp) > 1e-6)) {
@@ -120,8 +120,8 @@ void ClientSide::followTime(double now, double displayTime) {
         nextWarpCheck_ = now + kWarpCheckInterval;
     }
 
-    // Сим-время: весь мир клиента отстаёт от хоста на задержку показа (PROTOCOL.md,
-    // раздел 8), поэтому цель - MJD момента показа.
+    // Sim time: the whole client world lags behind the host by the display delay (PROTOCOL.md,
+    // section 8), so the target is the MJD of display time.
     const double targetMjd = link_.hostMjdAt(displayTime);
     const double error = (oapiGetSimMJD() - targetMjd) * kSecondsPerDay;
     const double limit = config_.timeSyncThreshold * (std::max)(1.0, hostWarp);
@@ -138,8 +138,8 @@ void ClientSide::followTime(double now, double displayTime) {
 }
 
 void ClientSide::applyFuel() {
-    // Топливо - раньше уровней двигателей: двигатель с пустым баком ядро обнуляет
-    // (ORBITER-INTERNALS.md, раздел 17).
+    // Fuel before thruster levels: the core zeroes a thruster with an empty tank
+    // (ORBITER-INTERNALS.md, section 17).
     for (const olc::VesselFuel& fuel : link_.takeFuel()) {
         OBJHANDLE handle = vesselHandle(fuel.netId);
         if (!handle) {
@@ -157,9 +157,9 @@ void ClientSide::applyFuel() {
 }
 
 void ClientSide::collectLanded() {
-    // Место посадки запоминается, а применяется в applyStates, когда момент показа дойдёт до
-    // посадки: LANDED приходит сразу, а клиент показывает мир с задержкой. Если поставить
-    // корабль раньше, следующий же кадр снова навяжет ему полёт из буфера.
+    // The landing place is remembered and applied in applyStates when display time reaches
+    // the landing: LANDED arrives at once, but the client shows the world with a delay. If the
+    // vessel is put down earlier, the very next frame imposes flight from the buffer again.
     for (const olc::Landed& message : link_.takeLanded()) {
         landedAt_[message.netId] = message;
     }
@@ -174,15 +174,15 @@ void ClientSide::putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed&
     status.surf_lng = place.longitude;
     status.surf_lat = place.latitude;
     status.surf_hdg = place.heading;
-    // arot.x > 4: «расширенной» ориентации нет, ядро поставит корабль на опоры само
-    // (Vesselstatus.cpp, SetState2, ветка status 1).
+    // arot.x > 4: no "extended" attitude, the core puts the vessel on its legs itself
+    // (Vesselstatus.cpp, SetState2, the status 1 branch).
     status.arot.x = 10.0;
     vessel->DefSetStateEx(&status);
     oapiWriteLogV("OLC client: vessel '%s' landed", vessel->GetName());
 }
 
 void ClientSide::applyStates(double displayTime) {
-    // Трасса: корабль ищется один раз, когда таблица уже пришла.
+    // Trace: the vessel is looked up once, when the table has arrived.
     if (!traceResolved_ && !config_.traceVessel.empty()) {
         traceResolved_ = true;
         const olc::VesselRecord* record = link_.table().findByName(config_.traceVessel);
@@ -199,7 +199,7 @@ void ClientSide::applyStates(double displayTime) {
         olc::VesselState state;
         bool starved = false;
         if (!link_.sampleVessel(entry.netId, displayTime, state, starved)) {
-            continue;  // по этому кораблю ещё не было пакетов
+            continue;  // no packets for this vessel yet
         }
         OBJHANDLE handle = vesselHandle(entry.netId);
         OBJHANDLE body = bodyHandle(state.refBody);
@@ -225,16 +225,16 @@ void ClientSide::applyStates(double displayTime) {
                              state.rpos.x, state.rpos.y, state.rpos.z, starved);
             }
         } else if (!(vessel->GetFlightStatus() & 1)) {
-            // Стоит на поверхности у хоста, а у клиента ещё нет: ставим один раз
-            // (ORBITER-INTERNALS.md, раздел 6). Дальше стоящий корабль ядро держит само.
+            // Landed on the host but not yet on the client: put it down once
+            // (ORBITER-INTERNALS.md, section 6). After that the core holds the landed vessel itself.
             auto place = landedAt_.find(entry.netId);
             if (place != landedAt_.end()) {
                 putOnSurface(vessel, body, place->second);
             }
         }
 
-        // Уровни двигателей: для выхлопа, а заодно физика клиента между пакетами
-        // двигает корабль так же, как хост.
+        // Thruster levels: for the exhaust, and also the client physics between packets
+        // moves the vessel the same way as the host.
         const DWORD thrusters = vessel->GetThrusterCount();
         for (size_t i = 0; i < state.thrusters.size() && i < thrusters; i++) {
             THRUSTER_HANDLE thruster = vessel->GetThrusterHandleByIndex(static_cast<DWORD>(i));

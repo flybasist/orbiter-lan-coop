@@ -22,7 +22,7 @@ UdpHeaderResult readUdpHeader(Reader& reader, UdpHeader& header) {
         return UdpHeaderResult::TooShort;
     }
 
-    // Байтов на заголовок хватает (проверено выше), поэтому чтения ниже не ошибаются.
+    // There are enough bytes for the header (checked above), so the reads below cannot fail.
     for (uint8_t expected : kUdpMagic) {
         uint8_t byte = 0;
         reader.readU8(byte);
@@ -43,7 +43,7 @@ UdpHeaderResult readUdpHeader(Reader& reader, UdpHeader& header) {
 
 std::vector<uint8_t> makeTcpFrame(uint8_t type, const std::vector<uint8_t>& body) {
     Writer writer;
-    writer.writeU32(static_cast<uint32_t>(1 + body.size()));  // тип + тело
+    writer.writeU32(static_cast<uint32_t>(1 + body.size()));  // type + body
     writer.writeU8(type);
     std::vector<uint8_t> frame = writer.bytes();
     frame.insert(frame.end(), body.begin(), body.end());
@@ -59,13 +59,13 @@ TcpFrameReader::Result TcpFrameReader::next(uint8_t& type, std::vector<uint8_t>&
         return Result::Broken;
     }
 
-    // Сначала нужна длина: 4 байта.
+    // First the length is needed: 4 bytes.
     Reader reader(pending_.data(), pending_.size());
     uint32_t length = 0;
     if (!reader.readU32(length)) {
         return Result::NeedMore;
     }
-    // В сообщении есть хотя бы тип. Слишком длинное - признак чужого или испорченного потока.
+    // The message has at least a type. Too long means a foreign or corrupted stream.
     if (length == 0 || length > kMaxTcpMessageSize) {
         broken_ = true;
         return Result::Broken;
@@ -74,7 +74,7 @@ TcpFrameReader::Result TcpFrameReader::next(uint8_t& type, std::vector<uint8_t>&
         return Result::NeedMore;
     }
 
-    // Сообщение пришло целиком: выдаём его и убираем из накопленного.
+    // The message arrived whole: return it and remove it from the buffer.
     reader.readU8(type);
     auto bodyStart = pending_.begin() + 4 + 1;
     auto bodyEnd = pending_.begin() + 4 + length;

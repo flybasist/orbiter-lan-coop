@@ -18,9 +18,9 @@ Vec3 lerp(const Vec3& a, const Vec3& b, double s) {
     return result;
 }
 
-// Кубическая интерполяция Эрмита: кривая проходит через p0 и p1 и имеет в них
-// скорости v0 и v1. h - время между точками, s - доля пути от 0 до 1.
-// Скорости умножаются на h, потому что формула считает в долях, а не в секундах.
+// Cubic Hermite interpolation: the curve passes through p0 and p1 and has
+// velocities v0 and v1 there. h - time between the points, s - fraction of the way from 0 to 1.
+// Velocities are multiplied by h because the formula works in fractions, not in seconds.
 double hermite(double p0, double v0, double p1, double v1, double h, double s) {
     double s2 = s * s;
     double s3 = s2 * s;
@@ -31,7 +31,7 @@ double hermite(double p0, double v0, double p1, double v1, double h, double s) {
     return h00 * p0 + h10 * h * v0 + h01 * p1 + h11 * h * v1;
 }
 
-// Состояние, продолженное от пакета на dt секунд по его скорости (ориентация не меняется).
+// A state continued from a packet for dt seconds with its velocity (attitude unchanged).
 VesselState moveOn(const VesselState& state, double dt) {
     VesselState result = state;
     if (isFlying(state)) {
@@ -49,7 +49,7 @@ bool InterpolationBuffer::add(double simTime, const VesselState& state) {
         return false;
     }
     entries_.push_back({simTime, state});
-    // Старые пакеты больше не нужны: показываемый момент только движется вперёд.
+    // Old packets are no longer needed: the displayed moment only moves forward.
     if (entries_.size() > kInterpolationBufferSize) {
         entries_.erase(entries_.begin());
     }
@@ -62,13 +62,13 @@ bool InterpolationBuffer::sample(double simTime, VesselState& result, bool& star
         return false;
     }
 
-    // Раньше первого пакета показать нечего, кроме него самого.
+    // Before the first packet there is nothing to show but the packet itself.
     if (simTime <= entries_.front().simTime) {
         result = entries_.front().state;
         return true;
     }
 
-    // Буфер кончился: продолжаем движение по последней скорости.
+    // The buffer ran out: keep moving with the last velocity.
     const Entry& newest = entries_.back();
     if (simTime >= newest.simTime) {
         starved = simTime > newest.simTime;
@@ -76,8 +76,8 @@ bool InterpolationBuffer::sample(double simTime, VesselState& result, bool& star
         return true;
     }
 
-    // Ищем с конца пару пакетов a и b, между которыми лежит simTime: показываемый
-    // момент обычно близко к концу буфера.
+    // Search from the end for a pair of packets a and b around simTime: the displayed
+    // moment is usually near the end of the buffer.
     size_t i = entries_.size() - 2;
     while (entries_[i].simTime > simTime) {
         i--;
@@ -85,9 +85,9 @@ bool InterpolationBuffer::sample(double simTime, VesselState& result, bool& star
     const Entry& a = entries_[i];
     const Entry& b = entries_[i + 1];
 
-    // Между стоящим на поверхности и летящим, а также между пакетами с разными
-    // опорными телами интерполировать нельзя: положения в разных системах отсчёта.
-    // Тогда до прихода момента b показываем a, продолженный по его скорости.
+    // We cannot interpolate between a landed and a flying state, or between packets with different
+    // reference bodies: the positions are in different frames.
+    // Then until moment b arrives we show a, continued with its velocity.
     if (!isFlying(a.state) || !isFlying(b.state) || a.state.refBody != b.state.refBody) {
         result = moveOn(a.state, simTime - a.simTime);
         return true;
@@ -98,7 +98,7 @@ bool InterpolationBuffer::sample(double simTime, VesselState& result, bool& star
     const VesselState& from = a.state;
     const VesselState& to = b.state;
 
-    result = from;  // номер, статус, опорное тело и уровни двигателей - из a
+    result = from;  // number, status, reference body and thruster levels - from a
     result.rpos.x = hermite(from.rpos.x, from.rvel.x, to.rpos.x, to.rvel.x, h, s);
     result.rpos.y = hermite(from.rpos.y, from.rvel.y, to.rpos.y, to.rvel.y, h, s);
     result.rpos.z = hermite(from.rpos.z, from.rvel.z, to.rpos.z, to.rvel.z, h, s);
