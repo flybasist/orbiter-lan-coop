@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | plan agreed, how to take and release a vessel — preliminary |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | plan agreed, in progress |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
@@ -244,7 +244,7 @@ an ImGui window in the simulation (the log and notifications are enough for now)
 
 ## Stage 3. Two vessels: everyone controls their own
 
-### Detailed plan (owner's decisions of 2026-11-18; how to take and release — preliminary)
+### Detailed plan (owner's decisions of 2026-11-18)
 
 The goal is the first working version: a pilot flies their own vessel from the client, the host
 computes the physics, two players rendezvous and dock in orbit. The basis is already there: the
@@ -276,7 +276,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 **Owner's decisions (2026-11-18, decisions 32–35):**
 
 1. **Ownership — A2:** a vessel stays with the pilot until the pilot releases it or leaves; switching the
-   focus (F3) does not take the vessel away. How to take and release — preliminarily: take — by moving the
+   focus (F3) does not take the vessel away. Take — by moving the
    focus to a free vessel when the pilot has none yet; release — with a key or by leaving the session.
    Someone else's vessel in focus is view only, with an on-screen notice. Connection lost — the vessel
    stays with the pilot for 60 s, the controls released.
@@ -305,6 +305,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 - The option "take and release only with a key" (F3 everywhere is viewing) does not argue with Orbiter's
   code: the mechanics are the same (clear the controls if the vessel is not one's own), the difference is
   one key and an on-screen hint. It can be made a setting on top of the default option.
+  The owner chose the default option (2026-11-18), the key-only one is a possible setting later.
 
 Not part of stage 3: a crew in one vessel (stage 4), clicks in the cockpit and on panels, add-ons' own
 held keys (the SDK does not allow it), sending animations in a general way.
