@@ -102,7 +102,8 @@ invisible service session, not on the desktop. So:
   [`tools/stands/run-orbiter.ps1`](../tools/stands/run-orbiter.ps1) in the user's session.
   The agent puts the job (which Orbiter copies to start with which switches, when to take screenshots) into
   `C:\olc\run-orbiter.json` (the `window` field places the copies' windows side by side, the `ui` field presses
-  buttons and selects items by name — this is how the "Connect" button in Launchpad is checked); the result is
+  buttons and selects items by name, closes the simulation window — this is how the "Connect" button in
+  Launchpad and reconnecting are checked); the result is
   a log and screenshots in `C:\olc\run-orbiter`. The task
   is created once by [`tools/stands/register-run-task.ps1`](../tools/stands/register-run-task.ps1)
   with the machine owner's consent.

@@ -40,3 +40,7 @@ add_test(NAME client_clock COMMAND test-client-clock)
 add_executable(test-link test_link.cpp)
 target_link_libraries(test-link PRIVATE olc-core)
 add_test(NAME link COMMAND test-link)
+
+add_executable(test-scenario-filter test_scenario_filter.cpp)
+target_link_libraries(test-scenario-filter PRIVATE olc-core)
+add_test(NAME scenario_filter COMMAND test-scenario-filter)

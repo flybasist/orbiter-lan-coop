@@ -15,7 +15,7 @@ I — research, S — test rigs.
 |---|---|---|
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
-| 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.6 are done and checked on rigs (with graphics — connecting with the button); 2.7 remains |
+| 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | — |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the instructor | Shared pause, watching any vessel, saving and debriefing a flight | — |
@@ -222,6 +222,22 @@ It is assessed separately (a workaround or a PR to the core) before the work con
 
 **Owner's decisions (2026-11-17):** the plan is approved; the Launchpad path is the main one, restarting
 with `-s` is the fallback (decision 30).
+
+**Results of check 2.7 (2026-11-18).** The host is Windows 11 x64 without graphics (Proxmox), the clients are
+Windows 11 ARM with graphics (Parallels, Wi-Fi and NAT) and Windows 10 x64 without graphics. Buttons in
+Launchpad were pressed by `run-orbiter.ps1` (the `ui` field), vessels were created and deleted by `OlcRigTest`.
+
+| Criterion | Result |
+|---|---|
+| Connecting with one button in 30–40 s | Yes: 21 s from "Connect" to the session, the same vessels |
+| A vessel created and deleted on the host appears and disappears on the client | Yes, with and without graphics |
+| Switching the camera and focus (F3) does not break the picture | Not checked: needs to be looked at by eye |
+| A missing class does not crash Orbiter, the player sees what is missing | Yes: the vessel is removed from the scenario before start, the host gets `CLASSES_MISSING`, the list of classes stays on screen for 20 s |
+| A host refusal is shown in a clear text | Yes for "no places": "Not connected: rejected by host: no free player slots". Refusal by version is checked by core tests |
+| Reconnecting without restarting Orbiter | Yes: 10 cycles "Connect" → session → close in a row without failures |
+
+Found on the way: a vessel of an unknown class in the received scenario would crash Orbiter already while
+loading, so a scenario filter was added (`core/scenario_filter.h`).
 
 Not part of stage 2: controlling one's own vessel (stage 3), docking, sending add-ons,
 an ImGui window in the simulation (the log and notifications are enough for now).

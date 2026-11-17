@@ -432,6 +432,7 @@ get stuck on a random commit between releases. So the main project is checked re
 | 2026-11-10 | `dabade26..dabade26` | No new commits; no new tags or releases | None. A follow-up of the 2026-11-09 move: in sections 3 and 7 the short `:NNNN` references to `Orbiter.cpp` missed during the move were recomputed; the references to `BroadcastImmediateKeyboardEvent` and `BroadcastBufferedKeyboardEvent` had been wrong before too — now the call and the implementation are given; section 16: `clbkWriteConfig` — `:685-686`. The other references to `Orbiter.cpp`, `DlgMgr.cpp`, `GraphicsAPI.cpp` and in the plugin were checked by line content. A repeated check: section 14 — `Orbiter::Run` `:1027-1087`, `UserInput` in the main loop — line 1060 (the same in `PLAN.md`, I1) | `dabade26` |
 | 2026-11-16 | `dabade26..a7a3396e` | 4 commits: `[CORE] Distance display improvement` (#620) — `Astro.cpp`, `Astro.h` (`SciStr` without the `prefix` parameter, scientific notation with `e`), `MenuInfoBar.cpp`; no new tags or releases | None: the distance format in the info panels; the SDK and places from the map are not affected, line references are the same | `a7a3396e` |
 | 2026-11-17 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
+| 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 
 ## 14. The plugin outside the frame: pause, windows, threads
 
@@ -702,3 +703,7 @@ is written to the file, then step 3.
   from inside the modal dialog. The first attempt (from inside the dialog and looking up the list by the
   number only) started nothing; both places were fixed at once, which one was the cause was not found out.
   From "Connect" to the start of the session — 21 s.
+- A vessel of an unknown class in a scenario crashes Orbiter the same way as `oapiCreateVesselEx`
+  (`Psys.cpp`, `InitState` → `Vessel::Vessel` → `TerminateOnError`). So before starting it, the plugin
+  removes from the received scenario the vessels of classes the client lacks
+  (`core/scenario_filter.h`).

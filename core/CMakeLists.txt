@@ -9,6 +9,7 @@ add_library(olc-core STATIC
     interpolation.cpp
     messages.cpp
     protocol.cpp
+    scenario_filter.cpp
     serialize.cpp
     session_table.cpp
     socket.cpp

@@ -202,10 +202,11 @@ void LaunchpadPanel::onTimer(HWND dialog) {
         return;
     }
     const uint32_t scenarioId = link_->scenario().scenarioId;
-    const bool written = writeReceivedScenario(link_->scenario().data);
+    std::string error;
+    const bool written = writeReceivedScenario(link_->scenario().data, error);
     stopLink();
     if (!written) {
-        setStatus(dialog, "Cannot write the host's scenario, see Orbiter.log.");
+        setStatus(dialog, error);
         updateConnectButton(dialog);
         return;
     }

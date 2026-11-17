@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "protocol.h"
+#include "scenario_launch.h"
 
 namespace olcplugin {
 
@@ -26,6 +27,9 @@ constexpr double kStatsInterval = 10.0;
 
 constexpr double kSecondsPerDay = 86400.0;
 
+// How long the notice about classes that are not installed stays on screen, seconds.
+constexpr double kNoticeSeconds = 20.0;
+
 VECTOR3 toVector3(const olc::Vec3& v) {
     return _V(v.x, v.y, v.z);
 }
@@ -34,17 +38,6 @@ std::string objectName(OBJHANDLE object) {
     char name[256] = {};
     oapiGetObjectName(object, name, sizeof(name));
     return name;
-}
-
-// A class is installed if the client has its configuration file Config\Vessels\<class>.cfg.
-bool classInstalled(const std::string& className) {
-    std::string path = "Vessels\\" + className + ".cfg";
-    FILEHANDLE file = oapiOpenFile(path.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
-    if (!file) {
-        return false;
-    }
-    oapiCloseFile(file, FILE_IN_ZEROONFAIL);
-    return true;
 }
 
 }  // namespace
@@ -75,6 +68,8 @@ bool ClientSide::start() {
 }
 
 void ClientSide::stop() {
+    // The world is already deleted: the notice went with it, it is only forgotten here.
+    notice_ = nullptr;
     link_.stop("client session ended");
     flushLog();
     trace_.close();
@@ -100,6 +95,7 @@ void ClientSide::tick(double now, bool paused) {
                 removeExtraVessels();
                 extrasRemoved_ = true;
             }
+            updateNotice(now);
         }
         if (now >= nextStats_) {
             if (nextStats_ > 0.0) {
@@ -287,6 +283,7 @@ OBJHANDLE ClientSide::createVessel(uint16_t netId, const olc::VesselState& state
     if (!classInstalled(record->className)) {
         // ClientLink has already told the host (CLASSES_MISSING).
         cannotCreate_.insert(netId);
+        noticeMissingClass(record->className);
         oapiWriteLogV("OLC client: cannot create vessel '%s': class '%s' is not installed",
                       record->name.c_str(), record->className.c_str());
         return nullptr;
@@ -338,6 +335,37 @@ bool ClientSide::deleteVessel(OBJHANDLE handle) {
     deletesThisFrame_++;
     oapiWriteLogV("OLC client: deleted vessel '%s'", name.c_str());
     return true;
+}
+
+void ClientSide::noticeMissingClass(const std::string& className) {
+    if (std::find(missingClasses_.begin(), missingClasses_.end(), className) ==
+        missingClasses_.end()) {
+        missingClasses_.push_back(className);
+        noticeShownAt_ = -1.0;  // show again with the new list
+    }
+}
+
+void ClientSide::updateNotice(double now) {
+    if (missingClasses_.empty()) {
+        return;
+    }
+    if (noticeShownAt_ < 0.0) {
+        if (!notice_) {
+            notice_ = oapiCreateAnnotation(true, 1.0, _V(1.0, 0.6, 0.2));
+            // Below the HUD text at the top of the window.
+            oapiAnnotationSetPos(notice_, 0.1, 0.35, 0.9, 0.6);
+        }
+        std::string text = "OLC: the host has vessels of classes not installed on this computer, "
+                           "they are not shown: ";
+        for (size_t i = 0; i < missingClasses_.size(); i++) {
+            text += (i == 0 ? "" : ", ") + missingClasses_[i];
+        }
+        oapiAnnotationSetText(notice_, &text[0]);
+        noticeShownAt_ = now;
+    } else if (notice_ && now - noticeShownAt_ > kNoticeSeconds) {
+        oapiDelAnnotation(notice_);
+        notice_ = nullptr;
+    }
 }
 
 void ClientSide::removeExtraVessels() {

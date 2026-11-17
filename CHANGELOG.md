@@ -123,3 +123,7 @@
   starts it itself and then joins the session with the scenario number. Checked with graphics (client
   Windows 11 ARM, host Windows 11 x64): 21 s from the button to the session. `run-orbiter.ps1` can press
   buttons in windows (the `ui` field of the job).
+  Check 2.7: 10 connections in a row without restarting Orbiter, the "no places" refusal is seen in the OLC
+  window. Vessels of classes the client lacks are removed from the received scenario before start
+  (`core/scenario_filter.h`, otherwise Orbiter terminates abnormally), the list of such classes stays on
+  screen for 20 s. Switching with F3 remains to be looked at by eye.

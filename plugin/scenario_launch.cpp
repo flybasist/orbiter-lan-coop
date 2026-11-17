@@ -6,6 +6,8 @@
 #include <fstream>
 #include <string>
 
+#include "scenario_filter.h"
+
 namespace olcplugin {
 
 namespace {
@@ -65,14 +67,38 @@ HTREEITEM addItem(HWND list, HTREEITEM parent, const char* text, bool folder) {
 
 }  // namespace
 
-bool writeReceivedScenario(const std::vector<uint8_t>& data) {
+bool classInstalled(const std::string& className) {
+    std::string path = "Vessels\\" + className + ".cfg";
+    FILEHANDLE file = oapiOpenFile(path.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
+    if (!file) {
+        return false;
+    }
+    oapiCloseFile(file, FILE_IN_ZEROONFAIL);
+    return true;
+}
+
+bool writeReceivedScenario(const std::vector<uint8_t>& data, std::string& error) {
+    const olc::ScenarioFilterResult filtered =
+        olc::filterScenario(std::string(data.begin(), data.end()), classInstalled);
+    std::string classes;
+    for (const std::string& className : filtered.missingClasses) {
+        classes += (classes.empty() ? "" : ", ") + className;
+    }
+    for (const std::string& name : filtered.removedVessels) {
+        oapiWriteLogV("OLC client: vessel '%s' left out, its class is not installed here",
+                      name.c_str());
+    }
+    if (!filtered.hasVessels) {
+        error = "None of the host's vessel classes is installed here: " + classes + ".";
+        oapiWriteLogV("OLC client: %s", error.c_str());
+        return false;
+    }
+
     CreateDirectoryA(kFolderPath, nullptr);  // an existing folder is not an error here
     std::ofstream file(kFilePath, std::ios::binary);
-    if (file) {
-        file.write(reinterpret_cast<const char*>(data.data()),
-                   static_cast<std::streamsize>(data.size()));
-    }
+    file << filtered.text;
     if (!file) {
+        error = std::string("Cannot write ") + kFilePath + ".";
         oapiWriteLogV("OLC client: cannot write %s", kFilePath);
         return false;
     }

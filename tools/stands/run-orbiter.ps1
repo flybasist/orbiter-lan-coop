@@ -17,7 +17,8 @@
 #     "ui": [                    - presses in Orbiter windows, by the element's name
 #       { "at": 8,  "click": "Extra" },             - a button: press it
 #       { "at": 9,  "select": "OLC - LAN co-op" },  - a list item: select it
-#       { "at": 10, "click": "Edit" }
+#       { "at": 10, "click": "Edit" },
+#       { "at": 60, "close": "session" }            - close the simulation window (back to Launchpad)
 #     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
@@ -70,8 +71,21 @@ $SWP_NOZORDER = 0x0004
 
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 
-# Presses (click) or selects (select) the element with this name in the windows of the given processes.
+# Presses (click) or selects (select) the element with this name in the windows of the given processes,
+# or closes the simulation window (close) - the same as its close button.
 function Invoke-UiStep($step, $processIds) {
+    if ($step.close) {
+        foreach ($id in $processIds) {
+            $process = Get-Process -Id $id -ErrorAction SilentlyContinue
+            if ($process -and $process.MainWindowTitle -like 'OpenOrbiter `[*') {
+                [Olc.Win32]::PostMessage($process.MainWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+                Write-Log "ui: closed '$($process.MainWindowTitle)'"
+                return
+            }
+        }
+        Write-Log 'ui: no simulation window to close'
+        return
+    }
     $name = if ($step.click) { $step.click } else { $step.select }
     $root = [System.Windows.Automation.AutomationElement]::RootElement
     $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
