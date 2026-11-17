@@ -561,4 +561,30 @@ void HostLink::sendLanded(const Landed& landed) {
     }
 }
 
+bool HostLink::sendVesselAdded(const VesselAdded& added) {
+    Writer body;
+    if (!writeVesselAdded(body, added)) {
+        return false;
+    }
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::VesselAdded, body);
+        }
+    }
+    log("OLC host: vessel '" + added.name + "' (" + added.className + ") added as " +
+        std::to_string(added.state.netId));
+    return true;
+}
+
+void HostLink::sendVesselRemoved(uint16_t netId) {
+    Writer body;
+    writeVesselRemoved(body, netId);
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::VesselRemoved, body);
+        }
+    }
+    log("OLC host: vessel " + std::to_string(netId) + " removed");
+}
+
 }  // namespace olc

@@ -10,7 +10,8 @@
 // - sends WORLD_STATE and FUEL to clients whose UDP port is known; a state that does
 //   not fit into one packet (kMaxUdpPacketSize) is split into several packets
 //   with the same sim_time;
-// - sends TCP messages (LANDED) to all clients that finished the handshake;
+// - sends TCP messages (LANDED, VESSEL_ADDED, VESSEL_REMOVED) to all clients that finished
+//   the handshake;
 // - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout) from the session table.
 //
 // Orbiter is not needed here: the plugin describes vessels and bodies via SessionTable and
@@ -94,6 +95,13 @@ public:
 
     // Sends LANDED over TCP to all clients that finished the handshake.
     void sendLanded(const Landed& landed);
+
+    // A vessel appeared or was deleted during the session. The plugin first changes the session
+    // table (addVessel, removeVessel), then calls these: clients that join later get the vessel
+    // in VESSELS anyway. sendVesselAdded returns false if the message cannot be built (see
+    // writeVesselAdded).
+    bool sendVesselAdded(const VesselAdded& added);
+    void sendVesselRemoved(uint16_t netId);
 
     // How many clients finished the handshake (got WELCOME).
     int clientCount() const;

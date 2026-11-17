@@ -111,3 +111,5 @@
   The host in the core answers a scenario request (`scenario_id` = 0) with the file of its world through
   `HostConfig::makeScenario` and closes the connection once the file has gone out; the client receives
   the file (`ClientLink::scenario`). A new refusal reason 5 — the host cannot give a scenario.
+  The host sends vessels created and deleted during the session (`VESSEL_ADDED` with the state,
+  `VESSEL_REMOVED`); the client in the core hands these changes to the plugin (`takeVesselChanges`).

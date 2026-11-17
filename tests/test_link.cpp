@@ -389,6 +389,65 @@ void testRejectProtocolVersion() {
     CHECK(host.table.playerCount() == 1);
 }
 
+// A vessel created and deleted on the host during the session appears and disappears on the client.
+void testVesselAddedRemoved() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(client.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.readyClientCount() == 1; }));
+    CHECK(client.takeVesselChanges().empty());  // VESSELS at join is not a change
+
+    olc::VesselAdded added;
+    added.name = "GL-NEW";
+    added.className = "DeltaGlider";
+    CHECK(host.table.addVessel(added.name, added.className, added.state.netId));
+    added.state.refBody = 1;
+    added.state.rpos.x = 6.5e6;
+    CHECK(host.link.sendVesselAdded(added));
+
+    std::vector<olc::VesselChange> changes;
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        std::vector<olc::VesselChange> got = client.takeVesselChanges();
+        changes.insert(changes.end(), got.begin(), got.end());
+        return !changes.empty();
+    }));
+    CHECK(changes.size() == 1);
+    if (changes.size() == 1) {
+        CHECK(changes[0].added);
+        CHECK(changes[0].vessel.netId == 3 && changes[0].vessel.name == "GL-NEW");
+        CHECK(changes[0].vessel.className == "DeltaGlider");
+    }
+    CHECK(sameTables(host.table, client.table()));
+
+    // The state from VESSEL_ADDED is already in the buffer.
+    olc::VesselState sampled;
+    bool starved = false;
+    CHECK(client.sampleVessel(3, 0.0, sampled, starved));
+    CHECK(sampled.rpos.x == 6.5e6);
+
+    CHECK(host.table.removeVessel(added.state.netId));
+    host.link.sendVesselRemoved(added.state.netId);
+    changes.clear();
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        std::vector<olc::VesselChange> got = client.takeVesselChanges();
+        changes.insert(changes.end(), got.begin(), got.end());
+        return !changes.empty();
+    }));
+    CHECK(changes.size() == 1);
+    if (changes.size() == 1) {
+        CHECK(!changes[0].added);
+        CHECK(changes[0].vessel.netId == 3 && changes[0].vessel.name == "GL-NEW");
+    }
+    CHECK(sameTables(host.table, client.table()));
+    CHECK(!client.sampleVessel(3, 0.0, sampled, starved));
+
+    std::vector<std::string> hostLog = host.link.takeLog();
+    CHECK(hasLine(hostLog, "OLC host: vessel 'GL-NEW' (DeltaGlider) added as 3"));
+    CHECK(hasLine(hostLog, "OLC host: vessel 3 removed"));
+}
+
 // Starts a client that asks for the host's scenario and waits until it is closed.
 void requestScenario(TestHost& host, olc::ClientLink& client) {
     olc::ClientConfig config = makeClientConfig(host);
@@ -758,6 +817,7 @@ int main() {
     testRejectOrbiterVersion();
     testRejectProtocolVersion();
     testHandshakeWithScenarioId();
+    testVesselAddedRemoved();
     testScenarioRequest();
     testScenarioUnavailable();
     testMessageBeforeHello();

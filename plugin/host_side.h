@@ -7,8 +7,9 @@
 // - send FUEL once per second;
 // - a vessel came to rest on a surface - LANDED at once; landed vessels are repeated in LANDED
 //   every kLandedRepeat seconds, so that clients that connect later learn about them too.
-// Vessels and bodies are taken once at session start (stage 1). Vessels that appear during
-// the session are not sent at stage 1 - only a log line (VESSEL_ADDED is stage 2).
+// Vessels and bodies are taken at session start. A vessel created during the session gets a
+// number at the next state capture and goes to clients in VESSEL_ADDED together with its
+// state; a deleted vessel goes to clients in VESSEL_REMOVED at once.
 #pragma once
 
 #include <cstdint>
@@ -47,12 +48,15 @@ private:
     // A host vessel: number in the table and handle in Orbiter.
     struct Ship {
         uint16_t netId = 0;
-        OBJHANDLE handle = nullptr;  // nullptr - the vessel is deleted
+        OBJHANDLE handle = nullptr;  // a deleted vessel is removed from the list at once
         bool landed = false;         // was landed at the last capture
+        bool announce = false;       // created during the session: VESSEL_ADDED not sent yet
     };
 
     void buildBodies();
     void buildShips();
+    // Gives numbers to vessels created since the last capture (onNewVessel).
+    void addNewShips();
     // Body number by handle; false - the body is not in the list.
     bool bodyId(OBJHANDLE body, uint16_t& id) const;
     void sendWorld(bool paused);
@@ -66,6 +70,7 @@ private:
     olc::HostLink link_;
     std::vector<OBJHANDLE> bodies_;  // index - body net_id
     std::vector<Ship> ships_;
+    std::vector<OBJHANDLE> newVessels_;  // created during the session, no number yet
     Trace trace_;
     OBJHANDLE traceHandle_ = nullptr;
 

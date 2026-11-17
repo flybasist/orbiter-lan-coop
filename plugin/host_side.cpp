@@ -1,5 +1,6 @@
 #include "host_side.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <random>
@@ -130,6 +131,26 @@ void HostSide::buildShips() {
     }
 }
 
+void HostSide::addNewShips() {
+    for (OBJHANDLE handle : newVessels_) {
+        VESSEL* vessel = oapiGetVesselInterface(handle);
+        const char* className = vessel->GetClassName();
+        uint16_t netId = 0;
+        if (!table_.addVessel(vessel->GetName(), className ? className : "", netId)) {
+            oapiWriteLogV("OLC host: vessel '%s' skipped (duplicate or too long name)",
+                          vessel->GetName());
+            continue;
+        }
+        table_.setOwner(netId, olc::kHostOwner);
+        Ship ship;
+        ship.netId = netId;
+        ship.handle = handle;
+        ship.announce = true;
+        ships_.push_back(ship);
+    }
+    newVessels_.clear();
+}
+
 bool HostSide::bodyId(OBJHANDLE body, uint16_t& id) const {
     for (size_t i = 0; i < bodies_.size(); i++) {
         if (bodies_[i] == body) {
@@ -173,10 +194,8 @@ void HostSide::sendWorld(bool paused) {
     world.warp = oapiGetTimeAcceleration();
     world.paused = paused ? 1 : 0;
 
+    addNewShips();
     for (Ship& ship : ships_) {
-        if (!ship.handle) {
-            continue;
-        }
         VESSEL* vessel = oapiGetVesselInterface(ship.handle);
         VESSELSTATUS2 status;
         std::memset(&status, 0, sizeof(status));
@@ -189,18 +208,6 @@ void HostSide::sendWorld(bool paused) {
             continue;  // body not in the list - this must not happen
         }
         const bool landed = status.status == 1;
-        if (landed && !ship.landed) {
-            // The vessel just came to rest: the client puts it down once (ORBITER-INTERNALS.md,
-            // section 6).
-            olc::Landed message;
-            message.netId = ship.netId;
-            message.longitude = status.surf_lng;
-            message.latitude = status.surf_lat;
-            message.heading = status.surf_hdg;
-            link_.sendLanded(message);
-        }
-        ship.landed = landed;
-
         if (landed) {
             state.status = static_cast<uint8_t>(olc::VesselStatus::Landed);
         } else {
@@ -219,6 +226,32 @@ void HostSide::sendWorld(bool paused) {
             const double level = vessel->GetThrusterLevel(vessel->GetThrusterHandleByIndex(i));
             state.thrusters.push_back(levelToByte(level));
         }
+
+        // A new vessel goes to clients before anything else about it (LANDED below).
+        if (ship.announce) {
+            olc::VesselAdded added;
+            added.name = vessel->GetName();
+            const char* className = vessel->GetClassName();
+            added.className = className ? className : "";
+            added.state = state;
+            if (!link_.sendVesselAdded(added)) {
+                oapiWriteLogV("OLC host: cannot send new vessel '%s' to clients",
+                              vessel->GetName());
+            }
+            ship.announce = false;
+        }
+
+        if (landed && !ship.landed) {
+            // The vessel just came to rest: the client puts it down once (ORBITER-INTERNALS.md,
+            // section 6).
+            olc::Landed message;
+            message.netId = ship.netId;
+            message.longitude = status.surf_lng;
+            message.latitude = status.surf_lat;
+            message.heading = status.surf_hdg;
+            link_.sendLanded(message);
+        }
+        ship.landed = landed;
         world.vessels.push_back(state);
 
         if (ship.handle == traceHandle_ && !landed) {
@@ -233,9 +266,6 @@ void HostSide::sendWorld(bool paused) {
 void HostSide::sendFuel() {
     olc::Fuel fuel;
     for (const Ship& ship : ships_) {
-        if (!ship.handle) {
-            continue;
-        }
         VESSEL* vessel = oapiGetVesselInterface(ship.handle);
         olc::VesselFuel entry;
         entry.netId = ship.netId;
@@ -257,7 +287,7 @@ void HostSide::sendFuel() {
 
 void HostSide::repeatLanded() {
     for (const Ship& ship : ships_) {
-        if (!ship.handle || !ship.landed) {
+        if (!ship.landed) {
             continue;
         }
         VESSEL* vessel = oapiGetVesselInterface(ship.handle);
@@ -278,11 +308,19 @@ void HostSide::repeatLanded() {
 }
 
 void HostSide::onDeleteVessel(OBJHANDLE vessel) {
-    for (Ship& ship : ships_) {
-        if (ship.handle == vessel) {
-            ship.handle = nullptr;
-            oapiWriteLogV("OLC host: vessel %u deleted, no longer synced",
-                          static_cast<unsigned>(ship.netId));
+    // A vessel deleted before it got a number: clients never heard of it.
+    newVessels_.erase(std::remove(newVessels_.begin(), newVessels_.end(), vessel),
+                      newVessels_.end());
+    for (size_t i = 0; i < ships_.size(); i++) {
+        if (ships_[i].handle == vessel) {
+            const uint16_t netId = ships_[i].netId;
+            table_.removeVessel(netId);
+            // VESSEL_REMOVED goes out only if VESSEL_ADDED did (or the vessel was in VESSELS).
+            if (!ships_[i].announce) {
+                link_.sendVesselRemoved(netId);
+            }
+            ships_.erase(ships_.begin() + static_cast<std::ptrdiff_t>(i));
+            break;
         }
     }
     if (traceHandle_ == vessel) {
@@ -291,9 +329,9 @@ void HostSide::onDeleteVessel(OBJHANDLE vessel) {
 }
 
 void HostSide::onNewVessel(OBJHANDLE vessel) {
-    // VESSEL_ADDED is stage 2. For now only note that clients will not see this vessel.
-    oapiWriteLogV("OLC host: vessel '%s' created during the session is not synced yet",
-                  objectName(vessel).c_str());
+    // The vessel's setup is not finished yet (ORBITER-INTERNALS.md, "Plugin life"), so it gets
+    // its number and goes to clients at the next state capture.
+    newVessels_.push_back(vessel);
 }
 
 void HostSide::logStats() {

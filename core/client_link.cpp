@@ -327,6 +327,12 @@ void ClientLink::handleVesselAdded(Reader& reader) {
     if (table_.addVesselWithId(added.state.netId, added.name, added.className)) {
         // The state in VESSEL_ADDED refers to the latest known host moment.
         buffers_[added.state.netId].add(lastPacketSimTime_, added.state);
+        VesselChange change;
+        change.added = true;
+        change.vessel.netId = added.state.netId;
+        change.vessel.name = added.name;
+        change.vessel.className = added.className;
+        vesselChanges_.push_back(change);
     }
 }
 
@@ -336,7 +342,17 @@ void ClientLink::handleVesselRemoved(Reader& reader) {
         close("broken VESSEL_REMOVED message");
         return;
     }
-    table_.removeVessel(netId);
+    // The name is needed by the plugin to find its vessel, so it is taken before removal.
+    VesselChange change;
+    change.vessel.netId = netId;
+    for (const VesselEntry& entry : table_.vesselEntries()) {
+        if (entry.netId == netId) {
+            change.vessel = entry;
+        }
+    }
+    if (table_.removeVessel(netId)) {
+        vesselChanges_.push_back(change);
+    }
     buffers_.erase(netId);
     fuel_.erase(netId);
 }
@@ -453,6 +469,12 @@ std::vector<VesselFuel> ClientLink::takeFuel() {
 std::vector<Landed> ClientLink::takeLanded() {
     std::vector<Landed> result;
     result.swap(landed_);
+    return result;
+}
+
+std::vector<VesselChange> ClientLink::takeVesselChanges() {
+    std::vector<VesselChange> result;
+    result.swap(vesselChanges_);
     return result;
 }
 

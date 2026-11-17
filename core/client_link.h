@@ -11,6 +11,8 @@
 //   states into the vessels' interpolation buffers (InterpolationBuffer) and adjusts the
 //   display clock (ClientClock);
 // - receives FUEL and LANDED and hands them to the plugin (takeFuel, takeLanded);
+// - receives VESSEL_ADDED and VESSEL_REMOVED, changes the session table and tells the plugin
+//   which vessels to create and delete (takeVesselChanges);
 // - sends PING once per second and measures the round trip time from PONG.
 //
 // Orbiter is not needed here: the plugin asks for a vessel state at the needed moment
@@ -61,6 +63,12 @@ struct ClientConfig {
     // Whether the client has a vessel class. Classes for which it returns false go to the host in
     // CLASSES_MISSING. If not set, all classes are assumed to exist.
     std::function<bool(const std::string& className)> classExists;
+};
+
+// A vessel that appeared on the host or was deleted there during the session.
+struct VesselChange {
+    bool added = false;   // true - create the vessel, false - delete it
+    VesselEntry vessel;   // number, name and class
 };
 
 // Statistics for the log.
@@ -133,6 +141,10 @@ public:
     // Takes LANDED messages received since the last call, in arrival order.
     std::vector<Landed> takeLanded();
 
+    // Takes vessel additions and deletions received since the last call, in arrival order.
+    // The session table is already changed; the plugin creates and deletes the vessels itself.
+    std::vector<VesselChange> takeVesselChanges();
+
     // The latest round trip time, seconds; below 0 - not measured yet.
     double rtt() const { return rtt_; }
 
@@ -185,6 +197,7 @@ private:
 
     std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
+    std::vector<VesselChange> vesselChanges_;
     bool hasScenario_ = false;
     Scenario scenario_;
 
