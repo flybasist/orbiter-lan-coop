@@ -9,7 +9,10 @@ add_library(OrbiterLanCoop SHARED
     config.cpp
     host_side.cpp
     client_side.cpp
+    launchpad_item.cpp
+    scenario_launch.cpp
     trace.cpp
+    OrbiterLanCoop.rc
 )
 
 # SDK headers are system headers: warnings in them are not ours.

@@ -688,3 +688,17 @@ is written to the file, then step 3.
 - It is better to write the host's scenario into a separate file (`Scenarios\OLC\...`) and select it in
   the list by path, so as not to overwrite the student's `(Current state)`; selecting by path is
   done in `RefreshList` (`TabScenario.cpp:215-233`) — the same tree walk.
+
+**How it is done in the plugin (stage 2, checked 2026-11-17 on Windows 11 ARM with graphics):**
+
+- The file is `Scenarios\OLC\Host world.scn`. Launchpad fills the list only when it is shown, so a
+  file written later is not in it: the plugin adds the items `OLC` and `Host world` to the tree itself.
+  Launchpad tells a file from a folder only by the "has children" flag (`GetSelScenario`,
+  `TabScenario.cpp:541`), and builds the path from the item texts — a hand-added item works the same.
+- The number `1090` is used twice in `resource.h`: `IDC_SCN_LIST` and the check box
+  `IDC_OPT_VIS_SPECULAR` on another tab. The list is looked up by the number and the class
+  `SysTreeView32`.
+- "Launch" is pressed by a 0.3 s timer after the OLC dialog is closed, as in the reconnaissance, not
+  from inside the modal dialog. The first attempt (from inside the dialog and looking up the list by the
+  number only) started nothing; both places were fixed at once, which one was the cause was not found out.
+  From "Connect" to the start of the session — 21 s.

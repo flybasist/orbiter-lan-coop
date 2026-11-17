@@ -101,7 +101,8 @@ Orbiter — оконное приложение. В Windows программа, 
   планировщика «OLC Run Orbiter», которая запускается только по команде и выполняет
   [`tools/stands/run-orbiter.ps1`](../../tools/stands/run-orbiter.ps1) в сессии пользователя.
   Задание (какие копии Orbiter с какими ключами запустить, когда снять экран) агент кладёт в
-  `C:\olc\run-orbiter.json` (поле `window` раскладывает окна копий рядом); результат —
+  `C:\olc\run-orbiter.json` (поле `window` раскладывает окна копий рядом, поле `ui` нажимает
+  кнопки и выделяет пункты по имени — так проверяется кнопка «Connect» в Launchpad); результат —
   журнал и снимки в `C:\olc\run-orbiter`. Задача
   создаётся один раз скриптом [`tools/stands/register-run-task.ps1`](../../tools/stands/register-run-task.ps1)
   с согласия владельца машины.

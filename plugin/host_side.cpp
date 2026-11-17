@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <random>
 
 #include "protocol.h"
@@ -19,6 +21,28 @@ constexpr double kLandedRepeat = 2.0;
 
 // How often to write statistics to the log, seconds.
 constexpr double kStatsInterval = 10.0;
+
+// Where the host saves its world for clients that ask for it: oapiSaveScenario takes the name
+// without the Scenarios folder and the .scn extension.
+const char kSentScenario[] = "OLC\\Sent to clients";
+const char kSentScenarioPath[] = "Scenarios\\OLC\\Sent to clients.scn";
+
+// Saves the current world and reads the file back for SCENARIO (HostConfig::makeScenario).
+bool saveWorld(olc::Scenario& scenario) {
+    CreateDirectoryA("Scenarios\\OLC", nullptr);  // an existing folder is not an error here
+    if (!oapiSaveScenario(kSentScenario, "World of the OLC host, sent to a connecting client.")) {
+        oapiWriteLogV("OLC host: cannot save the scenario for a client");
+        return false;
+    }
+    std::ifstream file(kSentScenarioPath, std::ios::binary);
+    if (!file) {
+        oapiWriteLogV("OLC host: cannot read %s", kSentScenarioPath);
+        return false;
+    }
+    scenario.name = "OLC host world";
+    scenario.data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    return true;
+}
 
 std::string objectName(OBJHANDLE object) {
     char name[256] = {};
@@ -72,6 +96,7 @@ bool HostSide::start() {
     // The star's name (the body with number 0) tells one planetary system from another.
     hostConfig.system = bodies_.empty() ? std::string() : objectName(bodies_[0]);
     hostConfig.stateRateHz = static_cast<uint8_t>(config_.stateRateHz);
+    hostConfig.makeScenario = saveWorld;
 
     const bool started = link_.start(hostConfig);
     flushLog();

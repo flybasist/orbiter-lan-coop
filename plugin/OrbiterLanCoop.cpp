@@ -1,5 +1,5 @@
-// OrbiterLanCoop - a multiplayer plugin for Orbiter (stage 1: the host sends the world, the client
-// shows it; docs/PLAN.md).
+// OrbiterLanCoop - a multiplayer plugin for Orbiter (stage 2: the host sends the world, the client
+// gets it with one button in Launchpad and shows it; docs/PLAN.md).
 //
 // The role (host, client or off) is set by the file Config\OrbiterLanCoop.cfg (config.h).
 // The role's work is in HostSide and ClientSide; this file only connects them to Orbiter:
@@ -10,6 +10,8 @@
 //   a timer: its messages always arrive, and while paused the role works by the timer
 //   (decision 23 in docs/DECISIONS.md);
 // - clbkSimulationEnd - stop.
+// The "OLC" item in Launchpad (LaunchpadPanel) lives as long as the DLL: it is registered in
+// InitModule and removed in ExitModule.
 
 #define ORBITER_MODULE
 #include "Orbitersdk.h"
@@ -19,6 +21,7 @@
 #include "client_side.h"
 #include "config.h"
 #include "host_side.h"
+#include "launchpad_item.h"
 #include "protocol.h"
 #include "socket.h"
 
@@ -31,13 +34,15 @@ const char kWindowClass[] = "OrbiterLanCoopTimer";
 
 class LanCoopModule;
 LanCoopModule* g_module = nullptr;
+olcplugin::LaunchpadPanel* g_panel = nullptr;
 
 LRESULT CALLBACK timerWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
 // The plugin module: Orbiter creates sessions, and this object lives between them.
 class LanCoopModule : public oapi::Module {
 public:
-    explicit LanCoopModule(HINSTANCE hDLL) : oapi::Module(hDLL), instance_(hDLL) {}
+    LanCoopModule(HINSTANCE hDLL, olcplugin::LaunchpadPanel* panel)
+        : oapi::Module(hDLL), instance_(hDLL), panel_(panel) {}
 
     void clbkSimulationStart(RenderMode mode) override {
         // Log lines are in English (project rules).
@@ -58,7 +63,7 @@ public:
             host_.reset(new olcplugin::HostSide(config_));
             started = host_->start();
         } else {
-            client_.reset(new olcplugin::ClientSide(config_));
+            client_.reset(new olcplugin::ClientSide(config_, panel_->takeLaunchedScenarioId()));
             started = client_->start();
         }
         if (!started) {
@@ -156,6 +161,7 @@ private:
     }
 
     HINSTANCE instance_;
+    olcplugin::LaunchpadPanel* panel_;  // owned by InitModule / ExitModule
     olcplugin::Config config_;
     bool networkStarted_ = false;
     std::unique_ptr<olcplugin::HostSide> host_;
@@ -175,7 +181,9 @@ LRESULT CALLBACK timerWindowProc(HWND window, UINT message, WPARAM wParam, LPARA
 
 // Entry point: Orbiter calls it when loading the plugin DLL.
 DLLCLBK void InitModule(HINSTANCE hDLL) {
-    g_module = new LanCoopModule(hDLL);
+    g_panel = new olcplugin::LaunchpadPanel(hDLL);
+    oapiRegisterLaunchpadItem(g_panel);
+    g_module = new LanCoopModule(hDLL, g_panel);
     oapiRegisterModule(g_module);
 }
 
@@ -186,4 +194,7 @@ DLLCLBK void ExitModule(HINSTANCE hDLL) {
     (void)hDLL;
     delete g_module;
     g_module = nullptr;
+    oapiUnregisterLaunchpadItem(g_panel);
+    delete g_panel;
+    g_panel = nullptr;
 }

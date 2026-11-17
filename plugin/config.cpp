@@ -2,6 +2,8 @@
 
 #include "Orbitersdk.h"
 
+#include <fstream>
+
 namespace olcplugin {
 
 namespace {
@@ -79,6 +81,36 @@ Config loadConfig() {
 
     oapiCloseFile(file, FILE_IN_ZEROONFAIL);
     return config;
+}
+
+bool saveConfig(const Config& config) {
+    // The Config folder is relative to the Orbiter folder, the current folder of the process.
+    std::ofstream file("Config\\OrbiterLanCoop.cfg");
+    if (!file) {
+        oapiWriteLogV("OLC: cannot write Config\\OrbiterLanCoop.cfg");
+        return false;
+    }
+    file << "; OrbiterLanCoop plugin settings. Written by the OLC item in Launchpad,\n"
+         << "; can also be edited by hand (example - plugin/OrbiterLanCoop.cfg in the OLC sources).\n\n"
+         << "; Role: host, client or off\n"
+         << "Role = " << roleName(config.role) << "\n\n"
+         << "; Client: host address (IPv4 digits only) and player name\n"
+         << "HostAddress = " << config.hostAddress << "\n"
+         << "Player = " << config.player << "\n\n"
+         << "; TCP and UDP port, the same on host and client\n"
+         << "Port = " << config.port << "\n\n"
+         << "; Host: player limit (the host is a player too, 2...8) and state rate per second\n"
+         << "MaxPlayers = " << config.maxPlayers << "\n"
+         << "StateRate = " << config.stateRateHz << "\n\n"
+         << "; Client: display delay, seconds, and the sim time error threshold against the host\n"
+         << "DisplayDelay = " << config.displayDelay << "\n"
+         << "TimeSyncThreshold = " << config.timeSyncThreshold << "\n";
+    if (!config.traceVessel.empty()) {
+        file << "\n; For measurements: position of this vessel goes to a CSV file\n"
+             << "TraceVessel = " << config.traceVessel << "\n"
+             << "TraceFile = " << config.traceFile << "\n";
+    }
+    return static_cast<bool>(file);
 }
 
 const char* roleName(Role role) {

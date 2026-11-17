@@ -184,7 +184,9 @@ In `plugin/`:
 | File | What is in it |
 |---|---|
 | `plugin/OrbiterLanCoop.cpp` | The Orbiter module: the role from the settings, session and frame callbacks, a hidden window with a timer for working while paused (decision 23) |
-| `plugin/config.h` | Settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`): role, host address, port, rate, display delay, trace |
+| `plugin/config.h` | Settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`): role, host address, port, rate, display delay, trace; writing the file from Launchpad (`saveConfig`) |
 | `plugin/host_side.h` | The "host" role: captures vessel states (`GetStatusEx`) in `clbkPreStep`, sends `WORLD_STATE` at `StateRate`, `FUEL` once per second, `LANDED` on landing and repeated for landed vessels; vessels created and deleted during the session — `VESSEL_ADDED` and `VESSEL_REMOVED` |
 | `plugin/client_side.h` | The "client" role: pause and warp as on the host, sim time near display time (a jump when the error exceeds `TimeSyncThreshold`), fuel, landing once, vessel states via `DefSetStateEx` in `clbkPreStep`, thruster levels; the list of vessels as on the host: creates missing ones if the class is installed, deletes extra ones and those the host deleted (except the last vessel) |
+| `plugin/launchpad_item.h` | The "OLC - LAN co-op" item in Launchpad (the "Extra" tab): role, address, port, name; the "Connect" button gets the host's scenario (`HELLO` without a number) and starts it |
+| `plugin/scenario_launch.h` | Starting the received scenario: writing it to `Scenarios\OLC\Host world.scn`, selecting it in the Launchpad list and pressing "Launch" (`ORBITER-INTERNALS.md`, section 18) |
 | `plugin/trace.h` | Writes one vessel's position to CSV on the host and the client — to measure the error |

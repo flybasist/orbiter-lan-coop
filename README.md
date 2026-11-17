@@ -5,9 +5,9 @@
 Shared flights in the [Orbiter](https://github.com/orbitersim/orbiter) space flight simulator
 over a local network: several people in one simulation from different computers.
 
-> Status: prototype (stage 1). The host sends the world state and the client shows it:
-> checked with two Orbiter copies with graphics on one machine, using a recorded DeltaGlider flight.
-> Next: a check over the network between two machines.
+> Status: prototype (stage 2). The host sends the world state and the client shows it; a student
+> connects with a button in Launchpad and gets the host's world. Checked over the network between machines.
+> Controlling one's own vessel is not possible yet — that is stage 3.
 
 ## How it works
 

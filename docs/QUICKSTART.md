@@ -99,18 +99,19 @@ section 6.
 The GitHub Actions build (`.github/workflows/build.yml`) does the same: it builds the
 Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x64` artifact.
 
-## 6. Running the host and the client (stage 1)
-
-At stage 1 settings come from a file; there is no Launchpad window yet.
+## 6. Running the host and the client
 
 1. Copy `OrbiterLanCoop.dll` into `Modules\Plugin` of both Orbiter copies (host and client)
    and turn the plugin on in the Modules tab or with the `-p OrbiterLanCoop` switch.
-2. Put an `OrbiterLanCoop.cfg` file into the `Config` folder of each copy (an example with explanations is
-   `plugin/OrbiterLanCoop.cfg`). The host has `Role = host`, the client has `Role = client` and
-   `HostAddress` — the host's address.
-3. Both run **the same scenario**: vessels are matched by name. The host first,
-   then the client — the client connects at session start and does not reconnect by itself.
-4. Both `Orbiter.log` files contain `OLC ...` lines: the connection, and every 10 s statistics
+2. In Launchpad, on the "Extra" tab, open the "OLC - LAN co-op" item: role, host address, port,
+   player name. The settings are saved to `Config\OrbiterLanCoop.cfg` (an example with explanations is
+   `plugin/OrbiterLanCoop.cfg`; without graphics, over SSH, the file is written by hand).
+3. The host (`host`) starts any scenario as usual.
+4. The client (`client`) presses "Connect" in the same window: the plugin gets the host's world, writes
+   it to `Scenarios\OLC\Host world.scn` and starts it itself. In 20–40 s the student is in the host's world.
+   The fallback is to start this scenario by hand, or the same scenario as the host's:
+   the client connects at the start of any session, creates missing vessels and deletes extra ones.
+5. Both `Orbiter.log` files contain `OLC ...` lines: the connection, and every 10 s statistics
    (delay, received packets, sim time error).
 
 On the client it is better to turn off vessel collisions (`VesselCollision = FALSE` in

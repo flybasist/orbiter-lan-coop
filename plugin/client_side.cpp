@@ -49,7 +49,8 @@ bool classInstalled(const std::string& className) {
 
 }  // namespace
 
-ClientSide::ClientSide(const Config& config) : config_(config) {}
+ClientSide::ClientSide(const Config& config, uint32_t scenarioId)
+    : config_(config), scenarioId_(scenarioId) {}
 
 bool ClientSide::start() {
     olc::ClientConfig clientConfig;
@@ -61,7 +62,8 @@ bool ClientSide::start() {
     clientConfig.host.port = static_cast<uint16_t>(config_.port);
     clientConfig.player = config_.player;
     clientConfig.orbiterVersion = static_cast<uint32_t>(oapiGetOrbiterVersion());
-    clientConfig.pluginVersion = "0.1-stage1";
+    clientConfig.pluginVersion = kPluginVersion;
+    clientConfig.scenarioId = scenarioId_;
     // As on the host: the name of the star - the body with number 0.
     clientConfig.system = oapiGetGbodyCount() > 0 ? objectName(oapiGetGbodyByIndex(0)) : "";
     clientConfig.displayDelay = config_.displayDelay;

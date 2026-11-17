@@ -118,3 +118,8 @@
   from `VESSEL_ADDED` that is not installed goes to the host in `CLASSES_MISSING`. Checked on rigs
   (host Windows 11, client Windows 10, without graphics) with the new helper plugin
   `tools/rigtest/` (`OlcRigTest.dll`) that creates and deletes vessels on a schedule.
+  The "OLC - LAN co-op" item in Launchpad (the "Extra" tab): role, address, port, name and the
+  "Connect" button — the client gets the host's world, writes it to `Scenarios\OLC\Host world.scn`,
+  starts it itself and then joins the session with the scenario number. Checked with graphics (client
+  Windows 11 ARM, host Windows 11 x64): 21 s from the button to the session. `run-orbiter.ps1` can press
+  buttons in windows (the `ui` field of the job).

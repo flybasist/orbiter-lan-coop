@@ -1,13 +1,16 @@
 // Plugin settings from the file Config\OrbiterLanCoop.cfg in the Orbiter folder.
 //
-// At stage 1 settings come from a file: this way host and client start without a UI,
-// including over SSH without graphics. A Launchpad window will come later
-// (docs/ARCHITECTURE.md, section "Interface"). Example file - plugin/OrbiterLanCoop.cfg.
+// Settings come from a file: this way host and client also start without a UI, over SSH
+// without graphics. The "OLC" item in Launchpad (launchpad_item.h) edits the main fields
+// and writes the file back with saveConfig. Example file - plugin/OrbiterLanCoop.cfg.
 #pragma once
 
 #include <string>
 
 namespace olcplugin {
+
+// Plugin version: goes into HELLO and is shown in the host's log.
+constexpr char kPluginVersion[] = "0.1-stage2";
 
 enum class Role {
     Off,     // the plugin is loaded but does nothing
@@ -35,6 +38,10 @@ struct Config {
 // Reads Config\OrbiterLanCoop.cfg. No file - Role::Off. Errors in values
 // are written to Orbiter.log, and such a field keeps its default value.
 Config loadConfig();
+
+// Writes all fields to Config\OrbiterLanCoop.cfg (comments in the old file are replaced by the
+// standard ones). false - the file could not be written.
+bool saveConfig(const Config& config);
 
 const char* roleName(Role role);
 

@@ -14,6 +14,11 @@
 #         "window": [642, 0] }
 #     ],
 #     "screenshots": [10, 30],   - how many seconds after start to take a screenshot
+#     "ui": [                    - presses in Orbiter windows, by the element's name
+#       { "at": 8,  "click": "Extra" },             - a button: press it
+#       { "at": 9,  "select": "OLC - LAN co-op" },  - a list item: select it
+#       { "at": 10, "click": "Edit" }
+#     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
 # window - where to move the window with the picture (x, y), so that the windows of two Orbiter
@@ -23,6 +28,10 @@
 #
 # The result is in C:\olc\run-orbiter: run.log (what was started, exit codes) and screenshots shot-<sec>.png.
 # The file done.txt appears last: by it the agent knows the run is over.
+#
+# "ui" lets the agent drive Launchpad and plugin dialogs without a person (for example, the
+# "Connect" button of the OLC item). It uses Windows UI Automation: the element is looked up by its
+# name (spaces at the ends do not count) in all windows of the started instances.
 
 $ErrorActionPreference = 'Stop'
 $jobFile = 'C:\olc\run-orbiter.json'
@@ -53,15 +62,48 @@ function Save-Screenshot($path) {
 Add-Type -Namespace Olc -Name Win32 -MemberDefinition @'
 [DllImport("user32.dll")]
 public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+[DllImport("user32.dll")]
+public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 '@
 $SWP_NOSIZE = 0x0001
 $SWP_NOZORDER = 0x0004
+
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+
+# Presses (click) or selects (select) the element with this name in the windows of the given processes.
+function Invoke-UiStep($step, $processIds) {
+    $name = if ($step.click) { $step.click } else { $step.select }
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($element in $all) {
+        if ($processIds -notcontains $element.Current.ProcessId) { continue }
+        if ($element.Current.Name.Trim() -ne $name.Trim()) { continue }
+        $handle = [IntPtr]$element.Current.NativeWindowHandle
+        if ($step.click -and $handle -ne [IntPtr]::Zero) {
+            # An ordinary Windows button: BM_CLICK is posted and does not wait. Invoke would wait
+            # until a modal dialog opened by the button is closed.
+            [Olc.Win32]::PostMessage($handle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        } elseif ($step.click) {
+            $pattern = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+            $pattern.Invoke()
+        } else {
+            $pattern = $element.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+            $pattern.Select()
+        }
+        Write-Log "ui: $(if ($step.click) { 'clicked' } else { 'selected' }) '$name'"
+        return
+    }
+    Write-Log "ui: '$name' not found"
+}
 
 try {
     $job = Get-Content $jobFile -Raw | ConvertFrom-Json
     $timeout = if ($job.timeout) { [int]$job.timeout } else { 120 }
     $shots = @()
     if ($job.screenshots) { $shots = @($job.screenshots | ForEach-Object { [int]$_ } | Sort-Object) }
+    $uiSteps = @()
+    if ($job.ui) { $uiSteps = @($job.ui | Sort-Object { [double]$_.at }) }
 
     $processes = @()
     $placements = @()   # windows still to be moved: process and coordinates
@@ -98,6 +140,14 @@ try {
             Save-Screenshot $file
             Write-Log "screenshot $file"
             $shots = @($shots | Select-Object -Skip 1)
+        }
+        while ($uiSteps.Count -gt 0 -and $elapsed -ge [double]$uiSteps[0].at) {
+            try {
+                Invoke-UiStep $uiSteps[0] @($processes | ForEach-Object { $_.Id })
+            } catch {
+                Write-Log "ui: error: $_"
+            }
+            $uiSteps = @($uiSteps | Select-Object -Skip 1)
         }
         $running = @($processes | Where-Object { -not $_.HasExited })
         if ($running.Count -eq 0 -and $shots.Count -eq 0) { break }

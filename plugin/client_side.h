@@ -34,7 +34,9 @@ namespace olcplugin {
 
 class ClientSide {
 public:
-    explicit ClientSide(const Config& config);
+    // scenarioId goes into HELLO: the number of the host's scenario this session was started
+    // from, or kOwnScenario if the player started a scenario by hand.
+    ClientSide(const Config& config, uint32_t scenarioId);
 
     // Session start: connect to the host. false - failed right away (see the log).
     bool start();
@@ -70,6 +72,7 @@ private:
     void flushLog();
 
     Config config_;
+    uint32_t scenarioId_;
     olc::ClientLink link_;
     std::map<uint16_t, OBJHANDLE> vessels_;  // net_id → client vessel (nullptr - none)
     std::map<uint16_t, OBJHANDLE> bodies_;   // body net_id → client body
