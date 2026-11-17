@@ -113,7 +113,12 @@ invisible service session, not on the desktop. So:
   hypervisors). There is no proper 3D: D3D9Client on Windows will most likely not start or
   will be very slow; Wine with DXVK needs Vulkan. Such a machine is for a host without graphics,
   builds and network tests. With a passed-through graphics card (PCI passthrough) it becomes
-  a full client.
+  a full client. Checked on Proxmox (2026-11-17): Windows 10 and 11 see only the
+  Microsoft Basic Display Adapter; Orbiter without graphics works and sends 30 states per
+  second — x64 without emulation.
+- **Windows over SSH.** Turning on Windows features (DISM, for example .NET Framework 3.5)
+  over SSH is denied even to an administrator. Such steps are done in PowerShell on the
+  machine itself or with a one-off scheduled task running as SYSTEM.
 - **Windows 11 ARM.** Orbiter x64 runs through Windows' built-in x64 emulation:
   good for development and checking features, not for FPS measurements. Checked in Parallels with
   3D acceleration (2026-11-17): D3D9Client works on the Parallels Display Adapter, two
@@ -145,20 +150,23 @@ For any machine:
 Items 1–3 and 6, and the automatic start of `sshd`, are done by the script
 [`tools/stands/setup-windows.ps1`](../tools/stands/setup-windows.ps1): it is run in
 PowerShell as administrator (`powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`),
-running it again is safe. Turning on OpenSSH Server, the key and auto-logon remain manual.
+running it again is safe. Turning on OpenSSH Server and the key remain manual.
 
 1. Visual Studio 2022 Community with the "Desktop development with C++" workload. On the
    Individual Components tab tick "C++ MFC for latest build tools (x86 & x64)". On Windows
    ARM also "MSVC … C++ x64/x86 build tools": there the x64 build tools are not installed
    by default.
-2. DirectX SDK (June 2010) — per [QUICKSTART.md](QUICKSTART.md).
+2. DirectX SDK (June 2010) — per [QUICKSTART.md](QUICKSTART.md). Its installer needs .NET Framework 3.5:
+   a clean Windows 10 and 11 do not have it, the script turns it on itself.
 3. Git for Windows. CMake is not needed separately: it comes with Visual Studio.
 4. OpenSSH Server: "Settings → System → Optional features → OpenSSH Server", the `sshd`
    service — automatic start. The key for an administrator user goes into
    `C:\ProgramData\ssh\administrators_authorized_keys`, for an ordinary user into
    `C:\Users\olc\.ssh\authorized_keys`.
 5. Auto-logon of the `olc` user — so that Orbiter can be started on the visible
-   desktop (section 6).
+   desktop (section 6). The script [`tools/stands/setup-autologon.ps1`](../tools/stands/setup-autologon.ps1)
+   is run by the machine owner: it asks for the password, checks it and writes it to the registry
+   in plain text — for test machines only. To turn it off — the `-Disable` switch.
 6. Firewall — a rule for TCP and UDP `47800` on the private network.
 
 Virtual machine: 4 cores or more, 8 GB of memory or more, 3D acceleration on, network —
@@ -243,13 +251,14 @@ extrapolate instead of interpolating.
 |---|---|---|---|---|
 | 2026-11-17 | Parallels VM (shared network, NAT) → Mac over Wi-Fi → wired Proxmox VM; 30 Hz, 300 s | 0 of 9000 | 5.0 / 80.8 / 100.2 / 186.3 | 0% |
 | 2026-11-17 | Mac over Wi-Fi → wired Proxmox VM; 30 Hz, 30 s | 0 of 900 | mean 14.8, max 141.7 | — |
+| 2026-11-17 | Proxmox VM → Proxmox VM, wired, one network; OLC traffic (Orbiter, 30 Hz), 420 s | 0 of 12836 | median 0.5, max 1.8 | 0% |
 
 Conclusions:
 
 - The Parallels shared network NAT adds about 2 ms; Wi-Fi is what makes the delay swing.
 - Even over Wi-Fi the 100 ms buffer was enough: by the estimate (half the RTT) no packet
   travelled one way longer than ~95 ms.
-  But the margin is small (p99 RTT is 100 ms), so for comparing smoothness at stage 1 a
-  wired measurement is also needed.
+  But the margin is small (p99 RTT is 100 ms). Over a wire the RTT is under 2 ms; the stage 1
+  error over Wi-Fi and over a wire is almost the same — `PLAN.md`, stage 1.
 - The jitter over Wi-Fi is not even, as in the smoothing model, but has rare long
   spikes — the model did not check this.

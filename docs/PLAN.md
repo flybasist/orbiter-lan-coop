@@ -14,7 +14,7 @@ I — research, S — test rigs.
 | Stage | Result | Status |
 |---|---|---|
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
-| 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics on one machine; waiting for a network between machines |
+| 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | — |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | — |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
@@ -61,12 +61,12 @@ above; the agent works within the machine's `access` field (decision 27).
 | # | Task | Result | Status |
 |---|---|---|---|
 | S1 | The network core on Linux: building `olc-core` and the tests on x86 and ARM (GCC) | A build without warnings, `ctest` passes on both machines | done (GCC 15.2, x86 and ARM, 2026-11-17) |
-| S2 | The `olc-netcheck` utility: a server and a client, TCP and UDP exchange between two machines, delay and loss | Code in `tools/netcheck/`, a measurement between machines, a section in `STANDS.md` | done (Wi-Fi and NAT; a wired and Windows measurement — during stage 1) |
+| S2 | The `olc-netcheck` utility: a server and a client, TCP and UDP exchange between two machines, delay and loss | Code in `tools/netcheck/`, a measurement between machines, a section in `STANDS.md` | done (Wi-Fi and NAT; wired and between Windows machines — stage 1 measurements, 2026-11-17) |
 | S3 | Stage 0 on Windows ARM: building Orbiter from the base commit, two installation copies | Orbiter is built, differences from `QUICKSTART.md` are added to it | done (2026-11-17): a full build with D3D9Client and `cmake --install`, SPICE kernels in place; the installation has no Earth textures (section 4 of `QUICKSTART.md`) |
 | S4 | Stage 0: the OLC plugin built on the test rig, loads in both copies, a line in `Orbiter.log` | Confirmation in `PLAN.md` | done (2026-11-17): MSVC `/W4` without warnings, `ctest` 10/10, the plugin loads in both copies, with and without graphics |
 | S5 | Stage 0: starting on the visible desktop (the "OLC Run Orbiter" scheduled task), FPS under emulation, two instances, the server console without graphics | Results in `STANDS.md` (section 7) and `ORBITER-INTERNALS.md` | done (2026-11-17): two copies with D3D9Client side by side on the visible desktop, screenshots; FPS under emulation — about 60 on the client and 22 on the host playing back a recording |
 | S7 | Stage 1, code: `HostLink`, `ClientLink`, `ClientClock` in the core with loopback tests; host and client roles in the plugin, settings from a file, a trace for measurements | Two Orbiter copies without graphics: connection, states, pause, warp | done (2026-11-17), results — the "Stage 1" section |
-| S8 | Stage 1 with graphics: smoothness by eye, a vessel on the runway, takeoff and landing, host and client on different machines | Results against the stage 1 criteria | done on one machine (2026-11-17), results — the "Stage 1" section; different machines — waiting for a second Windows machine |
+| S8 | Stage 1 with graphics: smoothness by eye, a vessel on the runway, takeoff and landing, host and client on different machines | Results against the stage 1 criteria | almost done (2026-11-17): one machine and different machines checked, results — the "Stage 1" section; smoothness by eye in a live window remains |
 | S6 | DirectX SDK on the Windows test rig: installation with `tools/stands/setup-windows.ps1` (S1023 workaround), then a full Orbiter build with D3D9Client and `cmake --install` | Orbiter with graphics in two copies | done (the owner installed the SDK on 2026-11-17) |
 
 ## Stage 0. Test rig
@@ -140,7 +140,24 @@ the `Checklists\Quickstart` scenario, 8 vessels):**
 - the vessel on the runway stands still before takeoff and after landing, the landing on the client is applied once each time.
 
 Smoothness was judged from traces and screenshots, not by eye in a live window: a screenshot is
-a single frame. Not checked: the network between two machines (the test rig has one Windows machine).
+a single frame.
+
+**Results over the network between machines (2026-11-17, the recorded DeltaGlider flight):**
+
+| Host | Client | Network | RTT, median / maximum | Error p50 / p99 / maximum | Client sim time |
+|---|---|---|---|---|---|
+| Windows 11 x64 (Proxmox), no graphics | Windows 11 ARM (Parallels), with graphics | Mac Wi-Fi and Parallels NAT | 17 / 101 ms | 1.1 mm / 7.3 mm / 0.17 m | 0.04 s from the display moment |
+| Windows 11 x64 (Proxmox), no graphics | Windows 10 x64 (Proxmox), no graphics | Wired, one network, no NAT | 0.5 / 1.8 ms | 1.0 mm / 5.4 mm / 0.17 m | 0.001 s from the display moment |
+
+- The maximum is at the moment of touchdown, as on one machine. Not counting the first 0.1 s after
+  connecting: the client connected 22 s after the host started and caught up the sim time with one jump.
+- The host on x64 without emulation sends 30 states per second, as set (under emulation it was 22).
+  No lost and no malformed packets in any run.
+- Through the Parallels NAT the client named one port in `UDP_READY`, and `PING` came from another.
+  The host switched to the address from `PING` (decision 28) — without that the client would not get
+  a single state.
+- Over Wi-Fi the client lacked fresh data in 0.3% of frames (delays of up to 100 ms happen with
+  a display delay of 0.1 s); this did not affect the error.
 
 At stage 1 two people play. The project's goal is 4 players, the upper limit is 8 (decision 14 in
 [DECISIONS.md](DECISIONS.md)); 4 are checked at stage 3.

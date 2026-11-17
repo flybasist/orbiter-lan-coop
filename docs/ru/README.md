@@ -47,7 +47,7 @@ OLC — плагин для космосимулятора Orbiter, которы
 | `tools/smoothing/` | Модель сглаживания `olc-smoothing`: имитирует пакеты хоста с задержкой и потерями и сравнивает способы восстановления движения на клиенте; `run-grid.sh` прогоняет её по сетке параметров. От Orbiter не зависит. Выводы — `SMOOTHING.md`. |
 | `tools/netcheck/` | Утилита `olc-netcheck`: проверка сети между двумя машинами на сетевом ядре OLC — рукопожатие по TCP, `PING`/`PONG` по UDP, потери и задержка. Как пользоваться — `STANDS.md`, раздел 10. |
 | `tools/doccheck/` | Проверка `olc-doccheck`: у каждого документа есть версия на втором языке и структура пары совпадает (заголовки, таблицы, блоки кода). Запускается в CI. |
-| `tools/stands/` | Скрипты для Windows-стенда: `setup-windows.ps1` — подготовка к сборке Orbiter и OLC (Git, Visual Studio, DirectX SDK, брандмауэр); `register-run-task.ps1` и `run-orbiter.ps1` — запуск Orbiter на видимом рабочем столе по команде из SSH и снимки экрана; `console-send.ps1` — команды консоли Orbiter без графики (пауза, ускорение). Схема стендов — `STANDS.md`. |
+| `tools/stands/` | Скрипты для Windows-стенда: `setup-windows.ps1` — подготовка к сборке Orbiter и OLC (Git, Visual Studio, DirectX SDK, брандмауэр); `setup-autologon.ps1` — автовход пользователя (пароль вводит владелец); `register-run-task.ps1` и `run-orbiter.ps1` — запуск Orbiter на видимом рабочем столе по команде из SSH и снимки экрана; `console-send.ps1` — команды консоли Orbiter без графики (пауза, ускорение). Схема стендов — `STANDS.md`. |
 
 Исходный код Orbiter в этот репозиторий не входит. Для чтения используется отдельный клон
 `orbitersim/orbiter` (у владельца — `~/Documents/github/orbiter`), см. «Условия» ниже.

@@ -4,7 +4,7 @@
 #   1. Git for Windows;
 #   2. Visual Studio 2022 Community with C++, MFC and x64 build tools
 #      (if Visual Studio is already installed - only adds the missing components);
-#   3. DirectX SDK (June 2010);
+#   3. DirectX SDK (June 2010) and .NET Framework 3.5 that its installer needs;
 #   4. firewall rules for the OLC port 47800 (TCP and UDP, private network only);
 #   5. automatic start of the OpenSSH Server service, if it is installed.
 #
@@ -107,9 +107,19 @@ if (Test-Path $dxsdkHeader) {
         Start-Process msiexec.exe -ArgumentList "/x $($package.PSChildName) /quiet /norestart" -Wait
     }
 
+    # The SDK installer needs .NET Framework 3.5. A clean Windows 10/11 does not have it, and
+    # the installer then fails with "LoadLibraryShim() 0x80131700" in C:\Windows\Logs\DXSDKError.log.
+    # Enabling the feature downloads it from Windows Update.
+    if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled') {
+        Write-Host 'Enabling .NET Framework 3.5 (needed by the SDK installer)...'
+        Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart | Out-Null
+    }
+
     $setup = Join-Path $env:TEMP 'DXSDK_Jun10.exe'
     Write-Host 'Downloading DirectX SDK (about 570 MB)...'
-    Invoke-WebRequest -Uri $dxsdkUrl -OutFile $setup -UseBasicParsing
+    # WebClient writes straight to the file. Invoke-WebRequest in Windows PowerShell 5.1 is
+    # very slow here and may fail with "not enough system resources" on a 570 MB file.
+    (New-Object System.Net.WebClient).DownloadFile($dxsdkUrl, $setup)
     # /U - silent installation.
     Start-Process -FilePath $setup -ArgumentList '/U' -Wait
     Remove-Item $setup -ErrorAction SilentlyContinue

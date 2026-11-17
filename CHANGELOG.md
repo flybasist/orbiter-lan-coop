@@ -97,3 +97,11 @@
   `CHANGELOG.md`, `docs/`). Comments in code, scripts and example settings are in
   English. The `olc-doccheck` check (`tools/doccheck/`) in `ctest` and CI compares the structure
   of every document pair: headings, tables, code blocks.
+- **Stage 1 over the network between machines:** a host without graphics on Windows 11 x64 (Proxmox), clients —
+  Windows 11 ARM with graphics over Wi-Fi and the Parallels NAT, and Windows 10 x64 over a wire.
+  The recorded DeltaGlider flight: error p99 7 mm and 5 mm, maximum 0.17 m at the moment of
+  touchdown, no losses; the fix for a client behind NAT worked on a real network. Results —
+  `docs/PLAN.md`, stage 1. Test rigs: four machines on Proxmox (Windows 10, Windows 11, Ubuntu,
+  Debian), the auto-logon script `tools/stands/setup-autologon.ps1`; `setup-windows.ps1` now
+  turns on .NET Framework 3.5 for the DirectX SDK installer and downloads the SDK without
+  `Invoke-WebRequest`. The core tests also pass on GCC 14 (Debian).
