@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | — |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | detailed plan written, awaiting approval |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the instructor | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
@@ -241,6 +241,56 @@ loading, so a scenario filter was added (`core/scenario_filter.h`).
 
 Not part of stage 2: controlling one's own vessel (stage 3), docking, sending add-ons,
 an ImGui window in the simulation (the log and notifications are enough for now).
+
+## Stage 3. Two vessels: everyone controls their own
+
+### Detailed plan (draft of 2026-11-18, awaiting the owner's approval)
+
+The goal is the first working version: a student flies their own vessel from the client, the host
+computes the physics, two players rendezvous and dock in orbit. The basis is already there: the
+protocol describes `INPUT`, `KEY`, `OWNERSHIP`, `DOCK`, the session table knows the owners, the ways to
+apply input to another vessel were found in the sources ([ARCHITECTURE.md](ARCHITECTURE.md), "How input
+reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sections 7 and 9).
+
+**Task queue:**
+
+| # | Task | Where | Done when |
+|---|---|---|---|
+| 3.1 | Vessel ownership: a client controls the vessel in its focus if it is free (option A below). The host sends `OWNERSHIP`, a refusal is shown as an on-screen notice | Mac (core) + Windows | A core test: take, release on a focus change and when the client leaves; two clients do not control one vessel |
+| 3.2 | Client: held keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); the own vessel does not fire its engines locally | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host |
+| 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same |
+| 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host |
+| 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps |
+| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results; if it gets in the way of docking — option B below |
+| 3.7 | A check by people: host and student, two DeltaGliders in orbit, rendezvous and docking | Owner + rigs | Results against the criteria below |
+
+**Stage 3 succeeds if:**
+
+- a student flies their own vessel from the client: RCS, main engine, autopilots, gear;
+- two vessels, each under its own player, rendezvous and dock in orbit; both see the stack the same way;
+- switching the focus does not let anyone take over someone else's vessel;
+- when the connection breaks, the student's vessel does not keep flying with a key held down.
+
+**What the owner has to decide:**
+
+1. **Who controls which vessel.** A — whoever has the vessel in focus (F3), if the vessel is free; the
+   host the same way. B — the host assigns vessels to students. I recommend A: nothing has to be set up,
+   assignment (B) can be added at stage 5 "For the teacher".
+2. **Delay of the own vessel.** The client shows the world 100 ms after the host (the smoothing buffer),
+   plus the network: the own vessel responds with a delay of about 0.1–0.2 s. A — accept it and measure
+   (3.6). B — show the own vessel earlier than the others (a smaller buffer). C — prediction on the
+   client with correction from the host. I recommend A, then B if it gets in the way; C is complex and
+   only after the measurement.
+3. **Gear, hatches, lights.** The internal state of add-ons (animations) cannot be sent in a general
+   way (decision 24). I suggest: a one-time key press is executed both on the host and on the client —
+   both vessels switch the animation themselves. A mismatch is possible if the client joined later; a
+   full solution comes later.
+4. **Check 3.7 — with you.** Docking by hand cannot be checked by a script: it needs an evening, a host
+   and a student at two machines (Mac with Parallels and a Proxmox machine with the GT 630 passed
+   through, if you decide so).
+
+Not part of stage 3: a crew in one vessel (stage 4), clicks in the cockpit and on panels, add-ons' own
+held keys (the SDK does not allow it), sending animations in a general way.
 
 ## Test rigs
 
