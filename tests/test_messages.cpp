@@ -418,18 +418,24 @@ void testInputAndPing() {
     olc::Reader rt(body.bytes().data(), body.bytes().size() - 1);
     CHECK(!olc::readInput(rt, back));
 
-    // PING и PONG: одно и то же тело из 8 байтов.
+    // PING и PONG: одно и то же тело из 9 байтов - время и номер клиента.
+    olc::Ping ping;
+    ping.time = 12.625;
+    ping.clientId = 3;
     olc::Writer wp;
-    olc::writePingTime(wp, 12.625);
-    CHECK(wp.bytes().size() == 8);
+    olc::writePing(wp, ping);
+    CHECK(wp.bytes().size() == 9);
     olc::Reader rp(wp.bytes().data(), wp.bytes().size());
-    double time = 0.0;
-    CHECK(olc::readPingTime(rp, time) && time == 12.625);
+    olc::Ping pingBack;
+    CHECK(olc::readPing(rp, pingBack) && pingBack.time == 12.625 && pingBack.clientId == 3);
 
     std::vector<uint8_t> extra = wp.bytes();
     extra.push_back(0);
     olc::Reader rpe(extra.data(), extra.size());
-    CHECK(!olc::readPingTime(rpe, time));
+    CHECK(!olc::readPing(rpe, pingBack));
+
+    olc::Reader rps(wp.bytes().data(), wp.bytes().size() - 1);  // без номера клиента
+    CHECK(!olc::readPing(rps, pingBack));
 }
 
 void testScenario() {

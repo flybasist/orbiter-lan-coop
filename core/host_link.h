@@ -4,7 +4,7 @@
 // - слушает TCP и UDP на одном порту;
 // - ведёт рукопожатие: HELLO → WELCOME (или REJECT) → BODIES → VESSELS → OWNERSHIP;
 //   затем ждёт от клиента CLASSES_MISSING и UDP_READY;
-// - отвечает PONG на PING;
+// - отвечает PONG на PING и по PING узнаёт настоящий UDP-адрес клиента (клиент за NAT);
 // - рассылает WORLD_STATE и FUEL клиентам, у которых уже известен UDP-порт; состояние,
 //   которое не помещается в один пакет (kMaxUdpPacketSize), делит на несколько пакетов
 //   с одним и тем же sim_time;
@@ -107,6 +107,7 @@ private:
         std::string player;
         bool udpReady = false;     // прислал UDP_READY
         Endpoint udp;              // куда слать UDP
+        bool udpFromPing = false;  // адрес взят из PING, а не из UDP_READY (см. handleUdp)
         std::string leaveReason;   // почему отключаем; заполняется, когда handleFrames вернул false
     };
 
@@ -123,6 +124,8 @@ private:
     // Отправляет UDP-пакет всем клиентам с udpReady.
     void sendUdpToReady(uint8_t type, const std::vector<uint8_t>& body);
     void handleUdp();
+    // Запоминает адрес, с которого пришёл PING клиента clientId: туда и шлём ему UDP.
+    void learnUdpAddress(uint8_t clientId, const Endpoint& from);
     void dropClient(size_t index, const std::string& reason);
     void log(const std::string& line);
 

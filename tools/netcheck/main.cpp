@@ -65,7 +65,11 @@ std::vector<uint8_t> makePingPacket(olc::UdpType type, uint32_t seq, double time
     header.session = kSession;
     header.seq = seq;
     olc::writeUdpHeader(writer, header);
-    olc::writePingTime(writer, time);
+    // Номер клиента в PING нужен плагину (адрес клиента за NAT); здесь сервер отвечает
+    // туда, откуда пришёл пакет, и номер не смотрит.
+    olc::Ping ping;
+    ping.time = time;
+    olc::writePing(writer, ping);
     return writer.bytes();
 }
 
@@ -79,7 +83,12 @@ bool readPingPacket(const std::vector<uint8_t>& packet, olc::UdpType type, doubl
     if (header.type != static_cast<uint8_t>(type) || header.session != kSession) {
         return false;
     }
-    return olc::readPingTime(reader, time);
+    olc::Ping ping;
+    if (!olc::readPing(reader, ping)) {
+        return false;
+    }
+    time = ping.time;
+    return true;
 }
 
 // ---------- Сервер ----------

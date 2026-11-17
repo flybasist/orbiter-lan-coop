@@ -33,9 +33,9 @@ UdpHeaderResult parsePacket(const std::vector<uint8_t>& packet, olc::UdpHeader& 
 void testUdpHeader() {
     std::vector<uint8_t> packet = makeUdpPacket();
     CHECK(packet.size() == olc::kUdpHeaderSize + 2);
-    // Начало пакета: сигнатура OLC0 и версия 1 little-endian.
+    // Начало пакета: сигнатура OLC0 и версия протокола little-endian.
     CHECK(packet[0] == 'O' && packet[1] == 'L' && packet[2] == 'C' && packet[3] == '0');
-    CHECK(packet[4] == 1 && packet[5] == 0);
+    CHECK(packet[4] == (olc::kProtocolVersion & 0xFF) && packet[5] == (olc::kProtocolVersion >> 8));
 
     olc::Reader r(packet.data(), packet.size());
     olc::UdpHeader header;
@@ -62,7 +62,7 @@ void testBrokenUdp() {
 
     // Другая версия протокола.
     packet = makeUdpPacket();
-    packet[4] = 2;
+    packet[4] = static_cast<uint8_t>(olc::kProtocolVersion + 1);
     CHECK(parsePacket(packet, header) == UdpHeaderResult::WrongVersion);
 
     // Больше предельного размера.

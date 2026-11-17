@@ -459,6 +459,96 @@ void testPingPong() {
     CHECK(host.link.stats().udpPacketsSent >= 2);  // не меньше двух PONG
 }
 
+// Клиент за NAT: в UDP_READY - порт на машине клиента, а хосту пакеты приходят с другого.
+// Хост должен слать WORLD_STATE туда, откуда пришёл PING клиента, а не на порт из UDP_READY.
+void testUdpAddressFromPing() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+
+    // Клиент без ClientLink: рукопожатие вручную.
+    olc::TcpConnection raw;
+    olc::Endpoint hostTcp;
+    hostTcp.ip = kLoopback;
+    hostTcp.port = host.link.port();
+    CHECK(raw.startConnect(hostTcp));
+    olc::Hello hello;
+    hello.protocol = olc::kProtocolVersion;
+    hello.orbiterVersion = kOrbiterVersion;
+    hello.pluginVersion = "test";
+    hello.player = "Behind NAT";
+    olc::Writer helloBody;
+    CHECK(olc::writeHello(helloBody, hello));
+    raw.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Hello), helloBody.bytes()));
+
+    // Ждём WELCOME и берём из него номер клиента.
+    olc::TcpFrameReader frames;
+    uint8_t clientId = 0;
+    bool welcomed = waitFor(host.link, {}, [&]() {
+        raw.flush();
+        raw.receive(frames);
+        uint8_t type = 0;
+        std::vector<uint8_t> message;
+        while (frames.next(type, message) == olc::TcpFrameReader::Result::Ready) {
+            if (type == static_cast<uint8_t>(olc::TcpType::Welcome)) {
+                olc::Reader reader(message.data(), message.size());
+                olc::Welcome welcome;
+                if (olc::readWelcome(reader, welcome)) {
+                    clientId = welcome.clientId;
+                    return true;
+                }
+            }
+        }
+        return false;
+    });
+    CHECK(welcomed);
+
+    // UDP_READY с «чужим» портом: так видит свой порт клиент за NAT.
+    olc::UdpSocket natPort;  // настоящий адрес клиента, каким его видит хост
+    CHECK(natPort.open(0));
+    olc::Writer readyBody;
+    olc::writeUdpReady(readyBody, static_cast<uint16_t>(natPort.localPort() + 1));
+    raw.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::UdpReady), readyBody.bytes()));
+    CHECK(waitFor(host.link, {}, [&]() {
+        raw.flush();
+        return host.link.readyClientCount() == 1;
+    }));
+
+    // PING с номером клиента с настоящего адреса.
+    olc::Writer pingPacket;
+    olc::UdpHeader header;
+    header.type = static_cast<uint8_t>(olc::UdpType::Ping);
+    header.session = kSession;
+    olc::writeUdpHeader(pingPacket, header);
+    olc::Ping ping;
+    ping.time = 1.0;
+    ping.clientId = clientId;
+    olc::writePing(pingPacket, ping);
+    olc::Endpoint hostUdp = hostTcp;
+    CHECK(natPort.sendTo(hostUdp, pingPacket.bytes()));
+
+    // После PING хост шлёт состояние на настоящий адрес: PONG и WORLD_STATE.
+    bool gotWorld = false;
+    bool learned = waitFor(host.link, {}, [&]() {
+        olc::WorldState world;
+        world.simTime = 5.0;
+        host.link.sendWorldState(world);
+        std::vector<uint8_t> packet;
+        olc::Endpoint from;
+        while (natPort.receiveFrom(packet, from)) {
+            olc::Reader reader(packet.data(), packet.size());
+            olc::UdpHeader received;
+            if (olc::readUdpHeader(reader, received) == olc::UdpHeaderResult::Ok &&
+                received.type == static_cast<uint8_t>(olc::UdpType::WorldState)) {
+                gotWorld = true;
+            }
+        }
+        return gotWorld;
+    });
+    CHECK(learned);
+    CHECK(hasLine(host.link.takeLog(), "(NAT?)"));
+}
+
 void testClientStop() {
     TestHost host;
     CHECK(host.start());
@@ -510,7 +600,7 @@ void testBadUdp() {
     header.type = static_cast<uint8_t>(olc::UdpType::Ping);
     header.session = kSession + 1;
     olc::writeUdpHeader(writer, header);
-    olc::writePingTime(writer, 1.0);
+    olc::writePing(writer, olc::Ping());
     CHECK(udp.sendTo(to, writer.bytes()));
 
     CHECK(waitFor(host.link, {}, [&]() { return host.link.stats().udpBadPackets == 2; }));
@@ -557,6 +647,7 @@ int main() {
     testPlayerLimit();
     testOtherSystem();
     testPingPong();
+    testUdpAddressFromPing();
     testClientStop();
     testHostStop();
     testBadUdp();

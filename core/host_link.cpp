@@ -215,8 +215,12 @@ bool HostLink::handleFrames(Client& client) {
                     client.leaveReason = "broken UDP_READY";
                     return false;
                 }
-                client.udp.ip = client.tcp.remote().ip;
-                client.udp.port = udpPort;
+                // Адрес, уже узнанный по PING, точнее: порт из UDP_READY - это порт на
+                // машине клиента, а за NAT хосту виден другой.
+                if (!client.udpFromPing) {
+                    client.udp.ip = client.tcp.remote().ip;
+                    client.udp.port = udpPort;
+                }
                 client.udpReady = true;
                 log("OLC host: client " + std::to_string(client.clientId) +
                     " is ready for UDP at " + endpointToString(client.udp));
@@ -354,20 +358,40 @@ void HostLink::handleUdp() {
             continue;
         }
         if (header.type == static_cast<uint8_t>(UdpType::Ping)) {
-            double time = 0.0;
-            if (!readPingTime(reader, time)) {
+            Ping ping;
+            if (!readPing(reader, ping)) {
                 stats_.udpBadPackets++;
                 continue;
             }
-            // PONG уходит тому, от кого пришёл PING, с тем же временем.
+            learnUdpAddress(ping.clientId, from);
+            // PONG уходит тому, от кого пришёл PING, с тем же телом.
             Writer body;
-            writePingTime(body, time);
+            writePing(body, ping);
             if (udp_.sendTo(from, makeUdpPacket(UdpType::Pong, config_.session, seq_++,
                                                 body.bytes()))) {
                 stats_.udpPacketsSent++;
             }
         }
         // INPUT и остальное на этапе 1 хост игнорирует.
+    }
+}
+
+void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
+    for (Client& client : clients_) {
+        // Номер клиента подделать легко, поэтому адрес принимаем только с того же IP,
+        // что и TCP-соединение этого клиента.
+        if (!client.welcomed || client.clientId != clientId ||
+            client.tcp.remote().ip != from.ip) {
+            continue;
+        }
+        if (client.udpReady && !(client.udp == from)) {
+            log("OLC host: client " + std::to_string(clientId) + " UDP address is " +
+                endpointToString(from) + ", not " + endpointToString(client.udp) +
+                " (NAT?)");
+        }
+        client.udp = from;
+        client.udpFromPing = true;
+        return;
     }
 }
 

@@ -348,11 +348,19 @@ void ClientLink::handleUdp(double now) {
                 continue;
             }
             stats_.worldStatePackets++;
+            // Большое состояние приходит несколькими пакетами с одним sim_time: часы
+            // подводим один раз на состояние, иначе поправка применится несколько раз.
+            // Пакеты на паузе тоже с одним sim_time, но смену паузы и ускорения не пропускаем.
+            const bool sameState = clock_.started() && world.simTime == lastPacketSimTime_ &&
+                                   world.warp == hostWarp_ &&
+                                   (world.paused != 0) == hostPaused_;
             hostWarp_ = world.warp;
             hostPaused_ = world.paused != 0;
             lastPacketSimTime_ = world.simTime;
             lastPacketMjd_ = world.mjd;
-            clock_.onPacket(world.simTime, world.warp, hostPaused_, now);
+            if (!sameState) {
+                clock_.onPacket(world.simTime, world.warp, hostPaused_, now);
+            }
             for (const VesselState& vessel : world.vessels) {
                 buffers_[vessel.netId].add(world.simTime, vessel);
             }
@@ -366,19 +374,24 @@ void ClientLink::handleUdp(double now) {
                 fuel_[vessel.netId] = vessel;
             }
         } else if (header.type == static_cast<uint8_t>(UdpType::Pong)) {
-            double sentAt = 0.0;
-            if (!readPingTime(reader, sentAt)) {
+            Ping pong;
+            if (!readPing(reader, pong)) {
                 stats_.droppedPackets++;
                 continue;
             }
-            rtt_ = now - sentAt;
+            rtt_ = now - pong.time;
         }
     }
 }
 
 void ClientLink::sendPing(double now) {
+    // В PING - номер клиента: по нему хост узнаёт наш настоящий UDP-адрес (за NAT порт
+    // может отличаться от порта из UDP_READY).
+    Ping ping;
+    ping.time = now;
+    ping.clientId = clientId_;
     Writer body;
-    writePingTime(body, now);
+    writePing(body, ping);
     udp_.sendTo(config_.host,
                 makeUdpPacket(UdpType::Ping, session_, pingSeq_++, body.bytes()));
     nextPing_ = now + kPingInterval;

@@ -439,12 +439,14 @@ bool readInput(Reader& reader, Input& message) {
     return finished(reader);
 }
 
-void writePingTime(Writer& writer, double time) {
-    writer.writeF64(time);
+void writePing(Writer& writer, const Ping& message) {
+    writer.writeF64(message.time);
+    writer.writeU8(message.clientId);
 }
 
-bool readPingTime(Reader& reader, double& time) {
-    reader.readF64(time);
+bool readPing(Reader& reader, Ping& message) {
+    reader.readF64(message.time);
+    reader.readU8(message.clientId);
     return finished(reader);
 }
 

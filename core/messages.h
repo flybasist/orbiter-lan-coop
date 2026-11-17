@@ -268,10 +268,16 @@ struct Input {
 void writeInput(Writer& writer, const Input& message);
 bool readInput(Reader& reader, Input& message);
 
-// PING и PONG: системное время отправителя (oapiGetSysTime). PONG возвращает время из
-// PING без изменений, поэтому у обоих сообщений одно и то же тело.
-void writePingTime(Writer& writer, double time);
-bool readPingTime(Reader& reader, double& time);
+// PING и PONG: системное время отправителя (oapiGetSysTime) и номер клиента из WELCOME.
+// PONG возвращает тело PING без изменений, поэтому у обоих сообщений одно и то же тело.
+// По PING хост узнаёт настоящий UDP-адрес клиента: если клиент за NAT, порт, видный хосту,
+// может отличаться от порта из UDP_READY.
+struct Ping {
+    double time = 0.0;
+    uint8_t clientId = 0;
+};
+void writePing(Writer& writer, const Ping& message);
+bool readPing(Reader& reader, Ping& message);
 
 // Наибольший размер файла в SCENARIO: всё сообщение (тип, имя самой большой длины,
 // поле size и файл) должно поместиться в TCP-кадр kMaxTcpMessageSize.
