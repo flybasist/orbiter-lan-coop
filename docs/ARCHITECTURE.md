@@ -53,7 +53,7 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
 
 1. `clbkPreStep`: apply the latest received client input to their vessels.
 2. There, capture the vessel states (`GetStatusEx`), time, warp and pause and send them
-   to clients (at 20–30 Hz, not every frame). A state refers to the moment
+   to clients (at 30–60 Hz, not every frame). A state refers to the moment
    `oapiGetSimTime`.
 3. Orbiter computes the physics.
 
@@ -109,7 +109,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 | Channel | Protocol | What it carries | Rate |
 |---|---|---|---|
 | Session | TCP | connection, scenario, add-on check, vessel names and classes, ownership | on events |
-| World state | UDP | positions, velocities, attitudes, rotation, sim time, warp, pause | 20–30 Hz, less often at high warp |
+| World state | UDP | positions, velocities, attitudes, rotation, sim time, warp, pause | 60 Hz by default (decision 36), less often at high warp |
 | Input | UDP | control positions, key presses | every client frame |
 
 ## 3. Why it is done this way

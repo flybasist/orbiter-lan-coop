@@ -17,11 +17,13 @@
 
 namespace olc {
 
-// Default display delay, seconds of real time (SMOOTHING.md, decision after D2).
-constexpr double kDefaultDisplayDelay = 0.1;
+// Default display delay, seconds of real time: for a wired LAN with 60 states per second
+// (decision 36, measured on the test rigs). The smoothing model chose 0.1 s for a network with
+// jitter (SMOOTHING.md); over Wi-Fi a larger delay is set in the settings.
+constexpr double kDefaultDisplayDelay = 0.03;
 
 // Which fraction of the error the clock corrects per packet. At 30 packets per second the error
-// halves in about 0.5 s.
+// halves in about 0.5 s, at 60 - in about 0.25 s.
 constexpr double kClockGain = 0.05;
 
 // An error larger than this (seconds of real time, i.e. × warp in sim time)

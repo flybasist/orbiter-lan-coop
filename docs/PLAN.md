@@ -266,6 +266,20 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below |
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine |
 
+**Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
+graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
+
+| Rate, Hz | Display delay, ms | Frames without data | Error p50 / p99 / max |
+|---|---|---|---|
+| 30 | 100 (the old default) | 0 | 1.1 mm / 11.8 mm / 0.044 m |
+| 30 | 50 | 0 | 1.1 mm / 11.9 mm / 0.044 m |
+| 60 | 30 | 0 | 0.7 mm / 3.0 mm / 0.012 m |
+| 60 | 20 | 146 | 0.7 mm / 3.0 mm / 0.012 m |
+
+Over a wire the buffer size does not affect accuracy as long as there is enough data; accuracy comes from
+the rate. The new defaults are 60 Hz and 30 ms (decision 36): the own vessel will respond in about 30 ms
+instead of 100.
+
 **Stage 3 succeeds if:**
 
 - a pilot flies their own vessel from the client: RCS, main engine, autopilots, gear;

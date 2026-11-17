@@ -127,3 +127,7 @@
   window. Vessels of classes the client lacks are removed from the received scenario before start
   (`core/scenario_filter.h`, otherwise Orbiter terminates abnormally), the list of such classes stays on
   screen for 20 s. Switching with F3 remains to be looked at by eye.
+- **Stage 3 started:** decisions 32–36 — the target environment is a wired LAN, the terms "pilot" and
+  "flight director", server modes, the stage 3 choices. The defaults for a LAN are changed by a
+  measurement: 60 states per second and a 30 ms display delay (was 30 and 100 ms) — half the error over a
+  wire, the own vessel will respond faster.

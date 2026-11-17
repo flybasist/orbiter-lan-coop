@@ -24,8 +24,8 @@ struct Config {
     int port = 47800;                       // host and client
     std::string player = "player";          // client: player name
     int maxPlayers = 4;                     // host: player limit, the host is a player too
-    int stateRateHz = 30;                   // host: WORLD_STATE rate
-    double displayDelay = 0.1;              // client: display delay, seconds
+    int stateRateHz = 60;                   // host: WORLD_STATE rate (decision 36)
+    double displayDelay = 0.03;             // client: display delay, seconds (decision 36)
     // Client: sim time error against the host (seconds × warp) after which
     // the client time catches up with a jump.
     double timeSyncThreshold = 0.1;

@@ -60,7 +60,7 @@ Client                                   Host
   │── CLASSES_MISSING ─────────────────────►│  which classes the client lacks (may be empty)
   │◄────────────────────────── OWNERSHIP ───│  who controls which vessel
   │── UDP_READY (over TCP) ────────────────►│  the client's UDP port
-  │◄═══════════════ WORLD_STATE (UDP) ══════│  20–30 Hz
+  │◄═══════════════ WORLD_STATE (UDP) ══════│  30–60 Hz
   │═══ INPUT (UDP) ════════════════════════►│  every frame, at most 60 Hz
 ```
 
@@ -231,9 +231,9 @@ differ from the host.
   the client would not learn that the pause was released. The paused client also receives packets on a timer —
   `clbkPreStep` is not called while paused ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 14).
 - The client shows the world with a small delay, interpolating between the received states
-  (cubic in position and velocity). From the smoothing model: `WORLD_STATE` at 30 Hz, a delay of
-  100 ms; the whole client world lags, not only other players' vessels ([SMOOTHING.md](SMOOTHING.md)).
-  The numbers are checked at stage 1.
+  (cubic in position and velocity). The whole client world lags, not only other players' vessels
+  ([SMOOTHING.md](SMOOTHING.md)). The default for a wired LAN is `WORLD_STATE` at 60 Hz and a delay of
+  30 ms (decision 36, measured on the rigs); over Wi-Fi 30 Hz and 100 ms are safer.
 - If the client sim time drifts from the host by more than 1 s (to be tuned), there is a jump with
   `oapiSetSimMJD`; otherwise a soft adjustment.
 

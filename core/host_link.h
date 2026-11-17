@@ -47,7 +47,7 @@ struct HostConfig {
     uint32_t session = 0;         // session number, written into every UDP packet
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; a different client version gets REJECT
     std::string system;           // planetary system name, goes into WELCOME
-    uint8_t stateRateHz = 30;     // WORLD_STATE rate, goes into WELCOME
+    uint8_t stateRateHz = 60;     // WORLD_STATE rate, goes into WELCOME (decision 36)
     // Saves the current world and fills scenario.name and scenario.data (the number is set by
     // HostLink). false - the world could not be saved. If not set, clients that ask for a
     // scenario get REJECT.

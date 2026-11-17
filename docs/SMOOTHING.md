@@ -6,6 +6,10 @@ How often the host should send vessel states, how far the client should lag behi
 to reconstruct motion between packets. The answer comes from the `tools/smoothing/` model
 (`olc-smoothing`), without Orbiter. At stage 1 the numbers are checked in the real game.
 
+> Update of 2026-11-18 (decision 36): the target environment is a wired LAN (decision 32), and a
+> measurement on the rigs gave other defaults for it: 60 Hz and a 30 ms delay — half the error of 30 Hz,
+> no frames without data. The values below remain for a network with delay jitter (Wi-Fi).
+
 ## Summary
 
 | Parameter | Recommendation | Fallback |
