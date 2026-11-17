@@ -141,10 +141,16 @@ the owner approved. Rules:
    - the limit is not spent for the sake of spending: if there is no useful work (everything waits for test rigs or
      the owner's answer), the agent stops;
    - if the threshold is crossed in the middle of work, the agent brings the step to a whole state, writes down
-     where it stopped, and waits for the next window.
+     where it stopped, and waits for the next window;
+   - the owner may for a while allow spending the week faster (decision 37): so it was in the week of
+     17–21 November 2026 — a pause only at 95% of the week, the window still no more than 90%.
 7. **Check against Orbiter.** If the check log (`ORBITER-INTERNALS.md`, section 13) has no
    entry for today, the first thing is an upstream check following the procedure described there.
-8. **Report.** Every batch ends with a report: what was done, what was checked, what was not,
+8. **No needless stops** (decision 37). The agent works through the queue in a row and does not wait
+   for the owner after every batch. It waits in two cases only: it hit a limit, or an owner's decision is
+   needed (a costly workaround, a risk of breaking something, a choice of path). Work for the sake of work
+   is not done.
+9. **Report.** Every batch ends with a report: what was done, what was checked, what was not,
    how much limit was used.
-9. **Git.** The agent commits a finished task and pushes it to `main` (see "Rules for working
+10. **Git.** The agent commits a finished task and pushes it to `main` (see "Rules for working
    on the project"); unfinished work does not go into a commit.
