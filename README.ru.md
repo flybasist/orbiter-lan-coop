@@ -1,3 +1,5 @@
+[English](README.md) · **Русский**
+
 # orbiter-lan-coop (OLC)
 
 Совместные полёты в космосимуляторе [Orbiter](https://github.com/orbitersim/orbiter) по
@@ -28,7 +30,7 @@ OLC — это плагин для стандартного Orbiter, а не и�
 ## Установка и запуск
 
 Пока устанавливать нечего. Как подготовить окружение разработчика — в
-[docs/QUICKSTART.md](docs/QUICKSTART.md), план работ — в [docs/PLAN.md](docs/PLAN.md).
+[docs/ru/QUICKSTART.md](docs/ru/QUICKSTART.md), план работ — в [docs/ru/PLAN.md](docs/ru/PLAN.md).
 
 ## Важно
 
@@ -37,7 +39,7 @@ OLC — это плагин для стандартного Orbiter, а не и�
 
 ## Документация
 
-Все подробности — в [docs/README.md](docs/README.md). История изменений — в [CHANGELOG.md](CHANGELOG.md).
+Все подробности — в [docs/ru/README.md](docs/ru/README.md). История изменений — в [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
 ## Контакты
 
@@ -46,4 +48,4 @@ OLC — это плагин для стандартного Orbiter, а не и�
 ## Лицензия
 
 GNU General Public License v3.0 — см. [LICENSE](LICENSE). Сторонние компоненты
-и их условия перечислены в [docs/CREDITS.md](docs/CREDITS.md).
+и их условия перечислены в [docs/ru/CREDITS.md](docs/ru/CREDITS.md).

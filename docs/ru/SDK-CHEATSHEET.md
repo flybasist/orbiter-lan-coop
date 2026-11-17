@@ -1,3 +1,5 @@
+[English](../SDK-CHEATSHEET.md) · **Русский**
+
 # Шпаргалка по SDK Orbiter для OLC
 
 «Что вызвать, чтобы…» — только функции, нужные OLC. Почему именно так и что внутри — в
@@ -94,7 +96,7 @@
 | Задача | Вызов | Подвох |
 |---|---|---|
 | Сохранить мир | `oapiSaveScenario (fname, desc)` | Только в файл в `Scenarios`, подкаталоги должны существовать |
-| Загрузить сценарий во время работы | — | Невозможно из SDK |
+| Загрузить сценарий во время работы | — | Функции в SDK нет; плагин может закрыть сессию и запустить сценарий через Launchpad сам (`ORBITER-INTERNALS.md`, раздел 18) |
 | Создать корабль | `oapiCreateVesselEx (name, classname, &vs2)` | **Нет файла класса — Orbiter завершается.** Сначала проверить `Config\Vessels\<класс>.cfg` |
 | Удалить корабль | `oapiDeleteVessel (h)` | Удаление в конце кадра; последний корабль, который может быть в фокусе, удалять нельзя |
 | Сменить фокус | `oapiSetFocusObject (h)` | — |
@@ -115,7 +117,7 @@
 |---|---|---|
 | Пункт настроек в Launchpad | `LaunchpadItem` + `oapiRegisterLaunchpadItem` в `InitModule` | Окно — диалог Win32, не ImGui; ImGui в Launchpad нет |
 | Сохранить настройки перед стартом | `LaunchpadItem::clbkWriteConfig` | Вызывается перед каждой сессией, отменить запуск нельзя |
-| Запустить сценарий | Нет в SDK | Только перезапуск `orbiter.exe -s <сценарий>` |
+| Запустить сценарий | Нет в SDK | Выделить его в списке Launchpad и послать `WM_COMMAND IDLAUNCH` (`ORBITER-INTERNALS.md`, раздел 18); запасной путь — перезапуск `orbiter.exe -s <сценарий>` |
 | Окно в симуляции | `ImGuiDialog` + `oapiOpenDialog` | Вне сессии падает; рисуется и на паузе; без графического клиента окон нет |
 | Открыть окно игроку | `oapiRegisterCustomCmd`, `oapiRegisterCustomMenuCmd` | Пока фокус в окне ImGui, клавиатура уходит ему |
 | Короткое сообщение | `oapiAddNotification` | — |

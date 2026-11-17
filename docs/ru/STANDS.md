@@ -1,3 +1,5 @@
+[English](../STANDS.md) · **Русский**
+
 # Стенды
 
 Как проверять OLC на реальных машинах и как ИИ-агент с ними работает. Документ общий: у
@@ -5,9 +7,10 @@
 какие роли бывают у машин и как их подготовить.
 
 Свои машины каждый описывает в файле `stands.yaml` в корне репозитория (пример —
-[`stands.example.yaml`](../stands.example.yaml)). Файл в `.gitignore` и в git не попадает.
+[`stands.example.yaml`](../../stands.example.yaml)). Файл в `.gitignore` и в git не попадает.
 
-> Гипотезы из раздела 7 ещё не проверены: они проверяются на этапе 0 ([PLAN.md](PLAN.md)).
+> В разделе 7 проверенное на стендах помечено датой; остальное — гипотезы, они проверяются
+> по ходу этапов ([PLAN.md](PLAN.md)).
 
 ## 1. Схема: один мозг, много рук
 
@@ -93,14 +96,14 @@ Orbiter — оконное приложение. В Windows программа, 
 - **Без графического клиента Orbiter работает прямо по SSH** (проверено): открывается
   «Orbiter Server Console», симуляция идёт, плагин загружается. Для сетевых тестов без
   картинки задача планировщика не нужна. Команды консоли (`pause on`, `tacc 10`) такому
-  Orbiter подаёт [`tools/stands/console-send.ps1`](../tools/stands/console-send.ps1).
+  Orbiter подаёт [`tools/stands/console-send.ps1`](../../tools/stands/console-send.ps1).
 - **Запуск Orbiter на видимом рабочем столе Windows из SSH:** автовход пользователя и задача
   планировщика «OLC Run Orbiter», которая запускается только по команде и выполняет
-  [`tools/stands/run-orbiter.ps1`](../tools/stands/run-orbiter.ps1) в сессии пользователя.
+  [`tools/stands/run-orbiter.ps1`](../../tools/stands/run-orbiter.ps1) в сессии пользователя.
   Задание (какие копии Orbiter с какими ключами запустить, когда снять экран) агент кладёт в
   `C:\olc\run-orbiter.json` (поле `window` раскладывает окна копий рядом); результат —
   журнал и снимки в `C:\olc\run-orbiter`. Задача
-  создаётся один раз скриптом [`tools/stands/register-run-task.ps1`](../tools/stands/register-run-task.ps1)
+  создаётся один раз скриптом [`tools/stands/register-run-task.ps1`](../../tools/stands/register-run-task.ps1)
   с согласия владельца машины.
 - **Linux:** запуск в графической сессии пользователя (переменная `DISPLAY`).
 
@@ -140,7 +143,7 @@ Orbiter — оконное приложение. В Windows программа, 
 ### 8.1. Windows, сборка (`build`)
 
 Пункты 1–3 и 6, а также автозапуск `sshd` делает скрипт
-[`tools/stands/setup-windows.ps1`](../tools/stands/setup-windows.ps1): его запускают в
+[`tools/stands/setup-windows.ps1`](../../tools/stands/setup-windows.ps1): его запускают в
 PowerShell от имени администратора (`powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`),
 повторный запуск безопасен. Вручную остаются включение OpenSSH Server, ключ и автовход.
 

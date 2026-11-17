@@ -5,35 +5,38 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Каталог проверочной сборки всегда один и тот же: orbiter-lan-coop.out
+# The check build folder is always the same: orbiter-lan-coop.out
 #   cmake -S . -B orbiter-lan-coop.out && cmake --build orbiter-lan-coop.out
-# Он внесён в .gitignore, бинарники в репозиторий не попадают.
+# It is listed in .gitignore, binaries never get into the repository.
 
-# Предупреждения компилятора
+# Compiler warnings
 if(MSVC)
     add_compile_options(/W4)
 else()
     add_compile_options(-Wall -Wextra)
 endif()
 
-# Тесты запускаются через ctest --test-dir orbiter-lan-coop.out
+# Tests run with ctest --test-dir orbiter-lan-coop.out
 enable_testing()
 
-# Сетевое ядро (не зависит от Orbiter) и его тесты
+# Network core (does not depend on Orbiter) and its tests
 add_subdirectory(core)
 add_subdirectory(tests)
 
-# Плагин для Orbiter: только на Windows и только если указан каталог SDK собранного
-# Orbiter (plugin/CMakeLists.txt). На Mac и Linux собирается только ядро.
+# The Orbiter plugin: only on Windows and only if the SDK folder of a built
+# Orbiter is given (plugin/CMakeLists.txt). On Mac and Linux only the core builds.
 set(OLC_ORBITER_SDK_DIR "" CACHE PATH "Orbiter SDK directory with include/ and lib/ (Orbiter.lib, Orbitersdk.lib)")
 if(WIN32 AND OLC_ORBITER_SDK_DIR)
-    # Путь мог прийти с обратными слешами Windows - приводим к виду CMake.
+    # The path may come with Windows backslashes - convert it to CMake form.
     file(TO_CMAKE_PATH "${OLC_ORBITER_SDK_DIR}" OLC_ORBITER_SDK_DIR)
     add_subdirectory(plugin)
 endif()
 
-# Проверка сети между двумя машинами (docs/STANDS.md)
+# Network check between two machines (docs/STANDS.md)
 add_subdirectory(tools/netcheck)
 
-# Симуляция сглаживания движения (измерения до написания сетевого плагина)
+# English and Russian documentation in sync (docs/README.md, decision 29)
+add_subdirectory(tools/doccheck)
+
+# Motion smoothing simulation (measurements made before writing the network plugin)
 add_subdirectory(tools/smoothing)
