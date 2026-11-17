@@ -106,7 +106,7 @@ changed in the same commit (decision 29).
   reboots itself (decision 27).
 - Git: until the first fixed release (around 0.1) the agent commits finished tasks
   itself and pushes them straight to `main` — with the owner's permission, in this project only.
-  After the release — work in branches.
+  After the release — work in branches. Commit messages are in English (decision 38).
 - The check build folder is always the same — `orbiter-lan-coop.out` — and it is
   listed in `.gitignore`.
 
