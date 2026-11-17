@@ -254,17 +254,17 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 
 **Task queue:**
 
-| # | Task | Where | Done when |
-|---|---|---|---|
-| 3.0 | Measuring the smoothing buffer and the state rate on a wired pair (30 Hz / 50 ms, 60 Hz / 25–30 ms), defaults for a LAN | Proxmox | Numbers in the results, the decision in `DECISIONS.md` |
-| 3.1 | Vessel ownership by decision 1 below (A2): take, release, keeping for 60 s after a break. The host sends `OWNERSHIP`, a refusal and "view only" are shown as on-screen notices | Mac (core) + Windows | A core test: take, release, a pilot leaving and coming back; two pilots do not control one vessel |
-| 3.2 | Client: the key layout from `keymap.cfg`; control keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); control keys of any vessel are cleared locally, the camera works | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host |
-| 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same |
-| 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host |
-| 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps |
-| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results |
-| 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below |
-| 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine |
+| # | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| 3.0 | Measuring the smoothing buffer and the state rate on a wired pair (30 Hz / 50 ms, 60 Hz / 25–30 ms), defaults for a LAN | Proxmox | Numbers in the results, the decision in `DECISIONS.md` | done (2026-11-18) |
+| 3.1 | Vessel ownership by decision 1 below (A2): take, release, keeping for 60 s after a break. The host sends `OWNERSHIP`, a refusal and "view only" are shown as on-screen notices | Mac (core) + Windows | A core test: take, release, a pilot leaving and coming back; two pilots do not control one vessel | waiting |
+| 3.2 | Client: the key layout from `keymap.cfg`; control keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); control keys of any vessel are cleared locally, the camera works | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host | waiting |
+| 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same | waiting |
+| 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host | waiting |
+| 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps | waiting |
+| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | waiting |
+| 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | waiting: the agent prepares scenarios and the memo, people check |
+| 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | waiting |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
