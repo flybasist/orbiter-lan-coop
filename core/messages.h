@@ -72,6 +72,7 @@ enum class RejectReason : uint8_t {
     OrbiterVersion = 2,
     OtherSystem = 3,
     NoFreeSlots = 4,
+    ScenarioUnavailable = 5,  // the client asked for a scenario, but the host cannot send it
 };
 
 // REJECT, host → client: the client is not accepted.

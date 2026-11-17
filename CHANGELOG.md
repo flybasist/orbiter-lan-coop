@@ -108,3 +108,6 @@
 - **Stage 2 started:** the detailed plan is approved, the scenario is started through Launchpad,
   restarting with `-s` is the fallback (decision 30). Protocol version 3: `HELLO` and `SCENARIO`
   carry the scenario save number `scenario_id` (decision 31), the host logs it when a client joins.
+  The host in the core answers a scenario request (`scenario_id` = 0) with the file of its world through
+  `HostConfig::makeScenario` and closes the connection once the file has gone out; the client receives
+  the file (`ClientLink::scenario`). A new refusal reason 5 — the host cannot give a scenario.

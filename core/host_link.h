@@ -4,6 +4,8 @@
 // - listens for TCP and UDP on one port;
 // - runs the handshake: HELLO → WELCOME (or REJECT) → BODIES → VESSELS → OWNERSHIP;
 //   then waits for CLASSES_MISSING and UDP_READY from the client;
+// - answers a HELLO without a scenario number (kNoScenario) with SCENARIO - the host's current
+//   world from HostConfig::makeScenario - and closes the connection once the file has gone out;
 // - answers PING with PONG and learns the client's real UDP address from PING (client behind NAT);
 // - sends WORLD_STATE and FUEL to clients whose UDP port is known; a state that does
 //   not fit into one packet (kMaxUdpPacketSize) is split into several packets
@@ -21,6 +23,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -34,6 +37,9 @@ namespace olc {
 // How many seconds the host waits for HELLO after a client connects.
 constexpr double kHelloTimeout = 5.0;
 
+// How many seconds the host gives a SCENARIO to go out before it drops the connection.
+constexpr double kScenarioSendTimeout = 30.0;
+
 // Host settings.
 struct HostConfig {
     uint16_t port = 0;            // TCP and UDP; 0 - any free port (for tests)
@@ -41,6 +47,10 @@ struct HostConfig {
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; a different client version gets REJECT
     std::string system;           // planetary system name, goes into WELCOME
     uint8_t stateRateHz = 30;     // WORLD_STATE rate, goes into WELCOME
+    // Saves the current world and fills scenario.name and scenario.data (the number is set by
+    // HostLink). false - the world could not be saved. If not set, clients that ask for a
+    // scenario get REJECT.
+    std::function<bool(Scenario& scenario)> makeScenario;
 };
 
 // Statistics for the log.
@@ -108,12 +118,15 @@ private:
         bool udpReady = false;     // sent UDP_READY
         Endpoint udp;              // where to send UDP
         bool udpFromPing = false;  // address taken from PING, not from UDP_READY (see handleUdp)
+        bool scenarioSent = false; // SCENARIO is in the queue: disconnect once it has gone out
         std::string leaveReason;   // why we disconnect; set when handleFrames returned false
     };
 
     // Parses the client's TCP messages. false - the client must be disconnected.
     bool handleFrames(Client& client);
     bool handleHello(Client& client, Reader& reader);
+    // Answers a HELLO with kNoScenario: puts SCENARIO into the queue or sends REJECT.
+    bool sendScenario(Client& client, const Hello& hello);
     // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
     bool sendWorldLists(Client& client);
     // Puts a TCP message into the client's queue.
@@ -137,6 +150,7 @@ private:
     std::vector<Client> clients_;
     std::vector<BodyEntry> bodies_;
     uint32_t seq_ = 0;  // sequence number of outgoing UDP packets
+    uint32_t lastScenarioId_ = 0;  // number of the last SCENARIO sent
     HostStats stats_;
     std::vector<std::string> log_;
 };

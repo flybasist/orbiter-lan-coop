@@ -2,6 +2,8 @@
 //
 // What it does (docs/PROTOCOL.md, section 3):
 // - connects over TCP and sends HELLO;
+// - with scenarioId == kNoScenario only receives SCENARIO (the host's world as a file) and
+//   closes: the plugin then starts the scenario and connects again with its number;
 // - receives WELCOME (or REJECT), BODIES, VESSELS, OWNERSHIP and fills the session table;
 // - after VESSELS answers CLASSES_MISSING (which classes exist is decided by the plugin via
 //   classExists), opens a UDP socket and sends UDP_READY;
@@ -37,6 +39,10 @@ namespace olc {
 
 // How many seconds the client waits for the connection and WELCOME.
 constexpr double kConnectTimeout = 5.0;
+
+// How many seconds the client waits for SCENARIO: the host saves the world first, and the file
+// may be up to 1 MB.
+constexpr double kScenarioTimeout = 30.0;
 
 // How often the client sends PING, seconds.
 constexpr double kPingInterval = 1.0;
@@ -119,6 +125,11 @@ public:
     // Takes fuel from FUEL messages received since the last call (the latest per vessel).
     std::vector<VesselFuel> takeFuel();
 
+    // Whether the host's scenario has arrived (only with scenarioId == kNoScenario). After it
+    // the link is Closed with the reason "scenario received".
+    bool hasScenario() const { return hasScenario_; }
+    const Scenario& scenario() const { return scenario_; }
+
     // Takes LANDED messages received since the last call, in arrival order.
     std::vector<Landed> takeLanded();
 
@@ -136,6 +147,7 @@ private:
     // Parsing of individual messages. On error or rejection they call close.
     void handleWelcome(Reader& reader);
     void handleReject(Reader& reader);
+    void handleScenario(Reader& reader);
     void handleVessels(Reader& reader, double now);
     void handleVesselAdded(Reader& reader);
     void handleVesselRemoved(Reader& reader);
@@ -173,6 +185,8 @@ private:
 
     std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
+    bool hasScenario_ = false;
+    Scenario scenario_;
 
     uint32_t pingSeq_ = 0;
     double nextPing_ = 0.0;

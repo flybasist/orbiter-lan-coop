@@ -128,7 +128,8 @@ void ClientLink::poll(double now) {
         close(welcomed_ ? "connection lost" : "connection refused");
         return;
     }
-    if (!welcomed_ && now - startedAt_ > kConnectTimeout) {
+    double timeout = config_.scenarioId == kNoScenario ? kScenarioTimeout : kConnectTimeout;
+    if (!welcomed_ && now - startedAt_ > timeout) {
         close("connection timeout");
         return;
     }
@@ -153,9 +154,11 @@ bool ClientLink::handleFrames(double now) {
            (result = frames_.next(type, body)) == TcpFrameReader::Result::Ready) {
         Reader reader(body.data(), body.size());
 
-        // Before WELCOME the host may send only WELCOME or REJECT.
+        // Before WELCOME the host may send only WELCOME or REJECT, and SCENARIO if we asked for it.
+        bool askedForScenario = config_.scenarioId == kNoScenario;
         bool isHandshake = type == static_cast<uint8_t>(TcpType::Welcome) ||
-                           type == static_cast<uint8_t>(TcpType::Reject);
+                           type == static_cast<uint8_t>(TcpType::Reject) ||
+                           (askedForScenario && type == static_cast<uint8_t>(TcpType::Scenario));
         if (!welcomed_ && !isHandshake) {
             close("unexpected message before WELCOME");
             break;
@@ -167,6 +170,9 @@ bool ClientLink::handleFrames(double now) {
                 break;
             case TcpType::Reject:
                 handleReject(reader);
+                break;
+            case TcpType::Scenario:
+                handleScenario(reader);
                 break;
             case TcpType::Bodies:
                 if (!readBodies(reader, bodies_)) {
@@ -211,7 +217,7 @@ bool ClientLink::handleFrames(double now) {
                 break;
             }
             default:
-                // Other messages (DOCK, SCENARIO) are not needed at stage 1.
+                // Other messages (DOCK) are not needed yet.
                 break;
         }
     }
@@ -220,6 +226,22 @@ bool ClientLink::handleFrames(double now) {
         close("broken TCP stream");
     }
     return state_ != State::Closed;
+}
+
+void ClientLink::handleScenario(Reader& reader) {
+    // A SCENARIO the client did not ask for is a protocol error.
+    if (config_.scenarioId != kNoScenario || welcomed_) {
+        close("unexpected SCENARIO message");
+        return;
+    }
+    if (!readScenario(reader, scenario_)) {
+        close("broken SCENARIO message");
+        return;
+    }
+    hasScenario_ = true;
+    log("OLC client: received scenario #" + std::to_string(scenario_.scenarioId) + " '" +
+        scenario_.name + "' (" + std::to_string(scenario_.data.size()) + " bytes)");
+    close("scenario received");
 }
 
 void ClientLink::handleWelcome(Reader& reader) {

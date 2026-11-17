@@ -64,6 +64,20 @@ Client                                   Host
   │═══ INPUT (UDP) ════════════════════════►│  every frame, at most 60 Hz
 ```
 
+Scenario request (stage 2): a client that has no session yet sends `HELLO` with `scenario_id` = 0.
+The host checks the versions and that a place is free, saves the current world and answers `SCENARIO`
+(or `REJECT`). Once the whole file has gone out, the host closes the connection; such a client is not
+counted as a player. The client starts the scenario and connects again with the number from `SCENARIO` —
+then the usual sequence above follows.
+
+```
+Client                                   Host
+  │── TCP connect ─────────────────────────►│
+  │── HELLO (scenario_id = 0) ─────────────►│
+  │◄────────────────────────── SCENARIO ────│  save number, name, file
+  │◄──────────────────────── TCP close ─────│
+```
+
 ## 4. Headers
 
 **TCP** is a stream, so every message starts with a length:
@@ -102,7 +116,7 @@ A message with extra bytes after the last field is treated as broken, the same a
 |---|---|---|
 | `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `scenario_id: u32`, `plugin_version: str`, `player: str`. `scenario_id`: 0 — there is no session yet, the client asks the host for a scenario (stage 2); 4294967295 (`0xFFFFFFFF`) — the player started a scenario by hand, as at stage 1; otherwise — the number from `SCENARIO` that the client loaded |
 | `WELCOME` | host → client | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (planetary system name) |
-| `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — another system, 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8), `text: str` |
+| `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — another system, 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8; 5 — the host cannot give a scenario: it was not saved or the file is over the limit), `text: str` |
 | `SCENARIO` | host → client | `scenario_id: u32` (save number, the client returns it in `HELLO`), `name: str`, `size: u32`, then `size` bytes of the scenario file (stage 2). The file is at most 1 MB − 265 bytes: that way the whole message with the longest name fits into a TCP frame. A `size` not equal to the number of remaining bytes means a broken message |
 | `BODIES` | host → client | `count: u16`, then `net_id: u16`, `name: str` |
 | `VESSELS` | host → client | `count: u16`, then `net_id: u16`, `name: str`, `class: str` |

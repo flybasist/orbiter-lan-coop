@@ -46,9 +46,11 @@ struct TestHost {
         config.orbiterVersion = kOrbiterVersion;
         config.system = "Sol";
         config.stateRateHz = 30;
+        config.makeScenario = makeScenario;
         return link.start(config);
     }
 
+    std::function<bool(olc::Scenario&)> makeScenario;  // set before start if needed
     olc::SessionTable table;
     olc::HostLink link;
 };
@@ -387,6 +389,102 @@ void testRejectProtocolVersion() {
     CHECK(host.table.playerCount() == 1);
 }
 
+// Starts a client that asks for the host's scenario and waits until it is closed.
+void requestScenario(TestHost& host, olc::ClientLink& client) {
+    olc::ClientConfig config = makeClientConfig(host);
+    config.scenarioId = olc::kNoScenario;
+    CHECK(client.start(config, now()));
+    CHECK(waitFor(host.link, {&client},
+                  [&]() { return client.state() == olc::ClientLink::State::Closed; }));
+}
+
+// HELLO without a scenario number: the host sends its world as a file and closes the connection.
+// The file is close to the limit, so it goes out over many polls.
+void testScenarioRequest() {
+    std::vector<uint8_t> world(olc::kMaxScenarioSize);
+    for (size_t i = 0; i < world.size(); i++) {
+        world[i] = static_cast<uint8_t>(i * 7 + i / 251);
+    }
+    TestHost host;
+    int saves = 0;
+    host.makeScenario = [&](olc::Scenario& scenario) {
+        saves++;
+        scenario.name = "Host world";
+        scenario.data = world;
+        return true;
+    };
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::ClientLink client;
+    requestScenario(host, client);
+    CHECK(client.closeReason() == "scenario received");
+    CHECK(client.hasScenario());
+    CHECK(client.scenario().scenarioId == 1);
+    CHECK(client.scenario().name == "Host world");
+    CHECK(client.scenario().data == world);
+    CHECK(saves == 1);
+
+    // The host lets the connection go and does not count it as a player.
+    CHECK(waitFor(host.link, {}, [&]() { return host.link.clientCount() == 0; }));
+    CHECK(host.table.playerCount() == 1);
+    std::vector<std::string> hostLog = host.link.takeLog();
+    CHECK(hasLine(hostLog, "OLC host: sent scenario #1 ("));
+    CHECK(hasLine(hostLog, "closed (scenario sent)"));
+
+    // The next save gets the next number.
+    olc::ClientLink again;
+    requestScenario(host, again);
+    CHECK(again.hasScenario() && again.scenario().scenarioId == 2);
+}
+
+// The host cannot give a scenario: REJECT with a clear reason, and the client has no file.
+void testScenarioUnavailable() {
+    TestHost noSave;  // makeScenario is not set
+    CHECK(noSave.start());
+    olc::ClientLink first;
+    requestScenario(noSave, first);
+    CHECK(!first.hasScenario());
+    CHECK(contains(first.closeReason(), "rejected by host"));
+    CHECK(contains(first.closeReason(), "could not save"));
+
+    TestHost tooLarge;
+    tooLarge.makeScenario = [](olc::Scenario& scenario) {
+        scenario.name = "Huge";
+        scenario.data.assign(olc::kMaxScenarioSize + 1, 'x');
+        return true;
+    };
+    CHECK(tooLarge.start());
+    olc::ClientLink second;
+    requestScenario(tooLarge, second);
+    CHECK(!second.hasScenario());
+    CHECK(contains(second.closeReason(), "too large"));
+
+    // No free place: the scenario is not even saved.
+    TestHost full(2);
+    int saves = 0;
+    full.makeScenario = [&](olc::Scenario& scenario) {
+        saves++;
+        scenario.name = "World";
+        return true;
+    };
+    CHECK(full.start());
+    fillHost(full);
+    olc::ClientLink player;
+    CHECK(player.start(makeClientConfig(full), now()));
+    CHECK(waitFor(full.link, {&player},
+                  [&]() { return player.state() == olc::ClientLink::State::Ready; }));
+    olc::ClientLink third;
+    olc::ClientConfig config = makeClientConfig(full);
+    config.scenarioId = olc::kNoScenario;
+    CHECK(third.start(config, now()));
+    CHECK(waitFor(full.link, {&player, &third},
+                  [&]() { return third.state() == olc::ClientLink::State::Closed; }));
+    CHECK(contains(third.closeReason(), "no free player slots"));
+    CHECK(saves == 0);
+    CHECK(player.state() == olc::ClientLink::State::Ready);
+}
+
 // A message before HELLO - the client is disconnected.
 void testMessageBeforeHello() {
     TestHost host;
@@ -490,6 +588,7 @@ void testUdpAddressFromPing() {
     olc::Hello hello;
     hello.protocol = olc::kProtocolVersion;
     hello.orbiterVersion = kOrbiterVersion;
+    hello.scenarioId = olc::kOwnScenario;
     hello.pluginVersion = "test";
     hello.player = "Behind NAT";
     olc::Writer helloBody;
@@ -659,6 +758,8 @@ int main() {
     testRejectOrbiterVersion();
     testRejectProtocolVersion();
     testHandshakeWithScenarioId();
+    testScenarioRequest();
+    testScenarioUnavailable();
     testMessageBeforeHello();
     testPlayerLimit();
     testOtherSystem();

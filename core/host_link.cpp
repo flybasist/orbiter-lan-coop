@@ -152,13 +152,23 @@ void HostLink::poll(double now) {
         } else if (!keep) {
             client.leaveReason = "connection lost";
         }
-        if (keep && !client.welcomed && now - client.connectedAt > kHelloTimeout) {
+        if (keep && !client.welcomed && !client.scenarioSent &&
+            now - client.connectedAt > kHelloTimeout) {
             keep = false;
             client.leaveReason = "no HELLO received in time";
+        }
+        if (keep && client.scenarioSent && now - client.connectedAt > kScenarioSendTimeout) {
+            keep = false;
+            client.leaveReason = "scenario was not delivered in time";
         }
         if (keep && !client.tcp.flush()) {
             keep = false;
             client.leaveReason = "connection lost";
+        }
+        // The client that asked for a scenario is done once the whole file has gone out.
+        if (keep && client.scenarioSent && client.tcp.pendingBytes() == 0) {
+            keep = false;
+            client.leaveReason = "scenario sent";
         }
         if (keep) {
             i++;
@@ -177,6 +187,10 @@ bool HostLink::handleFrames(Client& client) {
     while ((result = client.frames.next(type, body)) == TcpFrameReader::Result::Ready) {
         Reader reader(body.data(), body.size());
 
+        // A client that got its scenario has nothing more to say: the rest is ignored.
+        if (client.scenarioSent && type != static_cast<uint8_t>(TcpType::Hello)) {
+            continue;
+        }
         // Before the handshake a client may send only HELLO.
         if (!client.welcomed && type != static_cast<uint8_t>(TcpType::Hello)) {
             client.leaveReason = "message received before HELLO";
@@ -185,7 +199,7 @@ bool HostLink::handleFrames(Client& client) {
 
         switch (static_cast<TcpType>(type)) {
             case TcpType::Hello:
-                if (client.welcomed) {
+                if (client.welcomed || client.scenarioSent) {
                     client.leaveReason = "second HELLO";
                     return false;
                 }
@@ -265,6 +279,9 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
                           std::to_string(config_.orbiterVersion) + ", client " +
                           std::to_string(hello.orbiterVersion));
     }
+    if (hello.scenarioId == kNoScenario) {
+        return sendScenario(client, hello);
+    }
     uint8_t clientId = 0;
     if (!table_.addPlayer(clientId)) {
         return reject(client, RejectReason::NoFreeSlots, "no free player slots");
@@ -295,6 +312,38 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
                                : "scenario #" + std::to_string(hello.scenarioId);
     log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId) +
         " (" + scenario + ")");
+    return true;
+}
+
+bool HostLink::sendScenario(Client& client, const Hello& hello) {
+    // Without a free place the client would load the scenario for nothing and be refused afterwards.
+    if (table_.playerCount() >= table_.maxPlayers()) {
+        return reject(client, RejectReason::NoFreeSlots, "no free player slots");
+    }
+    Scenario scenario;
+    if (!config_.makeScenario || !config_.makeScenario(scenario)) {
+        return reject(client, RejectReason::ScenarioUnavailable, "host could not save its scenario");
+    }
+    if (scenario.data.size() > kMaxScenarioSize) {
+        return reject(client, RejectReason::ScenarioUnavailable,
+                      "host scenario is too large: " + std::to_string(scenario.data.size()) +
+                          " bytes, the limit is " + std::to_string(kMaxScenarioSize));
+    }
+    // Numbers start at 1 and skip the two special values.
+    lastScenarioId_++;
+    if (lastScenarioId_ == kNoScenario || lastScenarioId_ == kOwnScenario) {
+        lastScenarioId_ = 1;
+    }
+    scenario.scenarioId = lastScenarioId_;
+
+    Writer body;
+    if (!writeScenario(body, scenario)) {
+        return reject(client, RejectReason::ScenarioUnavailable, "host scenario name is too long");
+    }
+    sendMessage(client, TcpType::Scenario, body);
+    client.scenarioSent = true;
+    log("OLC host: sent scenario #" + std::to_string(scenario.scenarioId) + " (" +
+        std::to_string(scenario.data.size()) + " bytes) to player '" + hello.player + "'");
     return true;
 }
 
