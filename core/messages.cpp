@@ -23,12 +23,14 @@ bool writeCount(Writer& writer, size_t count) {
 bool writeHello(Writer& writer, const Hello& message) {
     writer.writeU16(message.protocol);
     writer.writeU32(message.orbiterVersion);
+    writer.writeU32(message.scenarioId);
     return writer.writeString(message.pluginVersion) && writer.writeString(message.player);
 }
 
 bool readHello(Reader& reader, Hello& message) {
     reader.readU16(message.protocol);
     reader.readU32(message.orbiterVersion);
+    reader.readU32(message.scenarioId);
     reader.readString(message.pluginVersion);
     reader.readString(message.player);
     return finished(reader);
@@ -456,6 +458,7 @@ bool writeScenario(Writer& writer, const Scenario& message) {
     if (message.data.size() > kMaxScenarioSize) {
         return false;
     }
+    writer.writeU32(message.scenarioId);
     if (!writer.writeString(message.name)) {
         return false;
     }
@@ -466,6 +469,7 @@ bool writeScenario(Writer& writer, const Scenario& message) {
 
 bool readScenario(Reader& reader, Scenario& message) {
     uint32_t size = 0;
+    reader.readU32(message.scenarioId);
     reader.readString(message.name);
     reader.readU32(size);
     // size came from the network: first compare it with what is actually in the packet,

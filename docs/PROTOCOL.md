@@ -52,7 +52,7 @@ Sequence:
 ```
 Client                                   Host
   │── TCP connect ─────────────────────────►│
-  │── HELLO ───────────────────────────────►│  protocol version, Orbiter version, player name
+  │── HELLO ───────────────────────────────►│  protocol version, Orbiter version, scenario number, player name
   │◄─────────────────────────── WELCOME ────│  client number, session number, state rate
   │                          or REJECT ─────│  reason: version, world, slots
   │◄──────────────────────────── BODIES ────│  number → name for planets and moons
@@ -78,7 +78,7 @@ Client                                   Host
 | Field | Type | Meaning |
 |---|---|---|
 | `magic` | 4 bytes | `O`, `L`, `C`, `0` |
-| `version` | `u16` | Protocol version, currently `2` |
+| `version` | `u16` | Protocol version, currently `3` |
 | `type` | `u8` | Message type (section 6) |
 | `session` | `u32` | Session number from `WELCOME`; foreign packets are dropped |
 | `seq` | `u32` | The sender's sequence number; old and repeated packets are dropped |
@@ -100,10 +100,10 @@ A message with extra bytes after the last field is treated as broken, the same a
 
 | Type | Direction | Fields |
 |---|---|---|
-| `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `plugin_version: str`, `player: str` |
+| `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `scenario_id: u32`, `plugin_version: str`, `player: str`. `scenario_id`: 0 — there is no session yet, the client asks the host for a scenario (stage 2); 4294967295 (`0xFFFFFFFF`) — the player started a scenario by hand, as at stage 1; otherwise — the number from `SCENARIO` that the client loaded |
 | `WELCOME` | host → client | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (planetary system name) |
 | `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — another system, 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8), `text: str` |
-| `SCENARIO` | host → client | `name: str`, `size: u32`, then `size` bytes of the scenario file (stage 2). The file is at most 1 MB − 261 bytes: that way the whole message with the longest name fits into a TCP frame. A `size` not equal to the number of remaining bytes means a broken message |
+| `SCENARIO` | host → client | `scenario_id: u32` (save number, the client returns it in `HELLO`), `name: str`, `size: u32`, then `size` bytes of the scenario file (stage 2). The file is at most 1 MB − 265 bytes: that way the whole message with the longest name fits into a TCP frame. A `size` not equal to the number of remaining bytes means a broken message |
 | `BODIES` | host → client | `count: u16`, then `net_id: u16`, `name: str` |
 | `VESSELS` | host → client | `count: u16`, then `net_id: u16`, `name: str`, `class: str` |
 | `VESSEL_ADDED` | host → client | `name: str`, `class: str`, then the vessel state as in `WORLD_STATE` (it starts with `net_id`) |
@@ -227,6 +227,7 @@ differ from the host.
 
 - `version` in every UDP packet and `protocol` in `HELLO`. Different versions do not work together:
   the host answers `REJECT` with reason 1.
+- Version 3 (2026-11-17): `scenario_id` added to `HELLO` and `SCENARIO` (decision 31).
 - Version 2 (2026-11-17): `client_id` added to `PING`. Version 1 is without it.
 - The Orbiter version must be the same on the host and the client (`REJECT`, reason 2): different builds
   may compute physics differently and store state differently.

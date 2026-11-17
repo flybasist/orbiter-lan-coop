@@ -44,10 +44,16 @@ enum class UdpType : uint8_t {
     Fuel = 5,
 };
 
+// HELLO.scenarioId: the client has no session yet and asks the host for its current scenario.
+constexpr uint32_t kNoScenario = 0;
+// HELLO.scenarioId: the player started a scenario by hand (as at stage 1), the host does not send one.
+constexpr uint32_t kOwnScenario = 0xFFFFFFFF;
+
 // HELLO, client → host: the first message after connecting.
 struct Hello {
     uint16_t protocol = 0;        // client protocol version
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion
+    uint32_t scenarioId = 0;      // kNoScenario, kOwnScenario or the number from SCENARIO
     std::string pluginVersion;
     std::string player;           // player name
 };
@@ -279,12 +285,13 @@ struct Ping {
 void writePing(Writer& writer, const Ping& message);
 bool readPing(Reader& reader, Ping& message);
 
-// Largest file size in SCENARIO: the whole message (type, longest name,
+// Largest file size in SCENARIO: the whole message (type, scenario number, longest name,
 // size field and file) must fit into a TCP frame of kMaxTcpMessageSize.
-constexpr size_t kMaxScenarioSize = kMaxTcpMessageSize - 1 - (1 + kMaxStringLength) - 4;
+constexpr size_t kMaxScenarioSize = kMaxTcpMessageSize - 1 - 4 - (1 + kMaxStringLength) - 4;
 
 // SCENARIO, host → client: a scenario file with the host's current world (stage 2).
 struct Scenario {
+    uint32_t scenarioId = 0;    // save number; the client returns it in HELLO after loading
     std::string name;           // scenario file name
     std::vector<uint8_t> data;  // file contents as is
 };

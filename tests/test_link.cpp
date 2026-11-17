@@ -164,8 +164,23 @@ void testHandshake() {
 
     std::vector<std::string> hostLog = host.link.takeLog();
     CHECK(hasLine(hostLog, "OLC host: listening on port " + std::to_string(host.link.port())));
-    CHECK(hasLine(hostLog, "OLC host: player 'Pilot' joined as client 1"));
+    CHECK(hasLine(hostLog, "OLC host: player 'Pilot' joined as client 1 (own scenario)"));
     CHECK(hasLine(client.takeLog(), "OLC client: connecting to 127.0.0.1:"));
+}
+
+// A client that loaded the host's scenario returns its number in HELLO and is accepted as usual.
+void testHandshakeWithScenarioId() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::ClientConfig config = makeClientConfig(host);
+    config.scenarioId = 7;
+    olc::ClientLink client;
+    CHECK(client.start(config, now()));
+    CHECK(waitFor(host.link, {&client},
+                  [&]() { return client.state() == olc::ClientLink::State::Ready; }));
+    CHECK(hasLine(host.link.takeLog(), "OLC host: player 'Pilot' joined as client 1 (scenario #7)"));
 }
 
 void testClassesMissing() {
@@ -643,6 +658,7 @@ int main() {
     testFuelAndLanded();
     testRejectOrbiterVersion();
     testRejectProtocolVersion();
+    testHandshakeWithScenarioId();
     testMessageBeforeHello();
     testPlayerLimit();
     testOtherSystem();

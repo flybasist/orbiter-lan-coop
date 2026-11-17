@@ -13,18 +13,19 @@ void testHello() {
     olc::Hello hello;
     hello.protocol = 1;
     hello.orbiterVersion = 241101;
+    hello.scenarioId = 42;
     hello.pluginVersion = "0.0.1";
     hello.player = "Pilot";
 
     olc::Writer w;
     CHECK(olc::writeHello(w, hello));
-    // 2 + 4 + (1 + 5) + (1 + 5) bytes.
-    CHECK(w.bytes().size() == 18);
+    // 2 + 4 + 4 + (1 + 5) + (1 + 5) bytes.
+    CHECK(w.bytes().size() == 22);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
     olc::Hello back;
     CHECK(olc::readHello(r, back));
-    CHECK(back.protocol == 1 && back.orbiterVersion == 241101);
+    CHECK(back.protocol == 1 && back.orbiterVersion == 241101 && back.scenarioId == 42);
     CHECK(back.pluginVersion == "0.0.1" && back.player == "Pilot");
 
     // A too long player name is not packed.
@@ -440,14 +441,15 @@ void testInputAndPing() {
 
 void testScenario() {
     olc::Scenario scenario;
+    scenario.scenarioId = 3;
     scenario.name = "OLC session";
     scenario.data = {'B', 'E', 'G', 'I', 'N', '\n'};
 
     // The full path through a TCP frame.
     olc::Writer w;
     CHECK(olc::writeScenario(w, scenario));
-    // (1 + 11) + 4 + 6 bytes.
-    CHECK(w.bytes().size() == 12 + 4 + 6);
+    // 4 + (1 + 11) + 4 + 6 bytes.
+    CHECK(w.bytes().size() == 4 + 12 + 4 + 6);
     std::vector<uint8_t> frame =
         olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Scenario), w.bytes());
     olc::TcpFrameReader frames;
@@ -460,7 +462,7 @@ void testScenario() {
     olc::Reader r(body.data(), body.size());
     olc::Scenario back;
     CHECK(olc::readScenario(r, back));
-    CHECK(back.name == "OLC session" && back.data == scenario.data);
+    CHECK(back.scenarioId == 3 && back.name == "OLC session" && back.data == scenario.data);
 
     // An empty file is allowed.
     olc::Scenario empty;
@@ -471,13 +473,13 @@ void testScenario() {
     CHECK(olc::readScenario(rempty, back) && back.data.empty());
 
     // size does not match the remaining bytes - broken. The size field comes after
-    // the name (12 bytes).
+    // the scenario number and the name (4 + 12 bytes).
     std::vector<uint8_t> bigger = w.bytes();
-    bigger[12] = 7;
+    bigger[16] = 7;
     olc::Reader rb(bigger.data(), bigger.size());
     CHECK(!olc::readScenario(rb, back));
     std::vector<uint8_t> smaller = w.bytes();
-    smaller[12] = 5;
+    smaller[16] = 5;
     olc::Reader rs(smaller.data(), smaller.size());
     CHECK(!olc::readScenario(rs, back));
 

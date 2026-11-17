@@ -15,7 +15,7 @@ I — research, S — test rigs.
 |---|---|---|
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
-| 2. Observer | The client sees the host's world, switches camera and vessels | detailed plan written, awaiting approval |
+| 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17 |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | — |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the instructor | Shared pause, watching any vessel, saving and debriefing a flight | — |
@@ -164,14 +164,14 @@ At stage 1 two people play. The project's goal is 4 players, the upper limit is 
 
 ## Stage 2. Observer: connecting with one button
 
-How the client gets the host's world (decisions 16 and 17 in [DECISIONS.md](DECISIONS.md)):
+How the client gets the host's world (decisions 16, 17 and 30 in [DECISIONS.md](DECISIONS.md)):
 
 1. A "Connect" button and the host address — in Launchpad (`oapiRegisterLaunchpadItem`).
 2. The host saves the current world (`oapiSaveScenario`) and sends the file to the client.
 3. The client plugin starts this scenario. Reconnaissance on 2026-11-17
    ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 18): in the same process this
    works — the plugin closes the session, puts the scenario in place, selects it in Launchpad and
-   presses "Launch" itself. This is simpler than restarting the process with `-s` from decision 16, which
+   presses "Launch" itself. This is the main path (decision 30); restarting the process with `-s` from decision 16
    remains a fallback. Another fallback: the scenario is selected in Launchpad, and the student
    starts it with one click.
 4. Vessels that appear on the host during the session are created by the client plugin itself
@@ -181,7 +181,7 @@ How the client gets the host's world (decisions 16 and 17 in [DECISIONS.md](DECI
 If some item runs into the core and cannot be solved by the plugin, that is the main risk found.
 It is assessed separately (a workaround or a PR to the core) before the work continues.
 
-### Detailed plan (draft of 2026-11-17, awaiting the owner's approval)
+### Detailed plan (approved by the owner on 2026-11-17)
 
 **How connecting goes** (one button for the student):
 
@@ -220,10 +220,8 @@ It is assessed separately (a workaround or a PR to the core) before the work con
 - a host refusal (version, another system, no free places) is shown in Launchpad in a clear text;
 - reconnecting works without restarting Orbiter.
 
-**What the owner has to decide:**
-
-- approve this plan (stage 2 code starts after approval);
-- record in decision 16 the Launchpad path as the main one, and restarting with `-s` as the fallback.
+**Owner's decisions (2026-11-17):** the plan is approved; the Launchpad path is the main one, restarting
+with `-s` is the fallback (decision 30).
 
 Not part of stage 2: controlling one's own vessel (stage 3), docking, sending add-ons,
 an ImGui window in the simulation (the log and notifications are enough for now).

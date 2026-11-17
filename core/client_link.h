@@ -47,6 +47,9 @@ struct ClientConfig {
     std::string player;           // player name for HELLO
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion, goes into HELLO
     std::string pluginVersion;    // plugin version, goes into HELLO
+    // Goes into HELLO: kOwnScenario - the player started the scenario by hand (stage 1),
+    // kNoScenario - ask the host for its scenario, otherwise the number from SCENARIO.
+    uint32_t scenarioId = kOwnScenario;
     std::string system;           // own planetary system; a different one on the host - disconnect
     double displayDelay = kDefaultDisplayDelay;
     // Whether the client has a vessel class. Classes for which it returns false go to the host in

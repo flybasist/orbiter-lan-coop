@@ -105,3 +105,6 @@
   Debian), the auto-logon script `tools/stands/setup-autologon.ps1`; `setup-windows.ps1` now
   turns on .NET Framework 3.5 for the DirectX SDK installer and downloads the SDK without
   `Invoke-WebRequest`. The core tests also pass on GCC 14 (Debian).
+- **Stage 2 started:** the detailed plan is approved, the scenario is started through Launchpad,
+  restarting with `-s` is the fallback (decision 30). Protocol version 3: `HELLO` and `SCENARIO`
+  carry the scenario save number `scenario_id` (decision 31), the host logs it when a client joins.

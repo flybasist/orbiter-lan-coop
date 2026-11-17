@@ -61,6 +61,7 @@ bool ClientLink::start(const ClientConfig& config, double now) {
     Hello hello;
     hello.protocol = kProtocolVersion;
     hello.orbiterVersion = config.orbiterVersion;
+    hello.scenarioId = config.scenarioId;
     hello.pluginVersion = config.pluginVersion;
     hello.player = config.player;
     Writer body;

@@ -290,7 +290,11 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
         return false;
     }
 
-    log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId));
+    std::string scenario = hello.scenarioId == kOwnScenario
+                               ? "own scenario"
+                               : "scenario #" + std::to_string(hello.scenarioId);
+    log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId) +
+        " (" + scenario + ")");
     return true;
 }
 
