@@ -8,12 +8,18 @@
 # Формат задания (все поля, кроме instances, необязательны):
 #   {
 #     "instances": [
-#       { "dir": "C:\\olc\\host",   "args": "-s \"Checklists\\Quickstart\" -T 60 -x" },
-#       { "dir": "C:\\olc\\client", "args": "-s \"Checklists\\Quickstart\" -T 60 -x" }
+#       { "dir": "C:\\olc\\host",   "args": "-s \"Checklists\\Quickstart\" -T 60 -x",
+#         "window": [0, 0] },
+#       { "dir": "C:\\olc\\client", "args": "-s \"Checklists\\Quickstart\" -T 60 -x",
+#         "window": [642, 0] }
 #     ],
 #     "screenshots": [10, 30],   - через сколько секунд после запуска снять экран
 #     "timeout": 120             - через сколько секунд закрыть экземпляры, если не закрылись сами
 #   }
+# window - куда сдвинуть окно с картинкой (x, y), чтобы окна двух копий Orbiter не закрывали
+# друг друга. Координаты и размер окна (WindowWidth, WindowHeight в Orbiter.cfg копии) - в
+# логических пикселях: при масштабе экрана 200% окно 640 пикселей займёт 1280 точек.
+# Окно ищется по заголовку «OpenOrbiter [...]», то есть только у Orbiter с графическим клиентом.
 #
 # Результат - в C:\olc\run-orbiter: run.log (что запущено, коды выхода) и снимки shot-<сек>.png.
 # Файл done.txt появляется последним: по нему агент понимает, что запуск закончен.
@@ -43,6 +49,14 @@ function Save-Screenshot($path) {
     $bitmap.Dispose()
 }
 
+# Функция Windows для перемещения окна.
+Add-Type -Namespace Olc -Name Win32 -MemberDefinition @'
+[DllImport("user32.dll")]
+public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+'@
+$SWP_NOSIZE = 0x0001
+$SWP_NOZORDER = 0x0004
+
 try {
     $job = Get-Content $jobFile -Raw | ConvertFrom-Json
     $timeout = if ($job.timeout) { [int]$job.timeout } else { 120 }
@@ -50,16 +64,35 @@ try {
     if ($job.screenshots) { $shots = @($job.screenshots | ForEach-Object { [int]$_ } | Sort-Object) }
 
     $processes = @()
+    $placements = @()   # окна, которые ещё надо сдвинуть: процесс и координаты
     foreach ($instance in $job.instances) {
         $exe = Join-Path $instance.dir 'Orbiter.exe'
         Write-Log "start $exe $($instance.args)"
-        $processes += Start-Process -FilePath $exe -ArgumentList $instance.args `
+        $process = Start-Process -FilePath $exe -ArgumentList $instance.args `
             -WorkingDirectory $instance.dir -PassThru
+        $processes += $process
+        if ($instance.window) {
+            $placements += @{ process = $process; x = [int]$instance.window[0]; y = [int]$instance.window[1] }
+        }
     }
 
     $start = Get-Date
     while ($true) {
         $elapsed = ((Get-Date) - $start).TotalSeconds
+        # Окно появляется не сразу после запуска: двигаем его, как только оно есть.
+        $waiting = @()
+        foreach ($placement in $placements) {
+            $process = $placement.process
+            $process.Refresh()
+            if ($process.HasExited) { continue }
+            # Сначала главное окно - лаунчер, двигать нужно окно с картинкой: его заголовок
+            # «OpenOrbiter [имя графического клиента]».
+            if ($process.MainWindowTitle -notlike 'OpenOrbiter `[*') { $waiting += $placement; continue }
+            [Olc.Win32]::SetWindowPos($process.MainWindowHandle, [IntPtr]::Zero, $placement.x,
+                $placement.y, 0, 0, $SWP_NOSIZE -bor $SWP_NOZORDER) | Out-Null
+            Write-Log "pid $($process.Id) window '$($process.MainWindowTitle)' moved to $($placement.x),$($placement.y)"
+        }
+        $placements = $waiting
         while ($shots.Count -gt 0 -and $elapsed -ge $shots[0]) {
             $file = Join-Path $outDir ('shot-{0}.png' -f $shots[0])
             Save-Screenshot $file
