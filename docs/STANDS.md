@@ -262,3 +262,27 @@ Conclusions:
   error over Wi-Fi and over a wire is almost the same — `PLAN.md`, stage 1.
 - The jitter over Wi-Fi is not even, as in the smoothing model, but has rare long
   spikes — the model did not check this.
+
+## 11. Vessels on a schedule: `OlcRigTest`
+
+To check without a person how OLC sends vessels created and deleted during the session
+(stage 2), the helper plugin `OlcRigTest.dll` from `tools/rigtest/` runs on the host next to OLC.
+It is not part of OLC: it builds together with the plugin (Windows, the SDK folder) and is
+loaded only explicitly — with the `-p OlcRigTest` switch.
+
+At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
+
+```text
+; <sim time, s> create <name> <class> <existing vessel>
+; <sim time, s> delete <name>
+60 create GL-NEW DeltaGlider Ref
+60 delete Ref
+90 delete GL-NEW
+```
+
+A new vessel takes the state of the existing one shifted by 200 m, so that they do not collide.
+The class must be installed, otherwise Orbiter terminates abnormally.
+
+A Lua script in the scenario (`Script` in `BEGIN_ENVIRONMENT`) does not do for this: in a session
+without graphics started over SSH, Orbiter hangs when the script gets to creating and deleting
+vessels (`oapi.create_vessel`, `oapi.del_vessel`; checked 2026-11-17, without OLC too).

@@ -287,13 +287,9 @@ void ClientLink::handleVessels(Reader& reader, double now) {
 
     // Which classes the client lacks: each one is named once.
     std::vector<std::string> missing;
-    if (config_.classExists) {
-        for (const VesselEntry& entry : vessels) {
-            bool known = std::find(missing.begin(), missing.end(), entry.className) !=
-                         missing.end();
-            if (!known && !config_.classExists(entry.className)) {
-                missing.push_back(entry.className);
-            }
+    for (const VesselEntry& entry : vessels) {
+        if (isNewMissingClass(entry.className)) {
+            missing.push_back(entry.className);
         }
     }
     Writer classesBody;
@@ -318,6 +314,18 @@ void ClientLink::handleVessels(Reader& reader, double now) {
         " bodies");
 }
 
+bool ClientLink::isNewMissingClass(const std::string& className) {
+    if (!config_.classExists || config_.classExists(className)) {
+        return false;
+    }
+    if (std::find(missingClasses_.begin(), missingClasses_.end(), className) !=
+        missingClasses_.end()) {
+        return false;
+    }
+    missingClasses_.push_back(className);
+    return true;
+}
+
 void ClientLink::handleVesselAdded(Reader& reader) {
     VesselAdded added;
     if (!readVesselAdded(reader, added)) {
@@ -327,6 +335,13 @@ void ClientLink::handleVesselAdded(Reader& reader) {
     if (table_.addVesselWithId(added.state.netId, added.name, added.className)) {
         // The state in VESSEL_ADDED refers to the latest known host moment.
         buffers_[added.state.netId].add(lastPacketSimTime_, added.state);
+        // A class the client lacks: the host learns about it the same way as at join.
+        if (isNewMissingClass(added.className)) {
+            Writer body;
+            if (writeClassesMissing(body, {added.className})) {
+                sendMessage(TcpType::ClassesMissing, body);
+            }
+        }
         VesselChange change;
         change.added = true;
         change.vessel.netId = added.state.netId;

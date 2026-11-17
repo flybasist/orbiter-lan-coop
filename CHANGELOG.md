@@ -113,3 +113,8 @@
   the file (`ClientLink::scenario`). A new refusal reason 5 — the host cannot give a scenario.
   The host sends vessels created and deleted during the session (`VESSEL_ADDED` with the state,
   `VESSEL_REMOVED`); the client in the core hands these changes to the plugin (`takeVesselChanges`).
+  The client plugin keeps the same list of vessels as the host: creates missing ones if the class
+  is installed, deletes extra ones and those the host deleted, leaves the last vessel alone; a class
+  from `VESSEL_ADDED` that is not installed goes to the host in `CLASSES_MISSING`. Checked on rigs
+  (host Windows 11, client Windows 10, without graphics) with the new helper plugin
+  `tools/rigtest/` (`OlcRigTest.dll`) that creates and deletes vessels on a schedule.

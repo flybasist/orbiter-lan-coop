@@ -12,7 +12,8 @@
 //   display clock (ClientClock);
 // - receives FUEL and LANDED and hands them to the plugin (takeFuel, takeLanded);
 // - receives VESSEL_ADDED and VESSEL_REMOVED, changes the session table and tells the plugin
-//   which vessels to create and delete (takeVesselChanges);
+//   which vessels to create and delete (takeVesselChanges); a class from VESSEL_ADDED that
+//   the client lacks goes to the host in one more CLASSES_MISSING;
 // - sends PING once per second and measures the round trip time from PONG.
 //
 // Orbiter is not needed here: the plugin asks for a vessel state at the needed moment
@@ -163,6 +164,8 @@ private:
     void handleVessels(Reader& reader, double now);
     void handleVesselAdded(Reader& reader);
     void handleVesselRemoved(Reader& reader);
+    // true if the client lacks this class and has not reported it yet (then remembers it).
+    bool isNewMissingClass(const std::string& className);
     // Puts a TCP message into the queue and sends as much as it can.
     void sendMessage(TcpType type, const Writer& body);
     void handleUdp(double now);
@@ -198,6 +201,7 @@ private:
     std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
     std::vector<VesselChange> vesselChanges_;
+    std::vector<std::string> missingClasses_;  // already reported in CLASSES_MISSING
     bool hasScenario_ = false;
     Scenario scenario_;
 

@@ -8,12 +8,19 @@
 // - outside pause only: fuel from FUEL and vessel states at display time - via
 //   DefSetStateEx in clbkPreStep (ORBITER-INTERNALS.md, section 3). A vessel that is
 //   landed at display time is put there once, at the place from LANDED.
-// Client vessels are matched with host vessels by name: at stage 1 both run the same
-// scenario (docs/ARCHITECTURE.md, section 2).
+// Client vessels are matched with host vessels by name (docs/ARCHITECTURE.md, section 2).
+// The client world follows the host's list of vessels:
+// - a host vessel missing here is created (oapiCreateVesselEx) as soon as its state is known,
+//   but only if its class is installed: without the class file Orbiter would terminate;
+// - once, right after the first states are applied, client vessels the host does not have
+//   are deleted;
+// - VESSEL_REMOVED deletes the vessel here too.
+// The last vessel is never deleted: Orbiter would end the session.
 #pragma once
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -46,7 +53,17 @@ private:
     void collectLanded();
     void putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place);
     void applyStates(double displayTime);
-    // The client vessel for a host net_id: found by name and remembered. nullptr - no such vessel.
+    // Deletes client vessels the host does not have (once per session).
+    void removeExtraVessels();
+    // Deletes vessels the host deleted (VESSEL_REMOVED).
+    void applyVesselChanges();
+    // Creates the host vessel netId here with the given state. nullptr - not created now
+    // (class not installed, or the vessel is landed and its place is not known yet).
+    OBJHANDLE createVessel(uint16_t netId, const olc::VesselState& state, OBJHANDLE body);
+    // Deletes a client vessel unless it is the last one. false - not deleted.
+    bool deleteVessel(OBJHANDLE handle);
+    // The client vessel for a host net_id: found by name and remembered. nullptr - no such vessel
+    // (yet: it may be created later, so a miss is not remembered).
     OBJHANDLE vesselHandle(uint16_t netId);
     OBJHANDLE bodyHandle(uint16_t netId);
     void logStats();
@@ -57,6 +74,9 @@ private:
     std::map<uint16_t, OBJHANDLE> vessels_;  // net_id → client vessel (nullptr - none)
     std::map<uint16_t, OBJHANDLE> bodies_;   // body net_id → client body
     std::map<uint16_t, olc::Landed> landedAt_;  // net_id → last landing place from LANDED
+    bool extrasRemoved_ = false;            // removeExtraVessels has run
+    std::set<uint16_t> cannotCreate_;       // net_id whose class is not installed (logged once)
+    int deletesThisFrame_ = 0;              // oapiDeleteVessel calls not yet carried out
 
     Trace trace_;
     uint16_t traceNetId_ = 0;

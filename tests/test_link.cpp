@@ -191,7 +191,7 @@ void testClassesMissing() {
     fillHost(host);
 
     olc::ClientConfig config = makeClientConfig(host);
-    config.classExists = [](const std::string& className) { return className != "ShuttleA"; };
+    config.classExists = [](const std::string& className) { return className == "DeltaGlider"; };
     olc::ClientLink client;
     CHECK(client.start(config, now()));
 
@@ -199,6 +199,29 @@ void testClassesMissing() {
     std::vector<std::string> hostLog = host.link.takeLog();
     CHECK(hasLine(hostLog, "OLC host: client 1 is missing classes: ShuttleA"));
     CHECK(!hasLine(hostLog, "DeltaGlider"));
+
+    // A vessel of a missing class added during the session: the host learns it again,
+    // but a class already reported is not repeated.
+    olc::VesselAdded added;
+    added.name = "Atlantis";
+    added.className = "Shuttle";
+    CHECK(host.table.addVessel(added.name, added.className, added.state.netId));
+    CHECK(host.link.sendVesselAdded(added));
+    olc::VesselAdded another;
+    another.name = "ISS-2";
+    another.className = "ShuttleA";
+    CHECK(host.table.addVessel(another.name, another.className, another.state.netId));
+    CHECK(host.link.sendVesselAdded(another));
+    std::vector<std::string> later;
+    size_t changes = 0;
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        std::vector<std::string> got = host.link.takeLog();
+        later.insert(later.end(), got.begin(), got.end());
+        changes += client.takeVesselChanges().size();
+        return hasLine(later, "missing classes: Shuttle") && changes == 2;
+    }));
+    CHECK(hasLine(later, "OLC host: client 1 is missing classes: Shuttle"));
+    CHECK(!hasLine(later, "missing classes: ShuttleA"));
 }
 
 // A large WORLD_STATE: 60 vessels with 20 thrusters each do not fit into one packet.

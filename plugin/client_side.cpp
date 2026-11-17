@@ -36,6 +36,17 @@ std::string objectName(OBJHANDLE object) {
     return name;
 }
 
+// A class is installed if the client has its configuration file Config\Vessels\<class>.cfg.
+bool classInstalled(const std::string& className) {
+    std::string path = "Vessels\\" + className + ".cfg";
+    FILEHANDLE file = oapiOpenFile(path.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
+    if (!file) {
+        return false;
+    }
+    oapiCloseFile(file, FILE_IN_ZEROONFAIL);
+    return true;
+}
+
 }  // namespace
 
 ClientSide::ClientSide(const Config& config) : config_(config) {}
@@ -54,16 +65,7 @@ bool ClientSide::start() {
     // As on the host: the name of the star - the body with number 0.
     clientConfig.system = oapiGetGbodyCount() > 0 ? objectName(oapiGetGbodyByIndex(0)) : "";
     clientConfig.displayDelay = config_.displayDelay;
-    // A class exists if the client has its configuration file.
-    clientConfig.classExists = [](const std::string& className) {
-        std::string path = "Vessels\\" + className + ".cfg";
-        FILEHANDLE file = oapiOpenFile(path.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
-        if (!file) {
-            return false;
-        }
-        oapiCloseFile(file, FILE_IN_ZEROONFAIL);
-        return true;
-    };
+    clientConfig.classExists = classInstalled;
 
     const bool started = link_.start(clientConfig, oapiGetSysTime());
     flushLog();
@@ -78,15 +80,24 @@ void ClientSide::stop() {
 
 void ClientSide::tick(double now, bool paused) {
     link_.poll(now);
+    // Deletions requested in the previous frame are carried out at its end.
+    deletesThisFrame_ = 0;
 
     // ClientLink logs connecting and disconnecting itself.
     if (link_.state() == olc::ClientLink::State::Ready && link_.hasWorld()) {
         const double displayTime = link_.displayTime(now);
         followTime(now, displayTime);
         if (!paused) {
+            applyVesselChanges();
             applyFuel();
             collectLanded();
             applyStates(displayTime);
+            // After applyStates: host vessels are created first, so a client vessel the host
+            // does not have is not kept just because it was the last one.
+            if (!extrasRemoved_) {
+                removeExtraVessels();
+                extrasRemoved_ = true;
+            }
         }
         if (now >= nextStats_) {
             if (nextStats_ > 0.0) {
@@ -201,10 +212,16 @@ void ClientSide::applyStates(double displayTime) {
         if (!link_.sampleVessel(entry.netId, displayTime, state, starved)) {
             continue;  // no packets for this vessel yet
         }
-        OBJHANDLE handle = vesselHandle(entry.netId);
         OBJHANDLE body = bodyHandle(state.refBody);
-        if (!handle || !body) {
+        if (!body) {
             continue;
+        }
+        OBJHANDLE handle = vesselHandle(entry.netId);
+        if (!handle) {
+            handle = createVessel(entry.netId, state, body);
+            if (!handle) {
+                continue;
+            }
         }
         VESSEL* vessel = oapiGetVesselInterface(handle);
 
@@ -248,17 +265,109 @@ OBJHANDLE ClientSide::vesselHandle(uint16_t netId) {
     if (found != vessels_.end()) {
         return found->second;
     }
-    OBJHANDLE handle = nullptr;
     const olc::VesselRecord* record = link_.table().findById(netId);
-    if (record) {
-        std::string name = record->name;
-        handle = oapiGetVesselByName(&name[0]);
-        if (!handle) {
-            oapiWriteLogV("OLC client: host vessel '%s' not found here, skipped", name.c_str());
+    if (!record) {
+        return nullptr;
+    }
+    std::string name = record->name;
+    OBJHANDLE handle = oapiGetVesselByName(&name[0]);
+    if (handle) {
+        vessels_[netId] = handle;
+    }
+    return handle;
+}
+
+OBJHANDLE ClientSide::createVessel(uint16_t netId, const olc::VesselState& state, OBJHANDLE body) {
+    const olc::VesselRecord* record = link_.table().findById(netId);
+    if (!record || cannotCreate_.count(netId) > 0) {
+        return nullptr;
+    }
+    if (!classInstalled(record->className)) {
+        // ClientLink has already told the host (CLASSES_MISSING).
+        cannotCreate_.insert(netId);
+        oapiWriteLogV("OLC client: cannot create vessel '%s': class '%s' is not installed",
+                      record->name.c_str(), record->className.c_str());
+        return nullptr;
+    }
+
+    VESSELSTATUS2 status;
+    std::memset(&status, 0, sizeof(status));
+    status.version = 2;
+    status.rbody = body;
+    if (state.status == static_cast<uint8_t>(olc::VesselStatus::Flying)) {
+        status.status = 0;
+        status.rpos = toVector3(state.rpos);
+        status.rvel = toVector3(state.rvel);
+        status.arot = toVector3(state.arot);
+        status.vrot = toVector3(state.vrot);
+    } else {
+        // A landed vessel needs its place; the host repeats LANDED, so wait for it.
+        auto place = landedAt_.find(netId);
+        if (place == landedAt_.end()) {
+            return nullptr;
+        }
+        status.status = 1;
+        status.surf_lng = place->second.longitude;
+        status.surf_lat = place->second.latitude;
+        status.surf_hdg = place->second.heading;
+        status.arot.x = 10.0;  // see putOnSurface
+    }
+
+    OBJHANDLE handle = oapiCreateVesselEx(record->name.c_str(), record->className.c_str(), &status);
+    if (handle) {
+        vessels_[netId] = handle;
+        oapiWriteLogV("OLC client: created vessel '%s' (%s)", record->name.c_str(),
+                      record->className.c_str());
+    }
+    return handle;
+}
+
+bool ClientSide::deleteVessel(OBJHANDLE handle) {
+    const std::string name = objectName(handle);
+    if (static_cast<int>(oapiGetVesselCount()) - deletesThisFrame_ <= 1) {
+        oapiWriteLogV("OLC client: vessel '%s' kept: it is the last one, Orbiter would end "
+                      "the session", name.c_str());
+        return false;
+    }
+    if (!oapiDeleteVessel(handle)) {
+        oapiWriteLogV("OLC client: cannot delete vessel '%s'", name.c_str());
+        return false;
+    }
+    deletesThisFrame_++;
+    oapiWriteLogV("OLC client: deleted vessel '%s'", name.c_str());
+    return true;
+}
+
+void ClientSide::removeExtraVessels() {
+    // Collect first: the list of vessels must not change while it is being walked.
+    std::vector<OBJHANDLE> extra;
+    const DWORD count = oapiGetVesselCount();
+    for (DWORD i = 0; i < count; i++) {
+        OBJHANDLE handle = oapiGetVesselByIndex(static_cast<int>(i));
+        if (!link_.table().findByName(objectName(handle))) {
+            extra.push_back(handle);
         }
     }
-    vessels_[netId] = handle;
-    return handle;
+    for (OBJHANDLE handle : extra) {
+        deleteVessel(handle);
+    }
+}
+
+void ClientSide::applyVesselChanges() {
+    // New vessels need nothing here: applyStates creates them once their state is known.
+    for (const olc::VesselChange& change : link_.takeVesselChanges()) {
+        if (change.added) {
+            continue;
+        }
+        cannotCreate_.erase(change.vessel.netId);
+        landedAt_.erase(change.vessel.netId);
+        std::string name = change.vessel.name;
+        OBJHANDLE handle = oapiGetVesselByName(&name[0]);
+        vessels_.erase(change.vessel.netId);
+        if (handle) {
+            deleteVessel(handle);
+        }
+    }
 }
 
 OBJHANDLE ClientSide::bodyHandle(uint16_t netId) {
@@ -282,9 +391,11 @@ OBJHANDLE ClientSide::bodyHandle(uint16_t netId) {
 }
 
 void ClientSide::onDeleteVessel(OBJHANDLE vessel) {
-    for (auto& entry : vessels_) {
-        if (entry.second == vessel) {
-            entry.second = nullptr;
+    for (auto entry = vessels_.begin(); entry != vessels_.end();) {
+        if (entry->second == vessel) {
+            entry = vessels_.erase(entry);
+        } else {
+            ++entry;
         }
     }
 }

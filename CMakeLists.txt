@@ -30,6 +30,8 @@ if(WIN32 AND OLC_ORBITER_SDK_DIR)
     # The path may come with Windows backslashes - convert it to CMake form.
     file(TO_CMAKE_PATH "${OLC_ORBITER_SDK_DIR}" OLC_ORBITER_SDK_DIR)
     add_subdirectory(plugin)
+    # Helper plugin for checks on test rigs, not part of OLC
+    add_subdirectory(tools/rigtest)
 endif()
 
 # Network check between two machines (docs/STANDS.md)
