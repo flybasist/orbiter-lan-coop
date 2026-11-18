@@ -245,7 +245,7 @@ bool ClientLink::handleFrames(double now) {
                 break;
             }
             default:
-                // Other messages (DOCK) are not needed yet.
+                // Other types are not sent to a client: ignored.
                 break;
         }
     }
@@ -281,7 +281,6 @@ void ClientLink::handleWelcome(Reader& reader) {
     welcomed_ = true;
     session_ = welcome.session;
     clientId_ = welcome.clientId;
-    stateRateHz_ = welcome.stateRateHz;
 
     if (!equalsIgnoreCase(welcome.system, config_.system)) {
         Writer body;

@@ -10,7 +10,7 @@
 // - sends WORLD_STATE and FUEL to clients whose UDP port is known; a state that does
 //   not fit into one packet (kMaxUdpPacketSize) is split into several packets
 //   with the same sim_time;
-// - sends DOCK (docked and undocked) the same way and keeps the list of current links for
+// - sends DOCK (docked and undocked) over TCP and keeps the list of current links for
 //   clients that join later;
 // - sends TCP messages (LANDED, VESSEL_ADDED, VESSEL_REMOVED) to all clients that finished
 //   the handshake;

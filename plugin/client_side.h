@@ -69,7 +69,7 @@ public:
     void onKeyboard(char kstate[256]);
 
     // A single key press (clbkProcessKeyboardBuffered): while the pilot's own vessel is in focus,
-    // the press goes to the host in KEY (decision 33: it is carried out on the client too, so
+    // the press goes to the host in KEY (decision 35: it is carried out on the client too, so
     // Orbiter is not told to skip it). The modifier keys themselves are not sent.
     void onKeyPressed(DWORD key, const char kstate[256]);
 

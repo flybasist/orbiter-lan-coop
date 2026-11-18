@@ -46,7 +46,7 @@ public:
     // Whether at least one packet has arrived.
     bool started() const { return started_; }
 
-    // How many times the clock jumped (for log statistics).
+    // How many times the clock jumped (the tests check the jump rule by it).
     int jumps() const { return jumps_; }
 
 private:

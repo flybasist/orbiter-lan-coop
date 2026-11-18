@@ -4,7 +4,7 @@
 
 How often the host should send vessel states, how far the client should lag behind the host and how
 to reconstruct motion between packets. The answer comes from the `tools/smoothing/` model
-(`olc-smoothing`), without Orbiter. At stage 1 the numbers are checked in the real game.
+(`olc-smoothing`), without Orbiter. In the real game the numbers were checked on the rigs (measurement of task 3.0, decision 36).
 
 > Update of 2026-11-18 (decision 36): the target environment is a wired LAN (decision 32), and a
 > measurement on the rigs gave other defaults for it: 60 Hz and a 30 ms delay — half the error of 30 Hz,
@@ -185,13 +185,13 @@ sim time criterion.
   velocity, slerp for attitude, when the buffer is empty — motion with the last velocity, as in the
   model. A difference from the model: with an empty buffer the attitude is not continued with the angular
   velocity but stays the last one, until it is checked on a test rig in which coordinate frame
-  Orbiter gives `vrot`. The display delay is a plugin setting with a default of 100 ms at 30 Hz.
+  Orbiter gives `vrot`. The display delay is the plugin setting `DisplayDelay`: 30 ms at 60 Hz by default for a wired LAN (decision 36), 100 ms at 30 Hz over Wi-Fi.
 - **Attitude under time acceleration.** slerp does not take angular velocity into account, so at ×100 and
   with RCS pulses the attitude error reaches 3–6°. The angular velocity is already in the packet
   (`vrot`); cubic attitude interpolation using it is a candidate improvement if at
   stage 1 the error is visible to the eye.
-- **Stage 1** checks the numbers in the real Orbiter: uneven host frames, real
-  sim time synchronization, several vessels.
+- **The check in the real Orbiter** — on the rigs of stages 1–3: uneven host frames, real
+  sim time synchronization, several vessels; the result for a wired LAN is the measurement of task 3.0.
 - **A real network.** An `olc-netcheck` measurement over Wi-Fi ([STANDS.md](STANDS.md), section 10):
   no loss, but the delay jitter is rare spikes of up to ~190 ms round trip, not
   an even spread as in the model. The 100 ms buffer survived them. If at stage 1 there

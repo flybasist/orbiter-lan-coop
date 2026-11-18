@@ -8,7 +8,8 @@ all a clear understanding of what the protocol does not do.
 ## What is protected
 
 - The plugin accepts connections only when the user has explicitly turned on the host role.
-- A client controls only the vessel the host assigned to it (planned).
+- A client controls only its own vessel: the host accepts `INPUT` and `KEY` only from its owner
+  (stage 3, `SessionTable`).
 - Network packets are checked for size and format before parsing: a broken or foreign packet
   is dropped and does not crash Orbiter (tests with broken data are in `tests/`).
 

@@ -54,13 +54,13 @@ Client                                   Host
   │── TCP connect ─────────────────────────►│
   │── HELLO ───────────────────────────────►│  protocol version, Orbiter version, scenario number, player name
   │◄─────────────────────────── WELCOME ────│  client number, session number, state rate
-  │                          or REJECT ─────│  reason: version, world, slots
+  │                          or REJECT ─────│  reason: version, slots, scenario
   │◄──────────────────────────── BODIES ────│  number → name for planets and moons
   │◄──────────────────────────── VESSELS ───│  number → name, class for all vessels
+  │◄────────────────────────── OWNERSHIP ───│  who controls which vessel (right after VESSELS)
   │── CLASSES_MISSING ─────────────────────►│  which classes the client lacks (may be empty)
-  │◄────────────────────────── OWNERSHIP ───│  who controls which vessel
-  │── UDP_READY (over TCP) ────────────────►│  the client's UDP port
-  │◄═══════════════ WORLD_STATE (UDP) ══════│  30–60 Hz
+  │── UDP_READY (over TCP) ────────────────►│  the client's UDP port (both right on VESSELS)
+  │◄═══════════════ WORLD_STATE (UDP) ══════│  up to 60 Hz, 60 by default
   │═══ INPUT (UDP) ════════════════════════►│  every frame, at most 60 Hz
 ```
 
@@ -123,7 +123,7 @@ A message with extra bytes after the last field is treated as broken, the same a
 |---|---|---|
 | `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `scenario_id: u32`, `plugin_version: str`, `player: str`. `scenario_id`: 0 — there is no session yet, the client asks the host for a scenario (stage 2); 4294967295 (`0xFFFFFFFF`) — the player started a scenario by hand, as at stage 1; otherwise — the number from `SCENARIO` that the client loaded |
 | `WELCOME` | host → client | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (planetary system name) |
-| `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — another system, 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8; 5 — the host cannot give a scenario: it was not saved or the file is over the limit), `text: str` |
+| `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — reserved, the host does not send it: a different planetary system is noticed by the client after `WELCOME`, and it leaves with `BYE`; 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8; 5 — the host cannot give a scenario: it was not saved or the file is over the limit), `text: str` |
 | `SCENARIO` | host → client | `scenario_id: u32` (save number, the client returns it in `HELLO`), `name: str`, `size: u32`, then `size` bytes of the scenario file (stage 2). The file is at most 1 MB − 265 bytes: that way the whole message with the longest name fits into a TCP frame. A `size` not equal to the number of remaining bytes means a broken message |
 | `BODIES` | host → client | `count: u16`, then `net_id: u16`, `name: str` |
 | `VESSELS` | host → client | `count: u16`, then `net_id: u16`, `name: str`, `class: str` |
@@ -206,11 +206,11 @@ In Orbiter, RCS rotation and translation share the same keys. The client does no
 the vessel on the host, so for such a key it sends both bits — rotation and translation. The host uses
 the bits of its vessel's RCS mode.
 
-### `PING` and `PONG` (both directions)
+### `PING` (client → host) and `PONG` (host → client)
 
 `PING`: `t: f64` — the sender's system time (`oapiGetSysTime`), `client_id: u8` — the client
-number from `WELCOME`. `PONG` returns the body unchanged. The sender gets the round trip
-time. Once per second.
+number from `WELCOME`. The host answers with `PONG` with the same body, from which the client gets
+the round trip time. The client sends `PING` once per second.
 
 From `PING` the host learns the client's real UDP address: behind NAT (for example, a shared virtual
 machine network) the port the packets come from may differ from the port in `UDP_READY`, and
@@ -263,8 +263,9 @@ differ from the host.
   (cubic in position and velocity). The whole client world lags, not only other players' vessels
   ([SMOOTHING.md](SMOOTHING.md)). The default for a wired LAN is `WORLD_STATE` at 60 Hz and a delay of
   30 ms (decision 36, measured on the rigs); over Wi-Fi 30 Hz and 100 ms are safer.
-- If the client sim time drifts from the host by more than 1 s (to be tuned), there is a jump with
-  `oapiSetSimMJD`; otherwise a soft adjustment.
+- If the client sim time drifts from the host by more than the `TimeSyncThreshold` threshold (0.1 s
+  by default, × warp when accelerated), there is a jump with `oapiSetSimMJD`, at most once in 2 s; a
+  smaller drift is only counted in the log.
 
 ## 9. Versions and compatibility
 

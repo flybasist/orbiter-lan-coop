@@ -245,8 +245,9 @@ The client goes through the `HELLO` → `WELCOME` handshake over TCP, then sends
 loop sleeps for 1 ms.
 
 **How to read it.** The one-way delay is roughly half the RTT. The smoothing buffer on the
-client is 100 ms ([SMOOTHING.md](SMOOTHING.md)): a packet is late if it travels one way
-longer than that. So the share of RTT above 200 ms is roughly the share of frames in which the client will
+client is the display delay `DisplayDelay`: 30 ms for a wired LAN, 100 ms for Wi-Fi (decision 36,
+[SMOOTHING.md](SMOOTHING.md)); a packet is late if it travels one way longer than that. So the share of
+RTT above 60 ms (wire) or 200 ms (Wi-Fi) is roughly the share of frames in which the client will
 extrapolate instead of interpolating.
 
 ### Measurements

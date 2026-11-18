@@ -20,7 +20,7 @@ struct Quat {
 };
 
 // arot angles (rad) → quaternion. The rotation matrix is built from the angles the same way as in
-// the Orbiter core (Src/Orbiter/Vessel.cpp:900, Vessel::SetGlobalOrientation).
+// the Orbiter core (Src/Orbiter/Vessel.cpp:909, Vessel::SetGlobalOrientation).
 Quat eulerToQuat(const Vec3& arot);
 
 // Quaternion → arot angles (rad): x and z within -π…π, y within -π/2…π/2.

@@ -63,7 +63,7 @@ struct ClientConfig {
     std::string player;           // player name for HELLO
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion, goes into HELLO
     std::string pluginVersion;    // plugin version, goes into HELLO
-    // Goes into HELLO: kOwnScenario - the player started the scenario by hand (stage 1),
+    // Goes into HELLO: kOwnScenario - the player started the scenario by hand,
     // kNoScenario - ask the host for its scenario, otherwise the number from SCENARIO.
     uint32_t scenarioId = kOwnScenario;
     std::string system;           // own planetary system; a different one on the host - disconnect
@@ -121,7 +121,6 @@ public:
     const SessionTable& table() const { return table_; }
     const std::vector<BodyEntry>& bodies() const { return bodies_; }
     uint8_t clientId() const { return clientId_; }
-    uint8_t stateRateHz() const { return stateRateHz_; }
 
     // Whether at least one WORLD_STATE has arrived. Before that time and states are unknown.
     bool hasWorld() const { return clock_.started(); }
@@ -222,7 +221,6 @@ private:
     bool welcomed_ = false;
     uint32_t session_ = 0;
     uint8_t clientId_ = 0;
-    uint8_t stateRateHz_ = 0;
 
     SessionTable table_;
     std::vector<BodyEntry> bodies_;
@@ -230,7 +228,7 @@ private:
     ClientClock clock_;
     std::map<uint16_t, InterpolationBuffer> buffers_;  // by net_id
     bool haveSeq_ = false;
-    uint32_t lastSeq_ = 0;  // last accepted seq of WORLD_STATE and FUEL
+    uint32_t lastSeq_ = 0;  // last accepted seq of WORLD_STATE, FUEL and PONG
     double hostWarp_ = 1.0;
     bool hostPaused_ = false;
     double lastPacketSimTime_ = 0.0;

@@ -44,7 +44,7 @@ OLC — плагин для космосимулятора Orbiter, которы
 | `CMakeLists.txt` | Корневая сборка CMake. Каталог сборки всегда `orbiter-lan-coop.out`. |
 | `core/` | Сетевое ядро `olc-core`: протокол и всё, что не зависит от Orbiter (`ARCHITECTURE.md`, раздел 6). |
 | `tests/` | Тесты ядра на CTest без сторонних библиотек; проверки — `tests/check.h`. |
-| `plugin/` | Плагин `OrbiterLanCoop.dll` для Orbiter (только Windows): роли хоста и клиента этапа 1, настройки из `Config\OrbiterLanCoop.cfg` (пример — `plugin/OrbiterLanCoop.cfg`). Сборка — `QUICKSTART.md`, раздел 5, запуск — раздел 6. |
+| `plugin/` | Плагин `OrbiterLanCoop.dll` для Orbiter (только Windows): роли хоста и клиента (этап 3: подключение кнопкой, свой корабль у каждого пилота, стыковки), настройки из `Config\OrbiterLanCoop.cfg` (пример — `plugin/OrbiterLanCoop.cfg`). Сборка — `QUICKSTART.md`, раздел 5, запуск — раздел 6. |
 | `.github/workflows/build.yml` | Сборка в GitHub Actions: ядро Orbiter из базового коммита (с кешем), затем ядро OLC с тестами и плагин под Windows x64. |
 | `tools/smoothing/` | Модель сглаживания `olc-smoothing`: имитирует пакеты хоста с задержкой и потерями и сравнивает способы восстановления движения на клиенте; `run-grid.sh` прогоняет её по сетке параметров. От Orbiter не зависит. Выводы — `SMOOTHING.md`. |
 | `tools/netcheck/` | Утилита `olc-netcheck`: проверка сети между двумя машинами на сетевом ядре OLC — рукопожатие по TCP, `PING`/`PONG` по UDP, потери и задержка. Как пользоваться — `STANDS.md`, раздел 10. |

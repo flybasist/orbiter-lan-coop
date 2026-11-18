@@ -1,5 +1,6 @@
 // HostLink and ClientLink tests together: handshake, rejections, state broadcast, fuel,
-// landing, PING/PONG and disconnecting. Loopback 127.0.0.1 and port 0 (any free one) only.
+// landing, vessels added and removed, ownership, INPUT, KEY, DOCK, SCENARIO, PING/PONG, NAT,
+// silence and disconnecting. Loopback 127.0.0.1 and port 0 (any free one) only.
 // All waiting is a poll + 1 ms pause loop with a time limit, so the test
 // cannot hang.
 
@@ -151,7 +152,6 @@ void testHandshake() {
     CHECK(done);
     CHECK(client.state() == olc::ClientLink::State::Ready);
     CHECK(client.clientId() == 1);
-    CHECK(client.stateRateHz() == 30);
     CHECK(host.link.clientCount() == 1);
     CHECK(host.link.readyClientCount() == 1);
     CHECK(host.table.playerCount() == 2);

@@ -7,8 +7,8 @@
 // - attitude - slerp (attitude.h);
 // - thruster levels - from the earlier packet.
 // One buffer - one vessel. The buffer works in host sim time; which moment to display
-// is decided by the caller: per SMOOTHING.md, 100 ms of real time behind the host, that is
-// 0.1 × warp seconds of sim time.
+// is decided by the caller: the display delay (DisplayDelay, 30 ms by default) of real time behind
+// the host, that is DisplayDelay × warp seconds of sim time (SMOOTHING.md).
 #pragma once
 
 #include <vector>
@@ -17,7 +17,7 @@
 
 namespace olc {
 
-// How many recent packets the buffer keeps: 64 packets - more than 2 s at 30 Hz, with
+// How many recent packets the buffer keeps: 64 packets - about 1 s at 60 Hz (2 s at 30 Hz), with
 // a large margin over the display delay.
 constexpr size_t kInterpolationBufferSize = 64;
 

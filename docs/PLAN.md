@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.13 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.14 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | plan approved on 2026-11-18 (decision 46); after stage 5, research 4.1 — now (task 3.18) |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); code — after the stage 3 tests by people (decision 47), research 5.6 — now (task 3.19) |
 
@@ -271,7 +271,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | done (2026-11-18): everything except the retro engine is confirmed by the host log, see the 3.11 results |
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | done (2026-11-18): section "Stages 4 and 5: detailed plan", question Q8 |
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | done (2026-11-18): the bugs found are fixed, 4 findings are not bugs, see the results of 3.13 |
-| 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | in progress (main session) |
+| 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | done (2026-11-18): documents and comments checked against the code, see the results of 3.14 |
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | waiting |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | waiting |
 | 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | waiting (main session) |
@@ -442,6 +442,33 @@ Document mismatches (`ARCHITECTURE.md`, `STANDS.md`, `PROTOCOL.md`) move to audi
 Check: builds without warnings on Mac and MSVC x64, `ctest` 13 of 13 on both. On the rigs (host
 Windows 11 x64 without graphics, client Windows 11 ARM with graphics, scenario `Demo\Docked at ISS`):
 the client writes "docking vessels 0 and 4: already docked" — the pair docked in the scenario is recognised as a bundle; after the bundle leader ISS is deleted on the host (`OlcRigTest`, `100 delete ISS`), GL-02 on the client keeps moving until the end of the run (by `olc-trace.csv`) instead of freezing; `unknown vessels 0`.
+
+**Results of 3.14 (2026-11-18).** Three subagents checked against the code the documents (except the
+logs: `PLAN`, `DECISIONS`, `QUESTIONS`, `CHANGELOG`, `RESEARCH`, `ORBITER-INTERNALS`), the Russian
+versions against the English ones and all code comments; the main session checked every mismatch
+itself. The Russian and English versions agree in meaning everywhere. Fixed:
+
+- `ARCHITECTURE.md`: the interface is described as it is (the "OLC - LAN co-op" item, `saveConfig`,
+  messages to the pilot via `oapiCreateAnnotation`, the log); there is no ImGui window,
+  `oapiAddNotification` or `clbkWriteConfig` in the code — the players window is marked as a plan
+  (task 5.3); sim time — only a jump past the `TimeSyncThreshold` threshold; the state rate does not
+  depend on warp (5 Hz while paused); the display delay is 30 ms by default; `KEY` and `DOCK` added to
+  the `HostLink` and `ClientLink` rows.
+- `PROTOCOL.md`: the host does not send `REJECT` 3 (the client notices another system); only the client
+  sends `PING`; `OWNERSHIP` comes right after `VESSELS`, and the client answers with `CLASSES_MISSING`
+  and `UDP_READY` without waiting for it; the sim time threshold is `TimeSyncThreshold`, not 1 s.
+- `SMOOTHING.md`, `STANDS.md`, `SDK-CHEATSHEET.md`, `SECURITY.md`, `docs/README.md`: a 30 ms delay for
+  a wire and 100 ms for Wi-Fi instead of a single 100 ms, stages in the past tense, vessel ownership
+  already works, the plugin is at stage 3.
+- `olc-netcheck` counts the share of RTT above 60 ms (wire) and 200 ms (Wi-Fi) instead of 100 and 200 ms.
+- Code comments: a wrong decision number, "stage 1/2" where the behaviour changed, `DOCK` over TCP,
+  `PONG` in the shared `seq` counter, the 30 ms delay, the `Vessel.cpp:909` line, the descriptions of the
+  plugin file and the tests. The unused `ClientLink::stateRateHz` is removed; `RejectReason::OtherSystem`
+  is marked as reserved.
+
+Left as is: task labels in comments (references to the plan), the "minimum to start" in `STANDS.md`
+(advice for a new rig), `ClientClock::jumps` and `HostLink::port` — the tests check by them.
+Check: builds without warnings on Mac and MSVC x64, `ctest` 13 of 13 on both, `olc-doccheck` passes.
 
 **Stage 3 succeeds if:**
 

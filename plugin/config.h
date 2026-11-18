@@ -39,8 +39,8 @@ struct Config {
 // are written to Orbiter.log, and such a field keeps its default value.
 Config loadConfig();
 
-// Writes all fields to Config\OrbiterLanCoop.cfg (comments in the old file are replaced by the
-// standard ones). false - the file could not be written.
+// Writes the settings to Config\OrbiterLanCoop.cfg, TraceVessel and TraceFile only if set
+// (comments in the old file are replaced by the standard ones). false - the file could not be written.
 bool saveConfig(const Config& config);
 
 const char* roleName(Role role);

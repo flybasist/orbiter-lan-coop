@@ -10,12 +10,13 @@
 // The server (like an OLC host) listens for TCP and UDP on one port (47800 by default) and runs
 // until stopped (Ctrl+C). The client:
 //   1. connects over TCP and goes through the HELLO → WELCOME handshake;
-//   2. sends UDP PING at rate-hz (30 by default, like WORLD_STATE) for seconds seconds
+//   2. sends UDP PING at rate-hz (30 by default) for seconds seconds
 //      (10 by default); the server answers PONG with the same time;
 //   3. says goodbye with BYE and prints a report: loss, round trip time
 //      (minimum, average, percentiles, maximum), delay jitter, out-of-order packets,
-//      and the share of replies later than 100 and 200 ms - this is compared with the smoothing
-//      buffer delay (docs/SMOOTHING.md).
+//      and the share of replies later than 60 and 200 ms - twice the display delay for a wired LAN
+//      (30 ms) and for Wi-Fi (100 ms): a later reply means a packet slower than the buffer
+//      (docs/SMOOTHING.md).
 // The client exits with code 0 if at least one PONG arrived, otherwise with code 1.
 
 #include <algorithm>
@@ -319,8 +320,8 @@ void printReport(const PingStats& stats) {
                 sorted.front() * 1000.0, sum / static_cast<double>(sorted.size()) * 1000.0,
                 percentile(sorted, 0.50) * 1000.0, percentile(sorted, 0.95) * 1000.0,
                 percentile(sorted, 0.99) * 1000.0, sorted.back() * 1000.0, jitter * 1000.0);
-    std::printf("RTT above 100 ms: %.2f%%, above 200 ms: %.2f%%\n",
-                percentAbove(stats.rtts, 0.100), percentAbove(stats.rtts, 0.200));
+    std::printf("RTT above 60 ms: %.2f%%, above 200 ms: %.2f%%\n",
+                percentAbove(stats.rtts, 0.060), percentAbove(stats.rtts, 0.200));
 }
 
 int runClient(const olc::Endpoint& server, double seconds, double rateHz) {

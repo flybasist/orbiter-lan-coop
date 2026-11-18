@@ -4,9 +4,9 @@
 
 What is where and which conditions must not be broken — see [README.md](README.md) in this folder.
 
-> Below is the architecture being checked by the prototype (stages 0–1 in [PLAN.md](PLAN.md)).
-> Stage 1 code exists (section 6): the host sends the world state and the client shows it;
-> client input is stage 3. After the prototype the document is rewritten to match the real code.
+> Below is the architecture of the prototype ([PLAN.md](PLAN.md)). Stage 3 code exists (section 6):
+> the host sends the world state, the client shows it and controls its own vessel, dockings are
+> repeated for everyone. Where it says "planned", it is not in the code yet.
 > References to the Orbiter core are in [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md).
 
 ## 1. The big picture
@@ -53,7 +53,7 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
 
 1. `clbkPreStep`: apply the latest received client input to their vessels.
 2. There, capture the vessel states (`GetStatusEx`), time, warp and pause and send them
-   to clients (at 30–60 Hz, not every frame). A state refers to the moment
+   to clients (up to 60 times per second, 60 by default, not every frame). A state refers to the moment
    `oapiGetSimTime`.
 3. Orbiter computes the physics.
 
@@ -67,7 +67,9 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
 3. A vessel that is landed on the host is switched to the "landed" status once, not
    every frame.
 4. Time: pause and warp come from the host (`oapiSetPause`, `oapiSetTimeAcceleration`).
-   A small sim time lag is pulled in smoothly, a large one with a jump (`oapiSetSimMJD`).
+   If the client sim time drifts from the host by more than a threshold (`TimeSyncThreshold`,
+   0.1 s by default, × warp when accelerated), it is reset with a jump (`oapiSetSimMJD`); a smaller
+   drift is only counted in the log.
 
 ### Pause and an inactive window
 
@@ -81,12 +83,13 @@ Details — [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 14.
 
 ### Interface
 
-- **Launchpad**, the "Extra" tab, an "OLC" item: a Win32 dialog with the role (host or client),
-  the host address, the port and the player name. Settings are saved to `Config/` before the
-  session starts (`clbkWriteConfig`). From stage 2 the "Connect" button is there too.
-- **In the simulation** — an "OLC" ImGui window: connection state, players and their vessels,
-  network statistics (delay, loss). It opens from the Ctrl+F4 list and from a menu button.
-- **Notifications** (`oapiAddNotification`) — players connecting and disconnecting.
+- **Launchpad**, the "Extra" tab, the "OLC - LAN co-op" item: a Win32 dialog with the role (host
+  or client), the host address, the port, the player name and a "Connect" button. The dialog saves
+  the settings to `Config\OrbiterLanCoop.cfg` (`saveConfig`).
+- **In the simulation** — messages to the pilot as text on the screen (`oapiCreateAnnotation`,
+  20 s): which vessel is theirs, "view only" on someone else's, refusals. The connection state and
+  network statistics go to `Orbiter.log`. A window with the players and their links is planned
+  (stage 5, task 5.3).
 - Without a graphics client (a host in console mode) there are no windows — only the log.
 
 Details and catches — [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 16.
@@ -109,7 +112,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 | Channel | Protocol | What it carries | Rate |
 |---|---|---|---|
 | Session | TCP | connection, scenario, add-on check, vessel names and classes, ownership | on events |
-| World state | UDP | positions, velocities, attitudes, rotation, sim time, warp, pause | 60 Hz by default (decision 36), less often at high warp |
+| World state | UDP | positions, velocities, attitudes, rotation, sim time, warp, pause | 60 Hz by default (decision 36), 5 Hz while paused |
 | Input | UDP | control positions, key presses | every client frame |
 
 ## 3. Why it is done this way
@@ -135,7 +138,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 
 | Risk | What is known | How we check |
 |---|---|---|
-| `DefSetStateEx` 20–30 times per second | Inside: orbit re-initialization, gravity recalculation, iteration over bodies and bases, a check of neighbouring vessels' hulls. No accumulating side effects were found in the code | Stage 1: smoothness and load |
+| `DefSetStateEx` every client frame (about 60 times per second) | Inside: orbit re-initialization, gravity recalculation, iteration over bodies and bases, a check of neighbouring vessels' hulls. No accumulating side effects were found in the code | Stage 1: smoothness and load |
 | A vessel on the surface | The "landed" status is set once; the core may "land" a motionless vessel by itself after 5 s | Stage 1: a vessel on the runway does not jump or fall through |
 | Smoothing between packets | The core already has a similar mechanism — flight recording playback, but it is not available from the SDK. Smoothing model: our own buffer with Hermite interpolation copes ([SMOOTHING.md](SMOOTHING.md)) | Stage 1; if needed, propose a hook in the core |
 | Auto-docking on the client | The client's core may dock vessels that end up close by itself; the SDK has no switch for it | Stage 3 |
@@ -170,13 +173,13 @@ Currently in `olc-core`:
 | `core/messages.h` | Message type numbers and packing and parsing of the bodies of all TCP and UDP messages (`PROTOCOL.md`, sections 5 and 6); their headers are in `header.h`. Parsing rejects a truncated body and extra bytes at the end |
 | `core/protocol.h` | Protocol constants: version, port, UDP signature, size limits; comparison of UDP packet sequence numbers taking counter wrap into account; the next send time of a periodic packet (`nextSendTime`: from the planned time, so that at 60 frames per second `INPUT` and `WORLD_STATE` go out every frame, not every other frame) |
 | `core/header.h` | The UDP header (writing and checking: size, signature, version) and TCP frames: `makeTcpFrame` builds a message with its length, `TcpFrameReader` takes whole messages from the stream and stops parsing on an invalid length |
-| `core/interpolation.h` | `InterpolationBuffer` — the interpolation buffer of one vessel on the client (`SMOOTHING.md`): accepts states from `WORLD_STATE` by host sim time, drops late ones and gives the state at any moment: position — Hermite, velocities — linear, attitude — slerp. It does not interpolate between flying and landed packets or across a reference body change; when the buffer runs out, it continues the motion with the last velocity. Which moment to show (delay 100 ms × warp) is decided by the caller |
+| `core/interpolation.h` | `InterpolationBuffer` — the interpolation buffer of one vessel on the client (`SMOOTHING.md`): accepts states from `WORLD_STATE` by host sim time, drops late ones and gives the state at any moment: position — Hermite, velocities — linear, attitude — slerp. It does not interpolate between flying and landed packets or across a reference body change; when the buffer runs out, it continues the motion with the last velocity. Which moment to show (the display delay `DisplayDelay`, 30 ms by default, × warp) is decided by the caller |
 | `core/scenario_filter.h` | Preparing the received scenario: removes vessels of classes the client lacks (otherwise Orbiter terminates while loading) and moves the focus and the camera to a remaining vessel |
 | `core/session_table.h` | `SessionTable` — the table of one session. On the host: accepting clients with a player limit (the host is a player too; 4 by default, from 2 to 8 — decision 14), handing out `net_id` in order without reuse, vessel ownership and checking whose input to apply; take and release a vessel (one client — one vessel), a client that leaves leaves its vessel without an owner and closes it to others for 60 s. On the client: the same table from `VESSELS`, `VESSEL_ADDED`, `VESSEL_REMOVED` and `OWNERSHIP` |
 | `core/socket.h` | A socket wrapper: `UdpSocket`, `TcpConnection` (non-blocking connect, a send queue that finishes partial writes, receiving into `TcpFrameReader`), `TcpListener`; IPv4 addresses in digits only (`parseIpv4`). All sockets are non-blocking and never wait, there are no threads inside: the network runs in Orbiter's main thread (decision 23). Winsock and POSIX are in one `socket.cpp`; the network is started by `startNetwork` from `clbkSimulationStart`, not from `InitModule`. The Windows part is checked on a test rig (stage 0) |
 | `core/attitude.h` | Conversion of the `arot` Euler angles into a quaternion and back with the same formula as in the Orbiter core (`Vessel.cpp:914`), and slerp between quaternions |
-| `core/host_link.h` | `HostLink` — the host network side: listens for TCP and UDP, runs the handshake (`HELLO` → `WELCOME`/`REJECT` → `BODIES`, `VESSELS`, `OWNERSHIP`, then `CLASSES_MISSING` and `UDP_READY`), answers `PONG`, receives `INPUT` from the vessel owner (the latest one per vessel, `latestInput`), handles `OWNER_REQUEST` (take, release; a refusal is `OWNER_DENIED`, changes go to everyone in `OWNERSHIP`), sends `WORLD_STATE` and `FUEL` split into packets of up to 1200 bytes, `LANDED`, `VESSEL_ADDED` and `VESSEL_REMOVED` over TCP; answers a `HELLO` without a scenario number with `SCENARIO` (the plugin gives the file through `makeScenario`) and closes the connection; removes clients that left (including those silent for `kSilenceTimeout` = 15 s) from `SessionTable`. It does not know Orbiter: the plugin provides vessels and states |
-| `core/client_link.h` | `ClientLink` — the client network side: connecting and the handshake, the host's vessel and body table, receiving `WORLD_STATE` (session and order check) into per-vessel interpolation buffers, `FUEL`, `LANDED`, new and deleted vessels (`takeVesselChanges`), requests to take and release a vessel (`requestTake`, `requestRelease`) and refusals (`takeOwnerDenials`), receiving `SCENARIO` on request, `INPUT` at most 60 times per second (`sendInput`), `PING` once per second and the round trip time, closing if the host is silent for 15 s. The plugin asks for a vessel state at display time (`sampleVessel`), for measurements — the latest received one (`latestVessel`) |
+| `core/host_link.h` | `HostLink` — the host network side: listens for TCP and UDP, runs the handshake (`HELLO` → `WELCOME`/`REJECT` → `BODIES`, `VESSELS`, `OWNERSHIP`, then `CLASSES_MISSING` and `UDP_READY`), answers `PONG`, receives `INPUT` from the vessel owner (the latest one per vessel, `latestInput`), handles `OWNER_REQUEST` (take, release; a refusal is `OWNER_DENIED`, changes go to everyone in `OWNERSHIP`), sends `WORLD_STATE` and `FUEL` split into packets of up to 1200 bytes, `LANDED`, `VESSEL_ADDED` and `VESSEL_REMOVED` over TCP, `DOCK` (`sendDock`; the current links also to those who join later); accepts `KEY` for the client's own vessel (`takeKeys`); answers a `HELLO` without a scenario number with `SCENARIO` (the plugin gives the file through `makeScenario`) and closes the connection; removes clients that left (including those silent for `kSilenceTimeout` = 15 s) from `SessionTable`. It does not know Orbiter: the plugin provides vessels and states |
+| `core/client_link.h` | `ClientLink` — the client network side: connecting and the handshake, the host's vessel and body table, receiving `WORLD_STATE` (session and order check) into per-vessel interpolation buffers, `FUEL`, `LANDED`, new and deleted vessels (`takeVesselChanges`), requests to take and release a vessel (`requestTake`, `requestRelease`) and refusals (`takeOwnerDenials`), single key presses `KEY` (`sendKey`), dockings `DOCK` (`takeDocks`), receiving `SCENARIO` on request, `INPUT` at most 60 times per second (`sendInput`), `PING` once per second and the round trip time, closing if the host is silent for 15 s. The plugin asks for a vessel state at display time (`sampleVessel`), for measurements — the latest received one (`latestVessel`) |
 | `core/keymap.h` | Key layout: reads Orbiter's `keymap.cfg`, turns held vessel-control keys into `INPUT.keys` bits and clears them in the key state so that Orbiter does not fly the local copy. RCS rotation and translation share keys, so both bits are sent and the host picks by the vessel's RCS mode |
 | `core/client_clock.h` | `ClientClock` — the client display clock: which moment of host sim time to show (the display delay behind the host). Between packets it runs by itself at the host warp rate, corrects a small error smoothly and a large one with a jump |
 | `core/serialize.h` | `Writer` and `Reader`: writing and reading `u8`…`f64` and `str` fields little-endian, and raw bytes (a scenario file). `Reader` never reads past the end of the data: if bytes are missing, the read returns `false`, and so do all later reads |

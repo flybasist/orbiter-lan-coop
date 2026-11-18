@@ -1,5 +1,6 @@
-// OrbiterLanCoop - a multiplayer plugin for Orbiter (stage 2: the host sends the world, the client
-// gets it with one button in Launchpad and shows it; docs/PLAN.md).
+// OrbiterLanCoop - a multiplayer plugin for Orbiter (stage 3: the host sends the world, a client
+// connects with one button in Launchpad, flies its own vessel, dockings are repeated for everyone;
+// docs/PLAN.md).
 //
 // The role (host, client or off) is set by the file Config\OrbiterLanCoop.cfg (config.h).
 // The role's work is in HostSide and ClientSide; this file only connects them to Orbiter:
@@ -10,7 +11,9 @@
 //   a timer: its messages always arrive, and while paused the role works by the timer
 //   (decision 23 in docs/DECISIONS.md);
 // - clbkSimulationEnd - stop;
+// - clbkProcessKeyboardImmediate - held keys of the client go to the host (INPUT);
 // - clbkProcessKeyboardBuffered - single key presses of the client go to the host (KEY);
+// - clbkNewVessel and clbkDeleteVessel - the host announces vessels that appear and disappear;
 // - clbkFocusChanged and Ctrl+Alt+U (clbkProcessKeyboardBuffered) - take and release the
 //   player's own vessel (decision 35).
 // The "OLC" item in Launchpad (LaunchpadPanel) lives as long as the DLL: it is registered in
