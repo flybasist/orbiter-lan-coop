@@ -826,11 +826,16 @@ Directory `Flights\<name>\` (`FlightRecorder.cpp:776-790`), all files are text. 
   reference bodies need a correct `REF` change; the format is undocumented and may change in new
   Orbiter releases — the daily upstream check (step 4) catches this.
 
-### Not verified
+### Checked on the rig (2026-11-19)
 
-Everything above is reading the sources. It is not verified on a stand that playback accepts
-files not written by the core (small things such as mandatory headers are possible). This is
-checked in task 5.7 on the Windows stand in a short time.
+The stock recording on an OLC client with graphics works: a host without graphics (Windows 11 x64)
+with the `OLC-test\Two DG 20 m` scenario, a Windows 11 ARM client connected with "Connect", Ctrl+C at
+the 60th and 90th second. The client wrote `Flights\Host world\GL-01.*` and `GL-02.*` (`.pos` lines
+every ~2 s, positions change) and `Scenarios\Playback\Host world.scn` with `FLIGHTDATA` lines. This
+scenario, started on the same client without the plugin, plays back normally ("Replay", both
+vessels). So the client also records other vessels whose state the plugin imposes.
+
+Not checked: whether playback accepts files not written by the core (the "host writes itself" option).
 
 ### The fork
 
