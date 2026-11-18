@@ -12,15 +12,7 @@ and the question to the "Closed" section.
 
 ## Open
 
-### Q11. What the navigator changes in the pilot's vessel (task 3.18)
-
-Reconnaissance (`ORBITER-INTERNALS.md`, section 19): standard MFDs write into the vessel only NAV
-and transponder frequencies (Comms); the host cannot apply panel clicks.
-
-- **A (recommended).** In stage 4 synchronize only NAV and transponder frequencies through the SDK;
-  the navigator does not change autopilots or RCS mode (as in Q8, item 3).
-- **B.** Plus autopilots (`ActivateNavmode`) from the navigator — one more message type.
-- **C.** Plus DeltaGlider details through Lua — that class only, a lot of code.
+There are no open questions now.
 
 ## Closed
 
@@ -34,3 +26,4 @@ and transponder frequencies (Comms); the host cannot apply panel clicks.
 - **Q8. The plan of stages 4 and 5** — the default options: stage 5 first, research 4.1 and 5.6 at once; the flight director — the server setting `Director`; one-time presses — the pilot only; the plan is approved; decision 46 (2026-11-18).
 - **Q9. What to do after 3.17 before the tests by people** — only research 4.1 and 5.6, the code of stages 4 and 5 — after the tests; decision 47 (2026-11-18).
 - **Q10. What textures and kernels go into the test archive** — option B: the SPICE kernels in the archive, Earth textures — by a link to Orbiter 2016 in the instructions; decision 50 (2026-11-18).
+- **Q11. What the navigator changes in the pilot's vessel** — postponed together with the crew (part 4B); what to send to everyone is decided in 4A; decision 52 (2026-11-18).

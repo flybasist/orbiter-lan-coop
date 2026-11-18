@@ -127,7 +127,12 @@ the owner approved. Rules:
 2. **A fork in the road is a question, not a guess.** A question with options and a recommendation is
    written to `QUESTIONS.md`, the agent reports it to the owner's main session (decision 42) and switches to another independent
    task. The decision made is recorded in `DECISIONS.md`.
-3. **Windows or Linux needed — wait for a test rig.** No workarounds.
+3. **What to do without hardware and people** (decision 53). We do everything that gives a real
+   result on our rigs (the virtual machines from `stands.yaml`): core tests, logs, screenshots. No
+   work for the sake of work and no workarounds: if a hardware rig or people settle a question in
+   minutes, while without them it takes crutches and extra code with no real answer, the task waits
+   ("waits for hardware", "waits for people"). Always in place: auditing the code and documentation
+   (fewer documents, but true ones) and researching the sources for future tasks.
 4. **Models** (decision 48). The owner's main session runs on Opus: architecture, task setting,
    checking results and tasks with the "(main session)" status — it does them itself. A scheduled
    run works on Sonnet: implementation and code analysis from a ready task description. Haiku — code

@@ -17,10 +17,10 @@ I — research, S — test rigs.
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.17 are done, the package, the procedure and the scenarios for 3.7 are ready; waits for the docking check by people |
-| 4. Crew | Two in one vessel: pilot and navigator with MFDs | plan approved on 2026-11-18 (decision 46); after stage 5, research 4.1 — now (task 3.18) |
-| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); code — after the stage 3 tests by people (decision 47), research 5.6 — now (task 3.19) |
+| 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — in progress (decision 52, tasks 3.21–3.22); 4B — postponed |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); research 5.6 — task 3.19, the work queue — task 3.23 (decision 53) |
 
-Order: stage 5 first, then 4; research 4.1 and 5.6 — at once (decision 46). The code of stages 4 and 5 is written after the stage 3 tests by people (decision 47).
+Order: 4A, then stage 5, 4B — later (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
 error), documentation.
 
@@ -275,9 +275,12 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | done (2026-11-18): `TEXTURES.md`; the download list waits for the answer to Q10 |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | done (2026-11-18): a start without graphics on a clean machine; with the picture not checked, see results of 3.16 |
 | 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | done (2026-11-18): `TEST-PROCEDURE.md` and PDFs, the package checked with graphics, see the results of 3.17 |
-| 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | stop: question Q11; section 19 written (2026-11-18) |
-| 3.20 | Decision 52: stage 4 splits into 4A "everyone sees the vessel state" (not postponed) and 4B "crew" (postponed), Q11 postponed; the "mechanisms of someone else's vessel" limitation — into the procedure; rebuild the procedure PDFs | Mac | `DECISIONS.md`, `PLAN.md`, `TEST-PROCEDURE.md`, PDF | waiting (main session) |
+| 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-18): section 19 of `ORBITER-INTERNALS.md`; fork Q11 postponed with 4B (decision 52) |
+| 3.20 | Decision 52: stage 4 splits into 4A "everyone sees the vessel state" (not postponed) and 4B "crew" (postponed), Q11 postponed; the "mechanisms of someone else's vessel" limitation — into the procedure; rebuild the procedure PDFs | Mac | `DECISIONS.md`, `PLAN.md`, `TEST-PROCEDURE.md`, PDF | in progress (main session) |
 | 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
+| 3.21 | 4A, research: general animation transfer (`GetAnimPtr`, `GetAnimation`, `SetAnimation`) versus DeltaGlider Lua commands — what another participant will see, for which classes it works; NAV and transponder frequencies | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
+| 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | waiting (main session) |
+| 3.23 | Stage 5: the work queue — tasks 5.1–5.7, what the rigs can check now and what waits for people | Mac | Tasks in `PLAN.md` | waiting (main session) |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
@@ -598,6 +601,10 @@ a free vessel takes it.
 - after the lesson the flight can be watched again.
 
 ### Stage 4. Crew: pilot and navigator in one vessel
+
+**Split (decision 52):** 4A "Everyone sees the vessel state" is in progress (tasks 3.21–3.22); of the
+tasks below it includes 4.4 (NAV frequencies) and the general transfer of vessel mechanisms; 4B "Crew"
+(4.2, 4.3, 4.5, 4.6) is postponed.
 
 **What is known from the sources:**
 
