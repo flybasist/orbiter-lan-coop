@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.12 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.13 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | plan approved on 2026-11-18 (decision 46); after stage 5, research 4.1 — now (task 3.18) |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); code — after the stage 3 tests by people (decision 47), research 5.6 — now (task 3.19) |
 
@@ -270,7 +270,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | done (2026-11-18): the outliers come from the rig network (Wi-Fi and NAT), see the 3.10 results |
 | 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | done (2026-11-18): everything except the retro engine is confirmed by the host log, see the 3.11 results |
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | done (2026-11-18): section "Stages 4 and 5: detailed plan", question Q8 |
-| 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | in progress (main session); stopped at (2026-11-18, window limit): subagents read the code, the findings are below in "Findings of audit 3.13 (not verified)"; stopped at (2026-11-18, window limit): verified and fixed `HELLO` of another version, `TcpFrameReader::next`, `ServerClient::player`, version 4 in `PROTOCOL.md`; next — the remaining findings in the list |
+| 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | done (2026-11-18): the bugs found are fixed, 4 findings are not bugs, see the results of 3.13 |
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | waiting (main session) |
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | waiting |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | waiting |
@@ -407,28 +407,41 @@ Ctrl+F3 and the RCS keys also go to the host as `KEY` (decision 33, option A) an
 vessel; the DeltaGlider does not take them, no harm. Focus on a vessel flown by another pilot was not
 checked: it needs a second client with a picture.
 
-**Findings of audit 3.13 (not verified, 2026-11-18).** The subagents' list; each finding still has to
-be checked against the code:
+**Results of 3.13 (2026-11-18).** Subagents read all the code; the main session checked every
+finding against the code and the Orbiter sources. Fixed:
 
-- core: no timeout for a silent connection on either the host or the client (the slot and the vessel
-  of a pilot gone without FIN stay taken forever); a `HELLO` of an older version is parsed in full
-  before the version check, so a broken connection comes instead of `REJECT` 1; `TcpFrameReader::next`
-  erases the buffer head on every frame (quadratic with many small frames); the client accepts
-  `WORLD_STATE` for unknown and removed `net_id` (`PROTOCOL.md`, section 1, promises to drop them); no
-  range and finiteness check of `INPUT` fields; `ClientLink::start` does not reset its state when called
-  again; a stream of `HELLO` with number 0 saves the world to disk without a limit;
-- plugin: after a docked vessel is deleted the link stays in `dockedLinks_`, and the partner on the
-  client freezes; a pair already docked in the scenario is not recognised as a bundle (`Dock` returns
-  non-zero); a stale `DOCK` at the head of `pendingDocks_` holds the queue for 5 s; `launchedScenarioId_`
-  stays after a launch that did not happen; the `input.throttle` branch is dead (the client sends no
-  throttle lever); `detectDocking` multiplies ports with two links between one pair; `;` in the player
-  name is cut when the settings are read;
-- tools: in `olc-netcheck` the field `ServerClient::player` is only written; the `key` and `close` steps
-  of `run-orbiter.ps1` do not choose an Orbiter copy;
-- documents: `ARCHITECTURE.md` (`clbkWriteConfig`, the ImGui window, smooth time pull-in, a rate depending
-  on warp, a 100 ms delay), `STANDS.md` (a 100 ms buffer), `PROTOCOL.md` (no version 4 in the history,
-  the host does not send `REJECT` 3, `PING` only from the client, the order of `UDP_READY`),
-  `kPluginVersion` "0.1-stage2".
+- **A silent connection (core).** A frozen computer or a pulled cable left the TCP connection open:
+  the pilot's slot and vessel stayed taken forever, and coming back under the same name was impossible.
+  Now a side that hears nothing for 15 s (`kSilenceTimeout`) treats the other one as gone
+  (`PROTOCOL.md`, section 3); test `testSilence`.
+- **`HELLO` of another version** — now `REJECT` 1, not a dropped connection; **`TcpFrameReader::next`**
+  no longer erases the buffer head on every frame (both in the previous run).
+- **`WORLD_STATE` and `FUEL` for an unknown `net_id`** are dropped by the client, as `PROTOCOL.md`,
+  section 1, promises, and counted in the log (`unknown vessels`).
+- **`INPUT` out of range, NaN and infinity** — the packet is broken (`readInput`), a test in
+  `test_messages`.
+- **`ClientLink::start`** is called once: a second call returns `false` (the state used not to be
+  reset; the plugin creates a new `ClientLink` for each connection anyway).
+- **Docking on the client (plugin):** the links of a removed vessel are forgotten, so the partner does
+  not freeze; a pair docked already in the loaded scenario is recognised as a bundle (`already docked`);
+  undocking with a vessel already removed does not hold the `DOCK` queue.
+- **`detectDocking`** gave four links for two links between one pair: now each port is taken once
+  (the SDK does not tell which port mates which, so the port pair may come out crossed).
+- **`;` in the player name** — Orbiter reads it in settings as the start of a comment; the character
+  is removed on input.
+- **`run-orbiter.ps1`:** the `instance` field sends `key` and `close` steps to the right Orbiter copy.
+- **`kPluginVersion`** — "0.1-stage3"; the dead field `ServerClient::player` in `olc-netcheck` is removed.
+
+Not bugs: a stream of `HELLO` with number 0 overwrites the same file (`Scenarios\OLC\Sent to
+clients.scn`), the disk does not grow; the `input.throttle` branch is a protocol field for a throttle
+lever that the client does not send yet (explained in the code); `launchedScenarioId_` after a launch
+that did not happen stays until the next scenario start — a manual start of the same scenario has the
+right number; a stale `DOCK` at the queue head waits 5 s so as not to break the "dock → undock" order.
+Document mismatches (`ARCHITECTURE.md`, `STANDS.md`, `PROTOCOL.md`) move to audit 3.14.
+
+Check: builds without warnings on Mac and MSVC x64, `ctest` 13 of 13 on both. On the rigs (host
+Windows 11 x64 without graphics, client Windows 11 ARM with graphics, scenario `Demo\Docked at ISS`):
+the client writes "docking vessels 0 and 4: already docked" — the pair docked in the scenario is recognised as a bundle; after the bundle leader ISS is deleted on the host (`OlcRigTest`, `100 delete ISS`), GL-02 on the client keeps moving until the end of the run (by `olc-trace.csv`) instead of freezing; `unknown vessels 0`.
 
 **Stage 3 succeeds if:**
 

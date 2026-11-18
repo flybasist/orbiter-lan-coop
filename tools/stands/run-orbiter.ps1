@@ -22,6 +22,10 @@
 #       { "at": 70, "key": "0x4E", "seconds": 3 }   - hold a key (scan code, as OAPI_KEY_*) in the
 #                                                    active window: Orbiter's DirectInput sees it;
 #       { "at": 80, "key": "0x1D+0x38+0x16", "seconds": 0.3 } - several keys (Ctrl+Alt+U)
+#       { "at": 90, "key": "0x4E", "seconds": 1, "instance": 1 } - "instance" (from 0, in the order
+#                                                    of "instances") limits a step to one copy:
+#                                                    without it key and close go to the first
+#                                                    simulation window found
 #     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
@@ -100,6 +104,9 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 # Presses (click) or selects (select) the element with this name in the windows of the given processes,
 # or closes the simulation window (close) - the same as its close button.
 function Invoke-UiStep($step, $processIds) {
+    if ($null -ne $step.instance) {
+        $processIds = @($processIds[[int]$step.instance])
+    }
     if ($step.key) {
         # Keys go to the active window: bring the simulation window to the front first.
         foreach ($id in $processIds) {

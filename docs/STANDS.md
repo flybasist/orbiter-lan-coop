@@ -102,7 +102,7 @@ invisible service session, not on the desktop. So:
   [`tools/stands/run-orbiter.ps1`](../tools/stands/run-orbiter.ps1) in the user's session.
   The agent puts the job (which Orbiter copies to start with which switches, when to take screenshots) into
   `C:\olc\run-orbiter.json` (the `window` field places the copies' windows side by side, the `ui` field presses
-  buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}`, several keys at once — joined with `+`: `"0x1D+0x38+0x16"` (Ctrl+Alt+U) — this is how the "Connect" button in
+  buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}`, several keys at once — joined with `+`: `"0x1D+0x38+0x16"` (Ctrl+Alt+U); the `instance` field (the copy number from zero, in the order of `instances`) sends a `key` or `close` step to that copy, without it — to the first simulation window found — this is how the "Connect" button in
   Launchpad and reconnecting are checked); the result is
   a log and screenshots in `C:\olc\run-orbiter`. The log notes after how many seconds a copy
   exited by itself; the `timeout` field counts from the start of the copies, so with `-T` it must be

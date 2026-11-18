@@ -45,6 +45,9 @@ ClientLink::~ClientLink() {
 }
 
 bool ClientLink::start(const ClientConfig& config, double now) {
+    if (state_ != State::Idle) {
+        return false;
+    }
     config_ = config;
     state_ = State::Connecting;
     closeReason_.clear();
@@ -140,6 +143,12 @@ void ClientLink::poll(double now) {
 
     if (state_ == State::Ready) {
         handleUdp(now);
+        // Checked after the sockets are read, as on the host (kSilenceTimeout).
+        if (now - lastHeard_ > kSilenceTimeout) {
+            close("nothing heard from the host for " +
+                  std::to_string(static_cast<int>(kSilenceTimeout)) + " s");
+            return;
+        }
         if (state_ == State::Ready && now >= nextPing_) {
             sendPing(now);
         }
@@ -152,6 +161,7 @@ bool ClientLink::handleFrames(double now) {
     TcpFrameReader::Result result = TcpFrameReader::Result::NeedMore;
     while (state_ != State::Closed &&
            (result = frames_.next(type, body)) == TcpFrameReader::Result::Ready) {
+        lastHeard_ = now;
         Reader reader(body.data(), body.size());
 
         // Before WELCOME the host may send only WELCOME or REJECT, and SCENARIO if we asked for it.
@@ -405,6 +415,7 @@ void ClientLink::handleUdp(double now) {
             stats_.droppedPackets++;
             continue;
         }
+        lastHeard_ = now;  // even an old packet shows the host is alive
         // WORLD_STATE, FUEL and PONG share one sequence counter: old and repeated packets are dropped.
         if (haveSeq_ && !isSequenceNewer(header.seq, lastSeq_)) {
             stats_.droppedPackets++;
@@ -434,6 +445,11 @@ void ClientLink::handleUdp(double now) {
                 clock_.onPacket(world.simTime, world.warp, hostPaused_, now);
             }
             for (const VesselState& vessel : world.vessels) {
+                // A late packet may still carry a removed vessel (PROTOCOL.md, section 1).
+                if (table_.findById(vessel.netId) == nullptr) {
+                    stats_.unknownVessels++;
+                    continue;
+                }
                 buffers_[vessel.netId].add(world.simTime, vessel);
             }
         } else if (header.type == static_cast<uint8_t>(UdpType::Fuel)) {
@@ -443,6 +459,10 @@ void ClientLink::handleUdp(double now) {
                 continue;
             }
             for (const VesselFuel& vessel : fuel.vessels) {
+                if (table_.findById(vessel.netId) == nullptr) {
+                    stats_.unknownVessels++;
+                    continue;
+                }
                 fuel_[vessel.netId] = vessel;
             }
         } else if (header.type == static_cast<uint8_t>(UdpType::Pong)) {

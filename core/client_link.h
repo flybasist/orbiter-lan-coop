@@ -83,6 +83,7 @@ struct VesselChange {
 struct ClientStats {
     uint64_t worldStatePackets = 0;  // received WORLD_STATE
     uint64_t droppedPackets = 0;     // foreign session, old seq, broken
+    uint64_t unknownVessels = 0;     // vessel entries in WORLD_STATE and FUEL with an unknown net_id
     uint64_t starvedSamples = 0;     // sampleVessel when the buffer ran out
     uint64_t inputPackets = 0;       // sent INPUT
 };
@@ -103,6 +104,7 @@ public:
 
     // Starts connecting. false - immediate error (the reason is in closeReason and takeLog).
     // The network must already be started (startNetwork). now - real time, seconds.
+    // Called once: a new connection needs a new ClientLink (a second call returns false).
     bool start(const ClientConfig& config, double now);
 
     // Sends BYE with a reason to the host and closes the sockets.
@@ -212,6 +214,7 @@ private:
     State state_ = State::Idle;
     std::string closeReason_;
     double startedAt_ = 0.0;
+    double lastHeard_ = 0.0;  // real time of the last TCP message or UDP packet from the host
 
     TcpConnection tcp_;
     TcpFrameReader frames_;

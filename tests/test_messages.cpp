@@ -1,5 +1,7 @@
 // Message tests: round trip, exact bytes, truncated and extra bytes.
 
+#include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -444,6 +446,29 @@ void testInputAndPing() {
     olc::writeInput(body, input);
     olc::Reader rt(body.bytes().data(), body.bytes().size() - 1);
     CHECK(!olc::readInput(rt, back));
+
+    // Values out of range, NaN and infinity are rejected: the host would pass them to thrusters.
+    auto parses = [](const olc::Input& message) {
+        olc::Writer writer;
+        olc::writeInput(writer, message);
+        olc::Reader reader(writer.bytes().data(), writer.bytes().size());
+        olc::Input parsed;
+        return olc::readInput(reader, parsed);
+    };
+    olc::Input bad = input;
+    bad.rot[1] = 1.5f;
+    CHECK(!parses(bad));
+    bad = input;
+    bad.lin[2] = std::nanf("");
+    CHECK(!parses(bad));
+    bad = input;
+    bad.throttle = std::numeric_limits<float>::infinity();
+    CHECK(!parses(bad));
+    bad = input;
+    bad.throttle = -0.5f;  // only kNoThrottle may be negative
+    CHECK(!parses(bad));
+    bad.throttle = olc::kNoThrottle;
+    CHECK(parses(bad));
 
     // PING and PONG: the same 9-byte body - time and client number.
     olc::Ping ping;

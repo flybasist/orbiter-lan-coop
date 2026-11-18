@@ -141,6 +141,7 @@ void HostLink::poll(double now) {
         Client client;
         client.tcp = std::move(connection);
         client.connectedAt = now;
+        client.lastHeard = now;
         clients_.push_back(std::move(client));
     }
 
@@ -180,6 +181,16 @@ void HostLink::poll(double now) {
     }
 
     handleUdp();
+
+    // Silent clients. Checked after all sockets are read: after a long host frame the client's
+    // packets are already waiting in them, so only a really silent client is dropped.
+    for (size_t i = 0; i < clients_.size();) {
+        if (clients_[i].welcomed && now - clients_[i].lastHeard > kSilenceTimeout) {
+            dropClient(i, "nothing heard for " + std::to_string(static_cast<int>(kSilenceTimeout)) + " s");
+        } else {
+            i++;
+        }
+    }
 }
 
 bool HostLink::handleFrames(Client& client) {
@@ -187,6 +198,7 @@ bool HostLink::handleFrames(Client& client) {
     std::vector<uint8_t> body;
     TcpFrameReader::Result result;
     while ((result = client.frames.next(type, body)) == TcpFrameReader::Result::Ready) {
+        client.lastHeard = now_;
         Reader reader(body.data(), body.size());
 
         // A client that got its scenario has nothing more to say: the rest is ignored.
@@ -541,8 +553,13 @@ void HostLink::handleInput(Reader& reader, uint32_t seq, const Endpoint& from) {
             break;
         }
     }
+    if (sender == nullptr) {
+        stats_.udpBadPackets++;
+        return;
+    }
+    sender->lastHeard = now_;
     Input input;
-    if (sender == nullptr || !readInput(reader, input)) {
+    if (!readInput(reader, input)) {
         stats_.udpBadPackets++;
         return;
     }
@@ -592,6 +609,7 @@ void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
         }
         client.udp = from;
         client.udpFromPing = true;
+        client.lastHeard = now_;
         return;
     }
 }

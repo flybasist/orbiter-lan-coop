@@ -1,5 +1,6 @@
 #include "launchpad_item.h"
 
+#include <algorithm>
 #include <string>
 
 #include "protocol.h"
@@ -137,7 +138,11 @@ void LaunchpadPanel::readFields(HWND dialog) {
     if (portOk && port >= 1 && port <= 65535) {
         config_.port = static_cast<int>(port);
     }
-    config_.player = fieldText(dialog, IDC_OLC_PLAYER);
+    // Orbiter reads ';' in a settings file as the start of a comment, so a name with it would come
+    // back cut after a restart: the character is dropped right away.
+    std::string player = fieldText(dialog, IDC_OLC_PLAYER);
+    player.erase(std::remove(player.begin(), player.end(), ';'), player.end());
+    config_.player = player;
 }
 
 void LaunchpadPanel::updateConnectButton(HWND dialog) {

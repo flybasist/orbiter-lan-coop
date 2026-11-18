@@ -20,6 +20,12 @@ constexpr uint32_t kMaxUdpPacketSize = 1200;
 // Largest TCP message after the length field: 1 MB.
 constexpr uint32_t kMaxTcpMessageSize = 1024 * 1024;
 
+// After the handshake both sides hear each other at least once a second: the client sends PING,
+// the host sends WORLD_STATE and PONG, also while paused. A side that has heard nothing for this
+// many seconds treats the other one as gone (a frozen computer or a pulled cable leaves the TCP
+// connection open). Long enough for a slow frame, such as loading textures, to pass.
+constexpr double kSilenceTimeout = 15.0;
+
 // Whether UDP packet sequence number a is newer than b.
 // The number (seq) is a 32-bit counter that wraps to zero after 4294967295.
 // So a is newer than b if a is ahead of b by less than half the circle:

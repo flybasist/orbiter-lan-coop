@@ -22,7 +22,8 @@
 //   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
 //   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
 //   back when a player with the same name joins;
-// - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout) from the session table.
+// - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout, nothing heard
+//   for kSilenceTimeout) from the session table.
 //
 // Orbiter is not needed here: the plugin describes vessels and bodies via SessionTable and
 // setBodies, collects the world state itself and passes it to sendWorldState. So
@@ -163,6 +164,7 @@ private:
         TcpConnection tcp;
         TcpFrameReader frames;
         double connectedAt = 0.0;  // real time of connection
+        double lastHeard = 0.0;    // real time of the last TCP message or UDP packet from the client
         bool welcomed = false;     // got WELCOME
         uint8_t clientId = 0;      // number from the table once welcomed
         std::string player;

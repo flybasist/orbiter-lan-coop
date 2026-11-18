@@ -476,9 +476,17 @@ void HostSide::detectDocking() {
                 if (b.handle != mate || b.netId < a.netId) {
                     continue;  // each link is found once, from the side with the smaller net_id
                 }
+                // The SDK tells which vessel is docked to a port, but not to which of its ports.
+                // With two links between one pair, ports are matched in order, each port of b once:
+                // the pair may come out crossed, but there are exactly two links, not four.
                 VESSEL* vesselB = oapiGetVesselInterface(b.handle);
                 for (UINT portB = 0; portB < vesselB->DockCount(); portB++) {
-                    if (vesselB->GetDockStatus(vesselB->GetDockHandle(portB)) == a.handle) {
+                    const bool portTaken = std::any_of(
+                        current.begin(), current.end(), [&](const olc::Dock& found) {
+                            return found.b == b.netId && found.portB == portB;
+                        });
+                    if (!portTaken &&
+                        vesselB->GetDockStatus(vesselB->GetDockHandle(portB)) == a.handle) {
                         olc::Dock link;
                         link.a = a.netId;
                         link.portA = static_cast<uint8_t>(portA);
@@ -486,6 +494,7 @@ void HostSide::detectDocking() {
                         link.portB = static_cast<uint8_t>(portB);
                         link.docked = 1;
                         current.push_back(link);
+                        break;  // this port of a has its mate
                     }
                 }
             }

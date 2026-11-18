@@ -120,8 +120,10 @@ void applyInput(VESSEL* vessel, const olc::Input& input, double simdt) {
     if (keys & olc::kInputThrottleDown) {
         changeMainRetro(vessel, -kThrottleRate * simdt);
     }
+    // A throttle lever (PROTOCOL.md, INPUT). The client does not read a lever yet and always sends
+    // kNoThrottle; the field is in the protocol so that lever support needs no new version.
     if (input.throttle >= 0.0f) {
-        vessel->SetThrusterGroupLevel(THGROUP_MAIN, input.throttle);  // a throttle lever
+        vessel->SetThrusterGroupLevel(THGROUP_MAIN, input.throttle);
     }
 
     // Hover engines.

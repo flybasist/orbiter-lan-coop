@@ -1,8 +1,15 @@
 #include "messages.h"
 
+#include <cmath>
+
 namespace olc {
 
 namespace {
+
+// Whether a control value from the network is a number from -1 to 1 (NaN and infinity are not).
+bool isAxisValue(float value) {
+    return std::isfinite(value) && value >= -1.0f && value <= 1.0f;
+}
 
 // Common check at the end of parsing: all reads succeeded and there are no extra bytes.
 bool finished(const Reader& reader) {
@@ -460,7 +467,18 @@ bool readInput(Reader& reader, Input& message) {
         reader.readF32(value);
     }
     reader.readF32(message.throttle);
-    return finished(reader);
+    if (!finished(reader)) {
+        return false;
+    }
+    // The host passes these values to the vessel's thrusters: a broken client must not send
+    // anything out of range there.
+    for (int i = 0; i < 3; i++) {
+        if (!isAxisValue(message.rot[i]) || !isAxisValue(message.lin[i])) {
+            return false;
+        }
+    }
+    return message.throttle == kNoThrottle ||
+           (std::isfinite(message.throttle) && message.throttle >= 0.0f && message.throttle <= 1.0f);
 }
 
 void writePing(Writer& writer, const Ping& message) {

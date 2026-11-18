@@ -1177,6 +1177,43 @@ void testConnectionRefused() {
 
 }  // namespace
 
+// A side that hears nothing for kSilenceTimeout drops the other one: a frozen computer or a pulled
+// cable leaves the TCP connection open. The test polls with a time kSilenceTimeout ahead instead of
+// waiting.
+void testSilence() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(client.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.readyClientCount() == 1; }));
+    // A ClientLink is started once.
+    CHECK(!client.start(makeClientConfig(host), now()));
+
+    // The client stops talking: the host reads what is left and then drops it.
+    for (int i = 0; i < 3; i++) {
+        host.link.poll(now());
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CHECK(host.link.clientCount() == 1);
+    host.link.poll(now() + olc::kSilenceTimeout + 1.0);
+    CHECK(host.link.clientCount() == 0);
+    CHECK(hasLine(host.link.takeLog(), "OLC host: client 1 left (nothing heard for 15 s)"));
+
+    // The host stops talking to a second client: the client closes by itself.
+    olc::ClientLink second;
+    CHECK(second.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&second}, [&]() { return host.link.readyClientCount() == 1; }));
+    for (int i = 0; i < 3; i++) {
+        second.poll(now());
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CHECK(second.state() == olc::ClientLink::State::Ready);
+    second.poll(now() + olc::kSilenceTimeout + 1.0);
+    CHECK(second.state() == olc::ClientLink::State::Closed);
+    CHECK(contains(second.closeReason(), "nothing heard from the host"));
+}
+
 int main() {
     CHECK(olc::startNetwork());
     testHandshake();
@@ -1206,6 +1243,7 @@ int main() {
     testClientStop();
     testHostStop();
     testBadUdp();
+    testSilence();
     testConnectionRefused();
     olc::stopNetwork();
     return checkResult();

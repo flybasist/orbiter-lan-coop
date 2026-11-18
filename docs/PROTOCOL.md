@@ -78,6 +78,13 @@ Client                                   Host
   │◄──────────────────────── TCP close ─────│
 ```
 
+**Silence.** After the handshake the sides hear each other at least once a second: the client
+sends `PING`, the host sends `WORLD_STATE` and `PONG`, also while paused. A side that has heard
+nothing for 15 s (`kSilenceTimeout`, `core/protocol.h`) treats the other one as gone: the host
+disconnects the client (its vessel stays with it for 60 s, as after a broken connection), the client
+closes the connection. This way a frozen computer or a pulled cable, which leave the TCP connection
+open, do not hold a place and a vessel forever.
+
 ## 4. Headers
 
 **TCP** is a stream, so every message starts with a length:
@@ -189,7 +196,8 @@ The client sends at most 60 packets per second. The host accepts `INPUT` only fr
 address of the client that owns the vessel (`net_id`); input for someone else's vessel is dropped.
 Only a packet with a newer `seq` than the last accepted one counts (the first is always
 accepted), and the latest one wins. If no `INPUT` arrives for 0.5 s, the host releases the
-vessel's controls: with a lost connection no key stays stuck.
+vessel's controls: with a lost connection no key stays stuck. A packet with `rot` or `lin` outside
+−1…1, `throttle` other than −1 and outside 0…1, or with NaN or infinity is broken and is dropped.
 
 Joystick signs: in `rot` positive means pitch up, yaw left, bank left; in `lin` positive means up,
 left, forward.

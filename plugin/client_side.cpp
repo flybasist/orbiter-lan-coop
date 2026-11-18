@@ -237,8 +237,19 @@ void ClientSide::applyDocks(double now) {
     }
     while (!pendingDocks_.empty() && pendingDocks_.front().applyAt <= now) {
         const olc::Dock dock = pendingDocks_.front().dock;
+        auto sameLink = [&dock](const olc::Dock& other) {
+            return other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
+                   other.portB == dock.portB;
+        };
+        // The link is forgotten even if a vessel is already gone: an undocked pair is no bundle.
+        dockedLinks_.erase(std::remove_if(dockedLinks_.begin(), dockedLinks_.end(), sameLink),
+                           dockedLinks_.end());
         OBJHANDLE handleA = vesselHandle(dock.a);
         OBJHANDLE handleB = vesselHandle(dock.b);
+        if (!dock.docked && (!handleA || !handleB)) {
+            pendingDocks_.erase(pendingDocks_.begin());  // nothing to undock
+            continue;
+        }
         if (!handleA || !handleB) {
             // A vessel is not created yet: try again for a few seconds, then give up.
             if (now - pendingDocks_.front().applyAt > kDockRetrySeconds) {
@@ -250,20 +261,18 @@ void ClientSide::applyDocks(double now) {
             break;
         }
         VESSEL* vesselA = oapiGetVesselInterface(handleA);
-        auto sameLink = [&dock](const olc::Dock& other) {
-            return other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
-                   other.portB == dock.portB;
-        };
-        dockedLinks_.erase(std::remove_if(dockedLinks_.begin(), dockedLinks_.end(), sameLink),
-                           dockedLinks_.end());
         if (dock.docked) {
+            // A pair docked in the scenario the client loaded is already docked here: Dock refuses
+            // it, but it is a bundle all the same.
+            const bool already = dock.portA < vesselA->DockCount() &&
+                                 vesselA->GetDockStatus(vesselA->GetDockHandle(dock.portA)) == handleB;
             // Mode 0: the vessels are not moved, they are already where the host docked them.
-            const int result = vesselA->Dock(handleB, dock.portA, dock.portB, 0);
+            const int result = already ? 0 : vesselA->Dock(handleB, dock.portA, dock.portB, 0);
             if (result == 0) {
                 dockedLinks_.push_back(dock);
             }
             oapiWriteLogV("OLC client: docking vessels %d and %d: %s (code %d)", dock.a, dock.b,
-                          result == 0 ? "done" : "failed", result);
+                          already ? "already docked" : (result == 0 ? "done" : "failed"), result);
         } else {
             vesselA->Undock(dock.portA);
             oapiWriteLogV("OLC client: undocked vessels %d and %d", dock.a, dock.b);
@@ -692,6 +701,14 @@ void ClientSide::applyVesselChanges() {
         }
         cannotCreate_.erase(change.vessel.netId);
         landedAt_.erase(change.vessel.netId);
+        // Its links go too, otherwise the partner would follow a bundle leader that no longer
+        // exists and stand still (applyStates).
+        const uint16_t removed = change.vessel.netId;
+        dockedLinks_.erase(std::remove_if(dockedLinks_.begin(), dockedLinks_.end(),
+                                          [removed](const olc::Dock& link) {
+                                              return link.a == removed || link.b == removed;
+                                          }),
+                           dockedLinks_.end());
         std::string name = change.vessel.name;
         OBJHANDLE handle = oapiGetVesselByName(&name[0]);
         vessels_.erase(change.vessel.netId);
@@ -734,12 +751,13 @@ void ClientSide::onDeleteVessel(OBJHANDLE vessel) {
 void ClientSide::logStats() {
     const olc::ClientStats& stats = link_.stats();
     const double average = timeErrorCount_ > 0 ? timeErrorSum_ / static_cast<double>(timeErrorCount_) : 0.0;
-    oapiWriteLogV("OLC client: rtt %.1f ms, world states %llu, dropped %llu, starved %llu, "
-                  "sim time error avg %.3f s max %.3f s, time jumps %d, input sent %llu, "
+    oapiWriteLogV("OLC client: rtt %.1f ms, world states %llu, dropped %llu, unknown vessels %llu, "
+                  "starved %llu, sim time error avg %.3f s max %.3f s, time jumps %d, input sent %llu, "
                   "frames with control keys %llu, key presses sent %llu",
                   link_.rtt() * 1000.0,
                   static_cast<unsigned long long>(stats.worldStatePackets),
                   static_cast<unsigned long long>(stats.droppedPackets),
+                  static_cast<unsigned long long>(stats.unknownVessels),
                   static_cast<unsigned long long>(stats.starvedSamples), average,
                   timeErrorMax_, timeJumps_, static_cast<unsigned long long>(stats.inputPackets),
                   static_cast<unsigned long long>(keyFrames_),

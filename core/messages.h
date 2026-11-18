@@ -296,7 +296,7 @@ constexpr float kNoThrottle = -1.0f;
 
 // INPUT, client → host: the full current state of the controls (section 6).
 // Triples are per axis: rot - pitch, yaw, bank; lin - up-down,
-// left-right, forward-back. Values from -1 to 1.
+// left-right, forward-back. Values from -1 to 1; readInput rejects other values, NaN and infinity.
 struct Input {
     uint16_t netId = 0;              // vessel controlled by the client
     uint32_t keys = 0;               // keys held down, bits - PROTOCOL.md, section 7
