@@ -22,6 +22,12 @@
 //   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
 //   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
 //   back when a player with the same name joins;
+// - handles TIME_REQUEST (pause and warp) only from the flight director, whose name is
+//   HostConfig::director; the plugin applies the requests (takeTimeRequests). Other senders are
+//   logged and ignored. The director and clients that said so in HELLO are observers: they get
+//   OWNER_DENIED, reason Observer, when they ask for a vessel;
+// - sends PLAYERS (who is in the session, whose vessel, how good the connection is) to everyone
+//   after a join, a leave or an ownership change and every kPlayersInterval seconds;
 // - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout, nothing heard
 //   for kSilenceTimeout) from the session table.
 //
@@ -53,6 +59,9 @@ constexpr double kHelloTimeout = 5.0;
 // How many seconds the host gives a SCENARIO to go out before it drops the connection.
 constexpr double kScenarioSendTimeout = 30.0;
 
+// How often the host repeats PLAYERS, seconds: the round trip times change.
+constexpr double kPlayersInterval = 2.0;
+
 // How many seconds an INPUT stays valid. The plugin releases the vessel's controls if the latest
 // INPUT is older (connection lost, so no key stays stuck).
 constexpr double kInputTimeout = 0.5;
@@ -64,6 +73,10 @@ struct HostConfig {
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; a different client version gets REJECT
     std::string system;           // planetary system name, goes into WELCOME
     uint8_t stateRateHz = 60;     // WORLD_STATE rate, goes into WELCOME (decision 36)
+    std::string hostPlayer = "Host";  // the host's own player name in PLAYERS
+    // Name of the flight director (decision 46); a client with this name in HELLO is the director.
+    // Empty - there is no director, nobody may pause or warp from a client.
+    std::string director;
     // Saves the current world and fills scenario.name and scenario.data (the number is set by
     // HostLink). false - the world could not be saved. If not set, clients that ask for a
     // scenario get REJECT.
@@ -78,6 +91,8 @@ struct HostStats {
     uint64_t inputAccepted = 0;   // INPUT stored as a client's latest
     uint64_t keysAccepted = 0;    // KEY presses queued for the plugin
     uint64_t keysRejected = 0;    // KEY for a vessel the client does not own
+    uint64_t timeRequestsAccepted = 0;  // TIME_REQUEST from the director, queued for the plugin
+    uint64_t timeRequestsRejected = 0;  // TIME_REQUEST from anyone else
 };
 
 class HostLink {
@@ -141,6 +156,15 @@ public:
     // vessel the sender owns are here; the rest are counted in stats().keysRejected.
     std::vector<KeyPress> takeKeys();
 
+    // Takes the TIME_REQUEST messages from the director that came since the last call, oldest
+    // first. The plugin applies the last one (oapiSetPause, oapiSetTimeAcceleration).
+    std::vector<TimeRequest> takeTimeRequests();
+
+    // Sends PLAYERS to all clients that finished the handshake. HostLink calls it itself; the
+    // plugin calls it after it changes the host's own vessel (together with broadcastOwnership,
+    // which already includes it).
+    void broadcastPlayers();
+
     // How many clients finished the handshake (got WELCOME).
     int clientCount() const;
 
@@ -168,6 +192,9 @@ private:
         bool welcomed = false;     // got WELCOME
         uint8_t clientId = 0;      // number from the table once welcomed
         std::string player;
+        bool director = false;     // the flight director (also an observer)
+        bool observer = false;     // never takes a vessel
+        uint16_t rttMs = kRttUnknown;  // the latest round trip time the client reported in PING
         bool udpReady = false;     // sent UDP_READY
         Endpoint udp;              // where to send UDP
         bool udpFromPing = false;  // address taken from PING, not from UDP_READY (see handleUdp)
@@ -185,6 +212,8 @@ private:
     bool sendScenario(Client& client, const Hello& hello);
     // Handles KEY of a welcomed client. false - the message is broken.
     bool handleKey(Client& client, Reader& reader);
+    // Handles TIME_REQUEST of a welcomed client. false - the message is broken.
+    bool handleTimeRequest(Client& client, Reader& reader);
     // Handles OWNER_REQUEST of a welcomed client. false - the message is broken.
     bool handleOwnerRequest(Client& client, Reader& reader);
     // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
@@ -199,8 +228,9 @@ private:
     void handleUdp();
     // Handles an INPUT packet (the header is already read) that came from address from.
     void handleInput(Reader& reader, uint32_t seq, const Endpoint& from);
-    // Remembers the address the PING of client clientId came from: UDP for it goes there.
-    void learnUdpAddress(uint8_t clientId, const Endpoint& from);
+    // Remembers the address the PING of client clientId came from (UDP for it goes there) and the
+    // round trip time rttMs from that PING.
+    void learnUdpAddress(uint8_t clientId, const Endpoint& from, uint16_t rttMs);
     void dropClient(size_t index, const std::string& reason);
     void log(const std::string& line);
 
@@ -213,6 +243,8 @@ private:
     std::vector<BodyEntry> bodies_;
     std::vector<Dock> docks_;     // links that are docked now (see sendDock)
     std::vector<KeyPress> keys_;  // accepted KEY presses, not yet taken by the plugin
+    std::vector<TimeRequest> timeRequests_;  // accepted TIME_REQUEST, not yet taken by the plugin
+    double nextPlayers_ = 0.0;    // real time of the next periodic PLAYERS
     double now_ = 0.0;  // real time of the last poll
     uint32_t seq_ = 0;  // sequence number of outgoing UDP packets
     uint32_t lastScenarioId_ = 0;  // number of the last SCENARIO sent

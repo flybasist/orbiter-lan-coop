@@ -204,6 +204,15 @@ int SessionTable::restoreHeldVessels(uint8_t clientId, const std::string& player
     return restored;
 }
 
+uint16_t SessionTable::vesselOwnedBy(uint8_t owner) const {
+    for (const VesselRecord& vessel : vessels_) {
+        if (vessel.owner == owner) {
+            return vessel.netId;
+        }
+    }
+    return kNoVessel;
+}
+
 bool SessionTable::isControlledBy(uint16_t netId, uint8_t clientId) const {
     if (clientId < kMinClientId || clientId > kMaxClientId) {
         return false;

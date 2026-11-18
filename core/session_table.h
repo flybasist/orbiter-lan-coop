@@ -102,6 +102,10 @@ public:
     // it is always false.
     bool isControlledBy(uint16_t netId, uint8_t clientId) const;
 
+    // The vessel whose owner is `owner` (kHostOwner or a client number); kNoVessel if there is
+    // none. If there are several (the host may own more than one), the lowest net_id.
+    uint16_t vesselOwnedBy(uint8_t owner) const;
+
     // ----- For messages -----
 
     std::vector<VesselEntry> vesselEntries() const;  // for VESSELS, ascending net_id

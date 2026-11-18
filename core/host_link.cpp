@@ -182,6 +182,11 @@ void HostLink::poll(double now) {
 
     handleUdp();
 
+    if (now >= nextPlayers_) {
+        broadcastPlayers();
+        nextPlayers_ = now + kPlayersInterval;
+    }
+
     // Silent clients. Checked after all sockets are read: after a long host frame the client's
     // packets are already waiting in them, so only a really silent client is dropped.
     for (size_t i = 0; i < clients_.size();) {
@@ -259,6 +264,11 @@ bool HostLink::handleFrames(Client& client) {
                     return false;
                 }
                 break;
+            case TcpType::TimeRequest:
+                if (!handleTimeRequest(client, reader)) {
+                    return false;
+                }
+                break;
             case TcpType::OwnerRequest:
                 if (!handleOwnerRequest(client, reader)) {
                     return false;
@@ -306,6 +316,29 @@ std::vector<KeyPress> HostLink::takeKeys() {
     return result;
 }
 
+bool HostLink::handleTimeRequest(Client& client, Reader& reader) {
+    TimeRequest request;
+    if (!readTimeRequest(reader, request)) {
+        client.leaveReason = "broken TIME_REQUEST";
+        return false;
+    }
+    if (!client.director) {
+        stats_.timeRequestsRejected++;
+        log("OLC host: client " + std::to_string(client.clientId) + " ('" + client.player +
+            "') asked for pause or warp but is not the flight director");
+        return true;
+    }
+    stats_.timeRequestsAccepted++;
+    timeRequests_.push_back(request);
+    return true;
+}
+
+std::vector<TimeRequest> HostLink::takeTimeRequests() {
+    std::vector<TimeRequest> result;
+    result.swap(timeRequests_);
+    return result;
+}
+
 bool HostLink::handleOwnerRequest(Client& client, Reader& reader) {
     OwnerRequest request;
     if (!readOwnerRequest(reader, request) ||
@@ -316,7 +349,9 @@ bool HostLink::handleOwnerRequest(Client& client, Reader& reader) {
 
     OwnerResult result =
         request.action == kOwnerTake
-            ? table_.takeVessel(request.netId, client.clientId, client.player, now_)
+            ? (client.observer
+                   ? OwnerResult::Observer
+                   : table_.takeVessel(request.netId, client.clientId, client.player, now_))
             : table_.releaseVessel(request.netId, client.clientId);
     const char* verb = request.action == kOwnerTake ? "take" : "release";
     std::string who = "client " + std::to_string(client.clientId) + " ('" + client.player + "')";
@@ -347,6 +382,40 @@ void HostLink::broadcastOwnership() {
     for (Client& client : clients_) {
         if (client.welcomed) {
             sendMessage(client, TcpType::Ownership, body);
+        }
+    }
+    // The players' vessels changed with the owners.
+    broadcastPlayers();
+}
+
+void HostLink::broadcastPlayers() {
+    std::vector<PlayerEntry> players;
+    PlayerEntry self;
+    self.clientId = kHostOwner;
+    self.player = config_.hostPlayer;
+    self.netId = table_.vesselOwnedBy(kHostOwner);
+    self.rttMs = 0;  // the host is the reference point
+    players.push_back(self);
+    for (const Client& client : clients_) {
+        if (!client.welcomed) {
+            continue;
+        }
+        PlayerEntry entry;
+        entry.clientId = client.clientId;
+        entry.player = client.player;
+        entry.flags = static_cast<uint8_t>((client.director ? kPlayerDirector : 0) |
+                                           (client.observer ? kPlayerObserver : 0));
+        entry.netId = table_.vesselOwnedBy(client.clientId);
+        entry.rttMs = client.rttMs;
+        players.push_back(entry);
+    }
+    Writer body;
+    if (!writePlayers(body, players)) {
+        return;  // a name longer than 255 bytes: HELLO would not have been built either
+    }
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::Players, body);
         }
     }
 }
@@ -384,6 +453,8 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     client.welcomed = true;
     client.clientId = clientId;
     client.player = hello.player;
+    client.director = !config_.director.empty() && hello.player == config_.director;
+    client.observer = client.director || (hello.flags & kHelloObserver) != 0;
     // A pilot who dropped out and came back under the same name gets his vessel back.
     bool restored = table_.restoreHeldVessels(clientId, hello.player, now_) > 0;
 
@@ -392,6 +463,8 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     welcome.session = config_.session;
     welcome.stateRateHz = config_.stateRateHz;
     welcome.system = config_.system;
+    welcome.flags = static_cast<uint8_t>((client.director ? kWelcomeDirector : 0) |
+                                         (client.observer ? kWelcomeObserver : 0));
     Writer body;
     if (!writeWelcome(body, welcome)) {
         client.leaveReason = "cannot build WELCOME";
@@ -410,7 +483,9 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
         " (" + scenario + ")");
     if (restored) {
         log("OLC host: player '" + hello.player + "' got his vessel back");
-        broadcastOwnership();
+        broadcastOwnership();  // includes PLAYERS
+    } else {
+        broadcastPlayers();
     }
     return true;
 }
@@ -507,7 +582,7 @@ void HostLink::dropClient(size_t index, const std::string& reason) {
     clients_.erase(clients_.begin() + static_cast<std::ptrdiff_t>(index));
     // The others learn that the leaver's vessels have no owner now.
     if (announceOwners) {
-        broadcastOwnership();
+        broadcastOwnership();  // includes PLAYERS
     }
 }
 
@@ -528,7 +603,7 @@ void HostLink::handleUdp() {
                 stats_.udpBadPackets++;
                 continue;
             }
-            learnUdpAddress(ping.clientId, from);
+            learnUdpAddress(ping.clientId, from, ping.rttMs);
             // PONG goes to whoever sent the PING, with the same body.
             Writer body;
             writePing(body, ping);
@@ -594,7 +669,7 @@ bool HostLink::latestInput(uint16_t netId, Input& input, double& receivedAt) con
     return false;
 }
 
-void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
+void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from, uint16_t rttMs) {
     for (Client& client : clients_) {
         // A client number is easy to fake, so the address is accepted only from the same IP
         // as this client's TCP connection.
@@ -608,6 +683,7 @@ void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {
                 " (NAT?)");
         }
         client.udp = from;
+        client.rttMs = rttMs;
         client.udpFromPing = true;
         client.lastHeard = now_;
         return;

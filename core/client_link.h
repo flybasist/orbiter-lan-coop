@@ -16,6 +16,10 @@
 //   the client lacks goes to the host in one more CLASSES_MISSING;
 // - asks the host to take or release a vessel (requestTake, requestRelease); the answer is a new
 //   OWNERSHIP (the table changes) or OWNER_DENIED (takeOwnerDenials);
+// - tells the host in HELLO that this client is an observer (ClientConfig::observer) and learns from
+//   WELCOME whether it is the flight director (isDirector); the director asks the host to pause
+//   or warp time (sendTimeRequest); the host ignores such a request from anyone else;
+// - receives PLAYERS (who is in the session, their vessels and round trip times): players();
 // - sends KEY (sendKey) for single key presses;
 // - sends INPUT (sendInput) to the host while the client controls a vessel, at most 60 per second;
 // - sends PING once per second and measures the round trip time from PONG.
@@ -66,6 +70,7 @@ struct ClientConfig {
     // Goes into HELLO: kOwnScenario - the player started the scenario by hand,
     // kNoScenario - ask the host for its scenario, otherwise the number from SCENARIO.
     uint32_t scenarioId = kOwnScenario;
+    bool observer = false;        // goes into HELLO: this client never takes a vessel
     std::string system;           // own planetary system; a different one on the host - disconnect
     double displayDelay = kDefaultDisplayDelay;
     // Whether the client has a vessel class. Classes for which it returns false go to the host in
@@ -169,6 +174,18 @@ public:
     // Asks the host to release this client's vessel.
     void requestRelease(uint16_t netId);
 
+    // Whether the host made this client the flight director / an observer (WELCOME).
+    bool isDirector() const { return director_; }
+    bool isObserver() const { return observer_; }
+
+    // Asks the host to pause or resume and set the time acceleration (TCP). The host applies it
+    // only for the flight director. Does nothing before the handshake is done. The result is seen
+    // in hostPaused and hostWarp.
+    void sendTimeRequest(bool paused, double warp);
+
+    // The latest PLAYERS list from the host (empty before the first one).
+    const std::vector<PlayerEntry>& players() const { return players_; }
+
     // Takes refusals (OWNER_DENIED) received since the last call, in arrival order.
     std::vector<OwnerDenied> takeOwnerDenials();
 
@@ -221,6 +238,9 @@ private:
     bool welcomed_ = false;
     uint32_t session_ = 0;
     uint8_t clientId_ = 0;
+    bool director_ = false;
+    bool observer_ = false;
+    std::vector<PlayerEntry> players_;
 
     SessionTable table_;
     std::vector<BodyEntry> bodies_;

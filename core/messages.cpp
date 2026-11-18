@@ -31,7 +31,11 @@ bool writeHello(Writer& writer, const Hello& message) {
     writer.writeU16(message.protocol);
     writer.writeU32(message.orbiterVersion);
     writer.writeU32(message.scenarioId);
-    return writer.writeString(message.pluginVersion) && writer.writeString(message.player);
+    if (!writer.writeString(message.pluginVersion) || !writer.writeString(message.player)) {
+        return false;
+    }
+    writer.writeU8(message.flags);
+    return true;
 }
 
 bool readHello(Reader& reader, Hello& message) {
@@ -40,6 +44,7 @@ bool readHello(Reader& reader, Hello& message) {
     reader.readU32(message.scenarioId);
     reader.readString(message.pluginVersion);
     reader.readString(message.player);
+    reader.readU8(message.flags);
     return finished(reader);
 }
 
@@ -47,7 +52,11 @@ bool writeWelcome(Writer& writer, const Welcome& message) {
     writer.writeU8(message.clientId);
     writer.writeU32(message.session);
     writer.writeU8(message.stateRateHz);
-    return writer.writeString(message.system);
+    if (!writer.writeString(message.system)) {
+        return false;
+    }
+    writer.writeU8(message.flags);
+    return true;
 }
 
 bool readWelcome(Reader& reader, Welcome& message) {
@@ -55,6 +64,7 @@ bool readWelcome(Reader& reader, Welcome& message) {
     reader.readU32(message.session);
     reader.readU8(message.stateRateHz);
     reader.readString(message.system);
+    reader.readU8(message.flags);
     return finished(reader);
 }
 
@@ -484,11 +494,60 @@ bool readInput(Reader& reader, Input& message) {
 void writePing(Writer& writer, const Ping& message) {
     writer.writeF64(message.time);
     writer.writeU8(message.clientId);
+    writer.writeU16(message.rttMs);
 }
 
 bool readPing(Reader& reader, Ping& message) {
     reader.readF64(message.time);
     reader.readU8(message.clientId);
+    reader.readU16(message.rttMs);
+    return finished(reader);
+}
+
+// ---------- TIME_REQUEST and PLAYERS ----------
+
+void writeTimeRequest(Writer& writer, const TimeRequest& message) {
+    writer.writeU8(message.paused);
+    writer.writeF64(message.warp);
+}
+
+bool readTimeRequest(Reader& reader, TimeRequest& message) {
+    reader.readU8(message.paused);
+    reader.readF64(message.warp);
+    return finished(reader) && message.paused <= 1 && std::isfinite(message.warp) &&
+           message.warp > 0.0;
+}
+
+bool writePlayers(Writer& writer, const std::vector<PlayerEntry>& players) {
+    if (players.size() > 255) {
+        return false;
+    }
+    writer.writeU8(static_cast<uint8_t>(players.size()));
+    for (const PlayerEntry& entry : players) {
+        writer.writeU8(entry.clientId);
+        if (!writer.writeString(entry.player)) {
+            return false;
+        }
+        writer.writeU8(entry.flags);
+        writer.writeU16(entry.netId);
+        writer.writeU16(entry.rttMs);
+    }
+    return true;
+}
+
+bool readPlayers(Reader& reader, std::vector<PlayerEntry>& players) {
+    players.clear();
+    uint8_t count = 0;
+    reader.readU8(count);
+    for (uint8_t i = 0; i < count && reader.ok(); i++) {
+        PlayerEntry entry;
+        reader.readU8(entry.clientId);
+        reader.readString(entry.player);
+        reader.readU8(entry.flags);
+        reader.readU16(entry.netId);
+        reader.readU16(entry.rttMs);
+        players.push_back(entry);
+    }
     return finished(reader);
 }
 

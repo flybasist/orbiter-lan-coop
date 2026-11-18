@@ -582,7 +582,7 @@ a free vessel takes it.
 
 | No. | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| 5.1 | Protocol v5: a pause and warp request from a client (`TIME_REQUEST`), an FD flag in `WELCOME`, a player summary (`PLAYERS`); a decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and exchange tests on loopback; a request not from the FD is refused | in progress: protocol designed (decision 54) — core implementation, tests, `PROTOCOL.md` |
+| 5.1 | Protocol v5: a pause and warp request from a client (`TIME_REQUEST`), an FD flag in `WELCOME`, a player summary (`PLAYERS`); a decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and exchange tests on loopback; a request not from the FD is refused | done (2026-11-19): protocol v5 in the core, loopback tests, `PROTOCOL.md` and `ARCHITECTURE.md` updated |
 | 5.2 | FD client: pause and warp go to the host; the FD has no vessel, focus is view only | Windows ARM | On the rig the FD sets pause and ×10 — the pilot has them within 0.5 s | waiting |
 | 5.3 | Player summary on the FD's screen (an annotation or an ImGui window) | Windows ARM | The FD sees the players, vessels, latency | waiting |
 | 5.4 | Saves: on the FD's key and every `AutosaveMinutes` minutes | Mac (core) + Windows | The file appears, a new session starts from it | waiting |

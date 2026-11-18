@@ -67,6 +67,7 @@ bool ClientLink::start(const ClientConfig& config, double now) {
     hello.scenarioId = config.scenarioId;
     hello.pluginVersion = config.pluginVersion;
     hello.player = config.player;
+    hello.flags = config.observer ? kHelloObserver : 0;
     Writer body;
     if (!writeHello(body, hello)) {
         close("player name or plugin version is too long");
@@ -218,6 +219,11 @@ bool ClientLink::handleFrames(double now) {
                 ownerDenials_.push_back(denied);
                 break;
             }
+            case TcpType::Players:
+                if (!readPlayers(reader, players_)) {
+                    close("broken PLAYERS message");
+                }
+                break;
             case TcpType::Landed: {
                 Landed landed;
                 if (!readLanded(reader, landed)) {
@@ -281,6 +287,8 @@ void ClientLink::handleWelcome(Reader& reader) {
     welcomed_ = true;
     session_ = welcome.session;
     clientId_ = welcome.clientId;
+    director_ = (welcome.flags & kWelcomeDirector) != 0;
+    observer_ = (welcome.flags & kWelcomeObserver) != 0;
 
     if (!equalsIgnoreCase(welcome.system, config_.system)) {
         Writer body;
@@ -481,6 +489,9 @@ void ClientLink::sendPing(double now) {
     Ping ping;
     ping.time = now;
     ping.clientId = clientId_;
+    // The latest measured round trip time, for the host's player list.
+    ping.rttMs = rtt_ < 0.0 ? kRttUnknown
+                            : static_cast<uint16_t>(std::min(rtt_ * 1000.0 + 0.5, 65534.0));
     Writer body;
     writePing(body, ping);
     udp_.sendTo(config_.host,
@@ -570,6 +581,18 @@ void ClientLink::requestTake(uint16_t netId) {
 
 void ClientLink::requestRelease(uint16_t netId) {
     sendOwnerRequest(netId, kOwnerRelease);
+}
+
+void ClientLink::sendTimeRequest(bool paused, double warp) {
+    if (state_ != State::Ready) {
+        return;
+    }
+    TimeRequest request;
+    request.paused = paused ? 1 : 0;
+    request.warp = warp;
+    Writer body;
+    writeTimeRequest(body, request);
+    sendMessage(TcpType::TimeRequest, body);
 }
 
 std::vector<OwnerDenied> ClientLink::takeOwnerDenials() {

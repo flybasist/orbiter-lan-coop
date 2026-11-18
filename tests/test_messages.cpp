@@ -18,17 +18,19 @@ void testHello() {
     hello.scenarioId = 42;
     hello.pluginVersion = "0.0.1";
     hello.player = "Pilot";
+    hello.flags = olc::kHelloObserver;
 
     olc::Writer w;
     CHECK(olc::writeHello(w, hello));
-    // 2 + 4 + 4 + (1 + 5) + (1 + 5) bytes.
-    CHECK(w.bytes().size() == 22);
+    // 2 + 4 + 4 + (1 + 5) + (1 + 5) + 1 bytes.
+    CHECK(w.bytes().size() == 23);
 
     olc::Reader r(w.bytes().data(), w.bytes().size());
     olc::Hello back;
     CHECK(olc::readHello(r, back));
     CHECK(back.protocol == 1 && back.orbiterVersion == 241101 && back.scenarioId == 42);
     CHECK(back.pluginVersion == "0.0.1" && back.player == "Pilot");
+    CHECK(back.flags == olc::kHelloObserver);
 
     // A too long player name is not packed.
     hello.player = std::string(256, 'x');
@@ -470,23 +472,25 @@ void testInputAndPing() {
     bad.throttle = olc::kNoThrottle;
     CHECK(parses(bad));
 
-    // PING and PONG: the same 9-byte body - time and client number.
+    // PING and PONG: the same 11-byte body - time, client number and round trip time.
     olc::Ping ping;
     ping.time = 12.625;
     ping.clientId = 3;
+    ping.rttMs = 42;
     olc::Writer wp;
     olc::writePing(wp, ping);
-    CHECK(wp.bytes().size() == 9);
+    CHECK(wp.bytes().size() == 11);
     olc::Reader rp(wp.bytes().data(), wp.bytes().size());
     olc::Ping pingBack;
-    CHECK(olc::readPing(rp, pingBack) && pingBack.time == 12.625 && pingBack.clientId == 3);
+    CHECK(olc::readPing(rp, pingBack) && pingBack.time == 12.625 && pingBack.clientId == 3 &&
+          pingBack.rttMs == 42);
 
     std::vector<uint8_t> extra = wp.bytes();
     extra.push_back(0);
     olc::Reader rpe(extra.data(), extra.size());
     CHECK(!olc::readPing(rpe, pingBack));
 
-    olc::Reader rps(wp.bytes().data(), wp.bytes().size() - 1);  // without the client number
+    olc::Reader rps(wp.bytes().data(), wp.bytes().size() - 1);  // without the last byte of rttMs
     CHECK(!olc::readPing(rps, pingBack));
 }
 
@@ -611,9 +615,98 @@ void testFuel() {
     olc::Writer wv;
     CHECK(!olc::writeFuel(wv, tooManyVessels));
 }
+
+void testWelcomeFlags() {
+    olc::Welcome welcome;
+    welcome.system = "Sol";
+    welcome.flags = olc::kWelcomeDirector | olc::kWelcomeObserver;
+    olc::Writer w;
+    CHECK(olc::writeWelcome(w, welcome));
+    olc::Reader r(w.bytes().data(), w.bytes().size());
+    olc::Welcome back;
+    CHECK(olc::readWelcome(r, back));
+    CHECK(back.flags == (olc::kWelcomeDirector | olc::kWelcomeObserver));
+}
+
+void testTimeRequest() {
+    olc::TimeRequest request;
+    request.paused = 1;
+    request.warp = 10.0;
+    olc::Writer w;
+    olc::writeTimeRequest(w, request);
+    CHECK(w.bytes().size() == 9);
+    olc::Reader r(w.bytes().data(), w.bytes().size());
+    olc::TimeRequest back;
+    CHECK(olc::readTimeRequest(r, back) && back.paused == 1 && back.warp == 10.0);
+
+    // Broken values: pause flag above 1, warp not positive, NaN, infinity, a cut message.
+    auto parses = [](uint8_t paused, double warp) {
+        olc::TimeRequest message;
+        message.paused = paused;
+        message.warp = warp;
+        olc::Writer writer;
+        olc::writeTimeRequest(writer, message);
+        olc::Reader reader(writer.bytes().data(), writer.bytes().size());
+        olc::TimeRequest parsed;
+        return olc::readTimeRequest(reader, parsed);
+    };
+    CHECK(parses(0, 1.0));
+    CHECK(!parses(2, 1.0));
+    CHECK(!parses(0, 0.0));
+    CHECK(!parses(0, -1.0));
+    CHECK(!parses(0, std::nan("")));
+    CHECK(!parses(0, std::numeric_limits<double>::infinity()));
+    olc::Reader cut(w.bytes().data(), w.bytes().size() - 1);
+    CHECK(!olc::readTimeRequest(cut, back));
+}
+
+void testPlayers() {
+    std::vector<olc::PlayerEntry> players(2);
+    players[0].clientId = 0;
+    players[0].player = "Host";
+    players[0].netId = 3;
+    players[0].rttMs = 0;
+    players[1].clientId = 2;
+    players[1].player = "Ann";
+    players[1].flags = olc::kPlayerDirector | olc::kPlayerObserver;
+    olc::Writer w;
+    CHECK(olc::writePlayers(w, players));
+    // 1 + (1 + (1 + 4) + 1 + 2 + 2) + (1 + (1 + 3) + 1 + 2 + 2) bytes.
+    CHECK(w.bytes().size() == 22);
+    olc::Reader r(w.bytes().data(), w.bytes().size());
+    std::vector<olc::PlayerEntry> back;
+    CHECK(olc::readPlayers(r, back) && back.size() == 2);
+    if (back.size() == 2) {
+        CHECK(back[0].player == "Host" && back[0].netId == 3 && back[0].rttMs == 0);
+        CHECK(back[1].clientId == 2 && back[1].player == "Ann" &&
+              back[1].flags == (olc::kPlayerDirector | olc::kPlayerObserver) &&
+              back[1].netId == olc::kNoVessel && back[1].rttMs == olc::kRttUnknown);
+    }
+
+    // A cut or extended message is broken; a list promising more than it holds too.
+    olc::Reader cut(w.bytes().data(), w.bytes().size() - 1);
+    CHECK(!olc::readPlayers(cut, back));
+    std::vector<uint8_t> extra = w.bytes();
+    extra.push_back(0);
+    olc::Reader longer(extra.data(), extra.size());
+    CHECK(!olc::readPlayers(longer, back));
+    std::vector<uint8_t> promise = {5};
+    olc::Reader lying(promise.data(), promise.size());
+    CHECK(!olc::readPlayers(lying, back));
+
+    std::vector<olc::PlayerEntry> tooMany(256);
+    olc::Writer wm;
+    CHECK(!olc::writePlayers(wm, tooMany));
+    players[0].player = std::string(256, 'x');
+    olc::Writer wl;
+    CHECK(!olc::writePlayers(wl, players));
+}
 }  // namespace
 
 int main() {
+    testWelcomeFlags();
+    testTimeRequest();
+    testPlayers();
     testLists();
     testShortMessages();
     testHello();

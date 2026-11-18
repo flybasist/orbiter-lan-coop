@@ -35,6 +35,8 @@ enum class TcpType : uint8_t {
     Bye = 15,
     OwnerRequest = 16,
     OwnerDenied = 17,
+    TimeRequest = 18,
+    Players = 19,
 };
 
 // UDP message type numbers (section 6).
@@ -58,7 +60,11 @@ struct Hello {
     uint32_t scenarioId = 0;      // kNoScenario, kOwnScenario or the number from SCENARIO
     std::string pluginVersion;
     std::string player;           // player name
+    uint8_t flags = 0;            // kHelloObserver
 };
+
+// Bits of Hello::flags.
+constexpr uint8_t kHelloObserver = 1u << 0;  // the client never takes a vessel (decision 54)
 
 // WELCOME, host → client: the client is accepted.
 struct Welcome {
@@ -66,7 +72,12 @@ struct Welcome {
     uint32_t session = 0;      // session number, written into every UDP packet
     uint8_t stateRateHz = 0;   // WORLD_STATE rate
     std::string system;        // planetary system name
+    uint8_t flags = 0;         // kWelcomeDirector, kWelcomeObserver
 };
+
+// Bits of Welcome::flags: what the host decided about this client.
+constexpr uint8_t kWelcomeDirector = 1u << 0;  // the client is the flight director (may pause and warp)
+constexpr uint8_t kWelcomeObserver = 1u << 1;  // the client is an observer (the director always is)
 
 // Reasons for REJECT.
 enum class RejectReason : uint8_t {
@@ -120,6 +131,7 @@ enum class OwnerResult : uint8_t {
     Busy = 2,              // the vessel belongs to the host, another client or a pilot who dropped out
     AlreadyHasVessel = 3,  // this client already has another vessel
     NotOwner = 4,          // release of a vessel that is not this client's
+    Observer = 5,          // an observer never takes a vessel
 };
 
 // OWNER_REQUEST.action
@@ -202,6 +214,38 @@ bool readLanded(Reader& reader, Landed& message);
 // BYE: reason for disconnecting.
 bool writeBye(Writer& writer, const std::string& reason);
 bool readBye(Reader& reader, std::string& reason);
+
+// TIME_REQUEST, client → host: pause or resume and set the time acceleration. The host applies
+// it only if the sender is the flight director; the result is seen by everyone in WORLD_STATE.
+struct TimeRequest {
+    uint8_t paused = 0;  // 0 - running, 1 - paused
+    double warp = 1.0;   // time acceleration; readTimeRequest rejects NaN, infinity and values <= 0
+};
+
+void writeTimeRequest(Writer& writer, const TimeRequest& message);
+bool readTimeRequest(Reader& reader, TimeRequest& message);
+
+// Bits of PlayerEntry::flags.
+constexpr uint8_t kPlayerDirector = 1u << 0;
+constexpr uint8_t kPlayerObserver = 1u << 1;
+
+// PlayerEntry::netId when the player has no vessel; PlayerEntry::rttMs when it is not measured.
+constexpr uint16_t kNoVessel = 65535;
+constexpr uint16_t kRttUnknown = 65535;
+
+// One player - an item of PLAYERS.
+struct PlayerEntry {
+    uint8_t clientId = 0;  // 0 - the host
+    std::string player;
+    uint8_t flags = 0;     // kPlayerDirector, kPlayerObserver
+    uint16_t netId = kNoVessel;  // the player's vessel
+    uint16_t rttMs = kRttUnknown;  // the player's round trip time to the host, ms
+};
+
+// PLAYERS, host → clients: who is in the session. The list starts with a u8 item count.
+// writePlayers returns false if there are more than 255 items or a name is too long.
+bool writePlayers(Writer& writer, const std::vector<PlayerEntry>& players);
+bool readPlayers(Reader& reader, std::vector<PlayerEntry>& players);
 
 // Three f64 numbers: a vector or angles.
 struct Vec3 {
@@ -345,9 +389,12 @@ bool readInput(Reader& reader, Input& message);
 // PONG returns the PING body unchanged, so both messages share the same body.
 // From PING the host learns the client's real UDP address: if the client is behind NAT,
 // the port the host sees may differ from the port in UDP_READY.
+// The client also reports its latest round trip time (kRttUnknown - not measured yet), so the
+// host knows every player's connection.
 struct Ping {
     double time = 0.0;
     uint8_t clientId = 0;
+    uint16_t rttMs = kRttUnknown;
 };
 void writePing(Writer& writer, const Ping& message);
 bool readPing(Reader& reader, Ping& message);

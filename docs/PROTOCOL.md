@@ -112,7 +112,7 @@ with the same `sim_time`.
 
 | Channel | Numbers |
 |---|---|
-| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED` |
+| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED`, 18 `TIME_REQUEST`, 19 `PLAYERS` |
 | UDP | 1 `WORLD_STATE`, 2 `INPUT`, 3 `PING`, 4 `PONG`, 5 `FUEL` |
 
 A message with extra bytes after the last field is treated as broken, the same as a truncated one.
@@ -121,8 +121,8 @@ A message with extra bytes after the last field is treated as broken, the same a
 
 | Type | Direction | Fields |
 |---|---|---|
-| `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `scenario_id: u32`, `plugin_version: str`, `player: str`. `scenario_id`: 0 — there is no session yet, the client asks the host for a scenario (stage 2); 4294967295 (`0xFFFFFFFF`) — the player started a scenario by hand, as at stage 1; otherwise — the number from `SCENARIO` that the client loaded |
-| `WELCOME` | host → client | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (planetary system name) |
+| `HELLO` | client → host | `protocol: u16`, `orbiter_version: u32` (`oapiGetOrbiterVersion`), `scenario_id: u32`, `plugin_version: str`, `player: str`, `flags: u8` (bit 0 — observer: the client never takes a vessel). `scenario_id`: 0 — there is no session yet, the client asks the host for a scenario (stage 2); 4294967295 (`0xFFFFFFFF`) — the player started a scenario by hand, as at stage 1; otherwise — the number from `SCENARIO` that the client loaded |
+| `WELCOME` | host → client | `client_id: u8`, `session: u32`, `state_rate_hz: u8`, `system: str` (planetary system name), `flags: u8` (bit 0 — the client is the flight director, bit 1 — an observer; the director is always an observer). The host knows the director by the setting `Director = <player name>`: the client with that name in `HELLO`; empty — there is no director |
 | `REJECT` | host → client | `reason: u8` (1 — protocol version, 2 — Orbiter version, 3 — reserved, the host does not send it: a different planetary system is noticed by the client after `WELCOME`, and it leaves with `BYE`; 4 — no slots: the player limit is reached, the host is a player too, 4 by default, at most 8; 5 — the host cannot give a scenario: it was not saved or the file is over the limit), `text: str` |
 | `SCENARIO` | host → client | `scenario_id: u32` (save number, the client returns it in `HELLO`), `name: str`, `size: u32`, then `size` bytes of the scenario file (stage 2). The file is at most 1 MB − 265 bytes: that way the whole message with the longest name fits into a TCP frame. A `size` not equal to the number of remaining bytes means a broken message |
 | `BODIES` | host → client | `count: u16`, then `net_id: u16`, `name: str` |
@@ -136,7 +136,9 @@ A message with extra bytes after the last field is treated as broken, the same a
 | `DOCK` | host → client | `a: u16`, `port_a: u8`, `b: u16`, `port_b: u8`, `docked: u8` (1 — docked, 0 — undocked). The link is named from the vessel with the smaller `net_id`. The host remembers the current links and sends them to a client that joins later, right after `OWNERSHIP` |
 | `LANDED` | host → client | `net_id: u16`, `lng: f64`, `lat: f64`, `hdg: f64` (rad) — a vessel came to rest on a surface |
 | `OWNER_REQUEST` | client → host | `net_id: u16`, `action: u8` (1 — take a free vessel, 0 — release one's own). The host checks the rules and on success sends the whole `OWNERSHIP` to everyone |
-| `OWNER_DENIED` | host → client | `net_id: u16`, `reason: u8` (1 — no such vessel, 2 — the vessel is busy: it belongs to the host, to another client or is kept for a pilot who dropped out, 3 — the client already has another vessel, 4 — not the client's vessel, cannot release). Only to the one who asked |
+| `OWNER_DENIED` | host → client | `net_id: u16`, `reason: u8` (1 — no such vessel, 2 — the vessel is busy: it belongs to the host, to another client or is kept for a pilot who dropped out, 3 — the client already has another vessel, 4 — not the client's vessel, cannot release, 5 — an observer does not take a vessel). Only to the one who asked |
+| `TIME_REQUEST` | client → host | `paused: u8` (0 — running, 1 — paused), `warp: f64` (time acceleration, finite and above 0). The host applies the request only from the flight director; from anyone else it writes to the log and skips it. Everyone sees the result in `WORLD_STATE`. Another value of `paused` or `warp` makes the message broken |
+| `PLAYERS` | host → client | `count: u8`, then `client_id: u8` (0 — the host), `player: str`, `flags: u8` (bit 0 — director, bit 1 — observer), `net_id: u16` (the player's vessel, 65535 — none), `rtt_ms: u16` (the player's round trip time to the host, ms; 65535 — unknown, 0 for the host). The host sends it on every join, leave and ownership change and every 2 s |
 | `BYE` | any | `reason: str` |
 
 Ownership (decision 35): one client — one vessel, a vessel without an owner is free. If a client
@@ -209,7 +211,7 @@ the bits of its vessel's RCS mode.
 ### `PING` (client → host) and `PONG` (host → client)
 
 `PING`: `t: f64` — the sender's system time (`oapiGetSysTime`), `client_id: u8` — the client
-number from `WELCOME`. The host answers with `PONG` with the same body, from which the client gets
+number from `WELCOME`, `rtt_ms: u16` — the latest round trip time the client measured (65535 — not measured yet; the host uses it for `PLAYERS`). The host answers with `PONG` with the same body, from which the client gets
 the round trip time. The client sends `PING` once per second.
 
 From `PING` the host learns the client's real UDP address: behind NAT (for example, a shared virtual
@@ -271,6 +273,7 @@ differ from the host.
 
 - `version` in every UDP packet and `protocol` in `HELLO`. Different versions do not work together:
   the host answers `REJECT` with reason 1.
+- Version 5 (2026-11-19): stage 5 — `flags` in `HELLO` and `WELCOME`, `TIME_REQUEST`, `PLAYERS`, `rtt_ms` in `PING`, reason 5 in `OWNER_DENIED` (decision 54, task 5.1).
 - Version 4 (2026-11-18): vessel ownership — `OWNERSHIP`, `OWNER_REQUEST`, `OWNER_DENIED` (task 3.1).
 - Version 3 (2026-11-17): `scenario_id` added to `HELLO` and `SCENARIO` (decision 31).
 - Version 2 (2026-11-17): `client_id` added to `PING`. Version 1 is without it.

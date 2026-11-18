@@ -48,9 +48,11 @@ struct TestHost {
         config.system = "Sol";
         config.stateRateHz = 30;
         config.makeScenario = makeScenario;
+        config.director = director;
         return link.start(config);
     }
 
+    std::string director;  // flight director name, set before start if needed
     std::function<bool(olc::Scenario&)> makeScenario;  // set before start if needed
     olc::SessionTable table;
     olc::HostLink link;
@@ -828,6 +830,154 @@ void requestScenario(TestHost& host, olc::ClientLink& client) {
 
 // HELLO without a scenario number: the host sends its world as a file and closes the connection.
 // The file is close to the limit, so it goes out over many polls.
+// Finds a player in a PLAYERS list by name; nullptr if there is none.
+const olc::PlayerEntry* findPlayer(const std::vector<olc::PlayerEntry>& players,
+                                   const std::string& name) {
+    for (const olc::PlayerEntry& entry : players) {
+        if (entry.player == name) {
+            return &entry;
+        }
+    }
+    return nullptr;
+}
+
+void testDirectorAndTimeRequests() {
+    TestHost host;
+    host.director = "Boss";
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::ClientConfig bossConfig = makeClientConfig(host);
+    bossConfig.player = "Boss";
+    olc::ClientConfig pilotConfig = makeClientConfig(host);
+    pilotConfig.player = "Pilot";
+    olc::ClientLink boss;
+    olc::ClientLink pilot;
+    CHECK(boss.start(bossConfig, now()));
+    CHECK(pilot.start(pilotConfig, now()));
+    CHECK(waitFor(host.link, {&boss, &pilot}, [&]() { return host.link.readyClientCount() == 2; }));
+
+    // WELCOME tells who is the director; the director is an observer too.
+    CHECK(boss.isDirector() && boss.isObserver());
+    CHECK(!pilot.isDirector() && !pilot.isObserver());
+
+    // A request from the pilot is ignored, the director's one reaches the plugin.
+    pilot.sendTimeRequest(true, 5.0);
+    boss.sendTimeRequest(true, 10.0);
+    CHECK(waitFor(host.link, {&boss, &pilot}, [&]() {
+        return host.link.stats().timeRequestsAccepted == 1 &&
+               host.link.stats().timeRequestsRejected == 1;
+    }));
+    std::vector<olc::TimeRequest> requests = host.link.takeTimeRequests();
+    CHECK(requests.size() == 1);
+    if (requests.size() == 1) {
+        CHECK(requests[0].paused == 1 && requests[0].warp == 10.0);
+    }
+    CHECK(host.link.takeTimeRequests().empty());
+
+    // The director cannot take a vessel: OWNER_DENIED, reason Observer.
+    boss.requestTake(2);
+    std::vector<olc::OwnerDenied> denials;
+    CHECK(waitFor(host.link, {&boss, &pilot}, [&]() {
+        std::vector<olc::OwnerDenied> got = boss.takeOwnerDenials();
+        denials.insert(denials.end(), got.begin(), got.end());
+        return !denials.empty();
+    }));
+    if (!denials.empty()) {
+        CHECK(denials[0].netId == 2 &&
+              denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::Observer));
+    }
+    CHECK(host.table.findById(2)->owner == olc::kNoOwner);
+
+    // A broken request (warp 0) drops the sender.
+    pilot.sendTimeRequest(false, 0.0);
+    CHECK(waitFor(host.link, {&boss, &pilot}, [&]() {
+        return pilot.state() == olc::ClientLink::State::Closed;
+    }));
+}
+
+void testObserverFlag() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::ClientConfig config = makeClientConfig(host);
+    config.observer = true;
+    olc::ClientLink watcher;
+    CHECK(watcher.start(config, now()));
+    CHECK(waitFor(host.link, {&watcher}, [&]() { return host.link.readyClientCount() == 1; }));
+    CHECK(watcher.isObserver() && !watcher.isDirector());
+
+    watcher.requestTake(2);
+    std::vector<olc::OwnerDenied> denials;
+    CHECK(waitFor(host.link, {&watcher}, [&]() {
+        std::vector<olc::OwnerDenied> got = watcher.takeOwnerDenials();
+        denials.insert(denials.end(), got.begin(), got.end());
+        return !denials.empty();
+    }));
+    if (!denials.empty()) {
+        CHECK(denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::Observer));
+    }
+
+    // Without a director nobody may pause: even the observer's request is ignored.
+    watcher.sendTimeRequest(true, 2.0);
+    CHECK(waitFor(host.link, {&watcher}, [&]() {
+        return host.link.stats().timeRequestsRejected == 1;
+    }));
+    CHECK(host.link.takeTimeRequests().empty());
+}
+
+void testPlayersList() {
+    TestHost host;
+    host.director = "Boss";
+    CHECK(host.start());
+    fillHost(host);  // vessels 0 and 1 belong to the host, 2 is free
+
+    olc::ClientConfig bossConfig = makeClientConfig(host);
+    bossConfig.player = "Boss";
+    olc::ClientConfig annConfig = makeClientConfig(host);
+    annConfig.player = "Ann";
+    olc::ClientLink boss;
+    olc::ClientLink ann;
+    CHECK(boss.start(bossConfig, now()));
+    CHECK(ann.start(annConfig, now()));
+    CHECK(waitFor(host.link, {&boss, &ann}, [&]() {
+        return boss.players().size() == 3 && ann.players().size() == 3;
+    }));
+
+    // The host is client 0 with its first vessel; the director is marked; Ann has no vessel yet.
+    const olc::PlayerEntry* hostEntry = findPlayer(ann.players(), "Host");
+    const olc::PlayerEntry* bossEntry = findPlayer(ann.players(), "Boss");
+    const olc::PlayerEntry* annEntry = findPlayer(ann.players(), "Ann");
+    CHECK(hostEntry != nullptr && bossEntry != nullptr && annEntry != nullptr);
+    if (hostEntry && bossEntry && annEntry) {
+        CHECK(hostEntry->clientId == olc::kHostOwner && hostEntry->netId == 0);
+        CHECK(bossEntry->flags == (olc::kPlayerDirector | olc::kPlayerObserver));
+        CHECK(bossEntry->netId == olc::kNoVessel);
+        CHECK(annEntry->clientId == ann.clientId() && annEntry->flags == 0 &&
+              annEntry->netId == olc::kNoVessel);
+    }
+
+    // Ann takes a vessel: the list changes for everybody.
+    ann.requestTake(2);
+    CHECK(waitFor(host.link, {&boss, &ann}, [&]() {
+        const olc::PlayerEntry* entry = findPlayer(boss.players(), "Ann");
+        return entry != nullptr && entry->netId == 2;
+    }));
+
+    // The periodic PLAYERS carries Ann's round trip time (UDP PING reports it). The wait is
+    // longer than kPlayersInterval plus a few ping periods.
+    CHECK(waitFor(host.link, {&boss, &ann}, [&]() {
+        const olc::PlayerEntry* entry = findPlayer(boss.players(), "Ann");
+        return entry != nullptr && entry->rttMs != olc::kRttUnknown;
+    }, 6.0));
+
+    // Ann leaves: she disappears from the list and her vessel is free.
+    ann.stop("test");
+    CHECK(waitFor(host.link, {&boss}, [&]() { return boss.players().size() == 2; }));
+    CHECK(findPlayer(boss.players(), "Ann") == nullptr);
+}
+
 void testScenarioRequest() {
     std::vector<uint8_t> world(olc::kMaxScenarioSize);
     for (size_t i = 0; i < world.size(); i++) {
@@ -1233,6 +1383,9 @@ int main() {
     testKeyDelivery();
     testDock();
     testBrokenOwnerRequest();
+    testDirectorAndTimeRequests();
+    testObserverFlag();
+    testPlayersList();
     testScenarioRequest();
     testScenarioUnavailable();
     testMessageBeforeHello();
