@@ -12,7 +12,7 @@ and the question to the "Closed" section.
 
 ## Open
 
-- **Q10. What textures and kernels go into the test archive.** Options: **A (recommended)** - the archive holds only Orbiter, D3D9Client, the plugin, settings and scenarios; the SPICE kernels and base Earth textures come by links in the instructions, high resolution is not needed; **B** - also put the SPICE kernels in (the Orbiter site states no license); **C** - put the textures in too, but only after you confirm the license from the author's page. Details - `TEXTURES.md`.
+There are no open questions now.
 
 ## Closed
 
@@ -25,3 +25,4 @@ and the question to the "Closed" section.
 - **Q7. What the agent should do while there are no test rigs** — option A: session logic in the core (`HostLink`, `ClientLink`, `ClientClock`) was done in task S7 of stage 1 (2026-11-17).
 - **Q8. The plan of stages 4 and 5** — the default options: stage 5 first, research 4.1 and 5.6 at once; the flight director — the server setting `Director`; one-time presses — the pilot only; the plan is approved; decision 46 (2026-11-18).
 - **Q9. What to do after 3.17 before the tests by people** — only research 4.1 and 5.6, the code of stages 4 and 5 — after the tests; decision 47 (2026-11-18).
+- **Q10. What textures and kernels go into the test archive** — option B: the SPICE kernels in the archive, Earth textures — by a link to Orbiter 2016 in the instructions; decision 50 (2026-11-18).

@@ -62,4 +62,4 @@ Orbiter directory, layers are installed independently (keep the original file).
 5. While there is no permission for textures, an empty `Textures\Earth` directory is enough for the
    testers (Earth without texture, `QUICKSTART.md`, section 4).
 
-The decision on the download list is question Q10 in `QUESTIONS.md`.
+The decision (Q10, decision 50): option B — the SPICE kernels in the archive, Earth textures by a link to Orbiter 2016.
