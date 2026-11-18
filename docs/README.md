@@ -128,7 +128,7 @@ the owner approved. Rules:
    implementation and code analysis from a ready task description. Haiku — code search. Opus always
    checks a subagent's result itself.
 5. **Schedule (UTC+5).**
-   - The scheduled run fires every hour at :07 (decision 45). It cheaply checks the lock, the
+   - The scheduled run fires every hour at :00 (decision 45). It cheaply checks the lock, the
      limits and the queue and goes back to sleep at once if there is no work; if there is, it works
      in a row while there is work and limit. A run that broke off is picked up by the next one.
    - The lock `orbiter-lan-coop.out/.agent-lock` is shared by everyone: a line "time who"
