@@ -8,10 +8,10 @@ did and what you saw.
 
 ## 1. Preparation
 
-For building and installing the plugin see [QUICKSTART.md](QUICKSTART.md), sections 5 and 6. In short:
+Installation — the ready package as in [PACKAGE.md](PACKAGE.md) (building from source — [QUICKSTART.md](QUICKSTART.md), sections 5 and 6), the order of the tests — [TEST-PROCEDURE.md](TEST-PROCEDURE.md). In short:
 
 1. `OrbiterLanCoop.dll` is in `Modules\Plugin` on both computers, and the plugin is enabled.
-2. The check scenarios are in `tools/scenarios/` — copy them to `Scenarios\OLC-test` on the host.
+2. The check scenarios are in `Scenarios\OLC-test` (in the package they are already there; when building from source copy them from `tools/scenarios/`).
 3. In the "OLC - LAN co-op" window choose the role `host` on the host and `client` on the client, and enter the host address.
 4. The host starts a scenario, the client presses "Connect" and waits 20–40 seconds.
 
@@ -37,6 +37,7 @@ same on the host and the client). What to know about OLC:
 | Release your vessel | Ctrl+Alt+U |
 | Someone else's vessel in focus | View only: the controls are off, a message is on the screen |
 | Autopilots | As in Orbiter: `[` — Prograde, `]` — Retrograde, Num 5 — kill rotation |
+| Open the DeltaGlider's nose docking port | K (without it no docking happens) |
 | Undock | Ctrl+D |
 | Camera | Works as usual |
 

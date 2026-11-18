@@ -19,6 +19,7 @@ and flies their own vessel, while the host computes the physics. Testing happens
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
 | [TEXTURES.md](TEXTURES.md) | Where textures and kernels come from, sizes, licenses and the contents of the test archive |
 | [PACKAGE.md](PACKAGE.md) | The test package: archive contents, installation, how to build |
+| [TEST-PROCEDURE.md](TEST-PROCEDURE.md) | The procedure of tests by people: roles, what to press, what is expected, the report form |
 | [SMOOTHING.md](SMOOTHING.md) | Motion smoothing: state rate, buffer delay and interpolation method based on the model results |
 | [RESEARCH.md](RESEARCH.md) | Research: Orbiter, past attempts, Linux and macOS, licenses, releases |
 | [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md) | Map of the Orbiter core: what the plugin relies on, with references to the code |

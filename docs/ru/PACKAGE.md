@@ -4,7 +4,7 @@
 
 Готовые архивы для людей, которые проверяют OLC (задача 3.16, решения 43 и 50): ничего собирать не
 нужно. Архивы собирает скрипт `tools/package/make-package.ps1` из готовой установки Orbiter
-(см. раздел 3). Методика самих испытаний — отдельный документ (задача 3.17).
+(см. раздел 3). Методика самих испытаний — [TEST-PROCEDURE.md](TEST-PROCEDURE.md).
 
 ## 1. Что в пакете
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | `olc-1-orbiter.zip` | около 160 МБ | Orbiter базового коммита (x64) с D3D9Client, пустой каталог `Textures\Earth` |
 | `olc-2-kernels.zip` | около 1,3 ГБ | Ядра SPICE (каталог `Kernels`) — без них Orbiter не стартует |
-| `olc-3-plugin.zip` | около 0,1 МБ | Плагин `OrbiterLanCoop.dll`, шаблон `Config\OrbiterLanCoop.cfg`, сценарии `Scenarios\OLC-test` |
+| `olc-3-plugin.zip` | около 0,1 МБ | Плагин `OrbiterLanCoop.dll`, шаблон `Config\OrbiterLanCoop.cfg`, сценарии `Scenarios\OLC-test`, начальный `Orbiter.cfg` (включены D3D9Client и плагин, столкновения кораблей выключены) |
 
 Текстуры Земли в архив не входят (решение 50): лицензии пакетов не подтверждены, поэтому их ставят
 по ссылке (раздел 2, шаг 5). Без них Земля серая, но стыковка проверяется.
@@ -28,8 +28,8 @@
    (именно в таком порядке, в один и тот же каталог; подойдёт «Извлечь всё» проводника или
    `tar -xf <архив>` в этом каталоге). Файлы пересекаются только каталогами, ничего не
    перезаписывается.
-3. Запустите `Orbiter.exe`. В Launchpad на вкладке Modules включите `D3D9Client` (графический
-   клиент) и `OrbiterLanCoop` (плагин).
+3. Запустите `Orbiter.exe`. Графический клиент `D3D9Client` и плагин `OrbiterLanCoop` уже
+   включены (`Orbiter.cfg` из `olc-3-plugin.zip`); проверить можно на вкладке Modules в Launchpad.
 4. На вкладке «Extra» откройте пункт «OLC - LAN co-op»: роль (`host` или `client`), адрес хоста,
    порт и имя игрока. Те же настройки лежат в `Config\OrbiterLanCoop.cfg`; без файла плагин
    ничего не делает. Дальше — как в [QUICKSTART.md](QUICKSTART.md), раздел 6, и
@@ -52,12 +52,14 @@ powershell -ExecutionPolicy Bypass -File tools\package\make-package.ps1 -Orbiter
 ```
 
 Скрипт не берёт из установки то, что относится к одной машине: `Orbiter.cfg`, журналы, трассы,
-рабочие сценарии `OLC` и `OLC-test`, плагин `OlcRigTest`, SDK. Архивы лежат в `OutDir`.
+рабочие сценарии `OLC` и `OLC-test`, плагин `OlcRigTest`, SDK; начальный `Orbiter.cfg` он пишет сам. Архивы лежат в `OutDir`.
 
 ## 4. Проверка 2026-11-18
 
 Архивы собраны на Windows 11 x64 (Proxmox) из установки базового коммита `a7a3396e`, распакованы
 по разделу 2 в пустой каталог на второй машине (Windows 10 x64, Proxmox) и запущены без графики:
 `Orbiter.exe -s "OLC-test\Two DG 20 m" -p OrbiterLanCoop -T 15`. В журнале: `OLC host: listening
-on port 47800`, `2 vessels`, `Fast process shutdown`, код выхода 0. Запуск с картинкой на чистой
-машине с видеокартой ещё не проверен: у стендов Proxmox нет 3D.
+on port 47800`, `2 vessels`, `Fast process shutdown`, код выхода 0. С картинкой — на Windows 11 ARM
+(Parallels, 3D): пакет распакован по разделу 2 в пустой каталог, `Orbiter.exe` запущен без ключей,
+D3D9Client и плагин включились из начального `Orbiter.cfg`, «Connect» к хосту без графики со
+сценарием `Two DG 20 m` — клиент в мире хоста, на экране два DeltaGlider, «you fly 'GL-01'».

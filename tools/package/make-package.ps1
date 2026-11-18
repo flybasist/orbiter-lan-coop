@@ -6,7 +6,8 @@
 # Result in OutDir (the OLC repository folder is found relative to this script):
 #   olc-1-orbiter.zip  - Orbiter with D3D9Client, without SPICE kernels, local settings and test leftovers
 #   olc-2-kernels.zip  - SPICE kernels (the Kernels folder, the biggest part)
-#   olc-3-plugin.zip   - the OLC plugin, its settings template and the test scenarios
+#   olc-3-plugin.zip   - the OLC plugin, its settings template, the test scenarios and a starting
+#                        Orbiter.cfg (D3D9Client and the plugin on, vessel collisions off)
 # All three are unpacked into the same folder, in this order (INSTALL text is in docs/PACKAGE.md).
 param(
     [Parameter(Mandatory = $true)][string]$OrbiterDir,
@@ -32,7 +33,8 @@ function Pack($folder, $zipName) {
 $orb = Join-Path $work 'orbiter'
 $skipDirs = @('Kernels', 'Orbitersdk')
 $skipFiles = @('Orbiter.cfg', 'imgui.ini', 'olc-trace.csv', 'OlcRigTest.dll', 'OlcRigTest.cfg',
-               'OlcHostOnly.cfg', 'OrbiterLanCoop.dll', 'OrbiterLanCoop.cfg', '*.log')
+               'OlcHostOnly.cfg', 'OrbiterLanCoop.dll', 'OrbiterLanCoop.cfg', '*.log',
+               'CMakeLists.txt', '*.lib')   # build leftovers of cmake --install
 robocopy $OrbiterDir $orb /E /NFL /NDL /NJH /NJS /XD $skipDirs 'OLC' 'OLC-test' /XF $skipFiles | Out-Null
 if ($LASTEXITCODE -ge 8) { throw 'robocopy failed for Orbiter' }
 # Earth textures are not shipped (docs/TEXTURES.md): an empty folder stops the "textures missing" window.
@@ -53,6 +55,18 @@ Copy-Item $PluginDll (Join-Path $plug 'Modules\Plugin\OrbiterLanCoop.dll')
 Copy-Item (Join-Path $repo 'plugin\OrbiterLanCoop.cfg') (Join-Path $plug 'Config\OrbiterLanCoop.cfg')
 Copy-Item (Join-Path $repo 'tools\scenarios\*.scn') (Join-Path $plug 'Scenarios\OLC-test') -Exclude '._*'   # skip macOS leftovers
 Copy-Item (Join-Path $repo 'LICENSE') (Join-Path $plug 'OLC-LICENSE.txt')
+# A starting Orbiter.cfg: the tester does not have to switch modules on by hand. Vessel collisions are
+# off: on a client they would argue with the host's states (docs/QUICKSTART.md, section 6), and the
+# host gets the same so that both see the same thing. Orbiter adds the rest of its settings on exit.
+$orbiterCfg = @(
+    '; Starting settings of the OLC test package (tools/package/make-package.ps1).',
+    'VesselCollision = FALSE',
+    'ACTIVE_MODULES',
+    '  D3D9Client',
+    '  OrbiterLanCoop',
+    'END_MODULES'
+)
+Set-Content -Path (Join-Path $plug 'Orbiter.cfg') -Value $orbiterCfg -Encoding Ascii
 Pack $plug 'olc-3-plugin.zip'
 
 Remove-Item $work -Recurse -Force

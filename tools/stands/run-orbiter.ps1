@@ -176,8 +176,13 @@ try {
     foreach ($instance in $job.instances) {
         $exe = Join-Path $instance.dir 'Orbiter.exe'
         Write-Log "start $exe $($instance.args)"
-        $process = Start-Process -FilePath $exe -ArgumentList $instance.args `
-            -WorkingDirectory $instance.dir -PassThru
+        # Start-Process refuses an empty ArgumentList: without "args" Orbiter starts as a user starts it.
+        if ($instance.args) {
+            $process = Start-Process -FilePath $exe -ArgumentList $instance.args `
+                -WorkingDirectory $instance.dir -PassThru
+        } else {
+            $process = Start-Process -FilePath $exe -WorkingDirectory $instance.dir -PassThru
+        }
         $processes += $process
         if ($instance.window) {
             $placements += @{ process = $process; x = [int]$instance.window[0]; y = [int]$instance.window[1] }

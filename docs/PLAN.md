@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.14 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.17 are done, the package, the procedure and the scenarios for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | plan approved on 2026-11-18 (decision 46); after stage 5, research 4.1 — now (task 3.18) |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); code — after the stage 3 tests by people (decision 47), research 5.6 — now (task 3.19) |
 
@@ -274,7 +274,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | done (2026-11-18): documents and comments checked against the code, see the results of 3.14 |
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | done (2026-11-18): `TEXTURES.md`; the download list waits for the answer to Q10 |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | done (2026-11-18): a start without graphics on a clean machine; with the picture not checked, see results of 3.16 |
-| 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | in progress (main session) |
+| 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | done (2026-11-18): `TEST-PROCEDURE.md` and PDFs, the package checked with graphics, see the results of 3.17 |
 | 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
 | 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
 
@@ -485,6 +485,20 @@ instructions are in `PACKAGE.md`. Check: the archives were built on Windows 11 x
 instructions into an empty folder on Windows 10 x64; a start without graphics worked
 (`OLC host: listening`, exit 0). The Proxmox rigs cannot check a start with the picture on a clean
 machine (no 3D) - that is left to people in task 3.7.
+
+**Results of 3.17 (2026-11-18).** The test procedure — [TEST-PROCEDURE.md](TEST-PROCEDURE.md) (round 1):
+roles (flight director, pilots 1 and 2), preparation, tests T1–T9 with keys and the expected outcome,
+what to save after the lesson, the report form and common problems. The keys are checked against the
+Orbiter key map (`Keymap.cpp`) and the DeltaGlider (`K` — nose port, `G` — gear), the on-screen texts
+against the plugin code. A known limitation is recorded: the DeltaGlider retro doors open from the
+panel, whose clicks the client does not pass yet (stage 4). The procedure and installation PDFs in both
+languages are built outside the repository together with the archives.
+
+The package (3.16) is improved: the plugin archive gets a starting `Orbiter.cfg` (D3D9Client and the
+plugin on, vessel collisions off), build leftovers (`CMakeLists.txt`, `*.lib`) are removed from the
+Orbiter archive. `run-orbiter.ps1` starts a copy without switches (`args` may be left out). The check
+with graphics on a clean installation (Windows 11 ARM) — `PACKAGE.md`, section 4. The overview PDF was
+not updated: what is new for it — the audits and the package — goes into the report after the tests.
 
 **Stage 3 succeeds if:**
 
