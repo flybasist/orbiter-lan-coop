@@ -12,7 +12,10 @@ and the question to the "Closed" section.
 
 ## Open
 
-There are no open questions now.
+- **Q12. How to review a session flight (stage 5, item 6)** — research 3.19, `ORBITER-INTERNALS.md`, section 20. The stock recording cannot be started from a plugin; options:
+  - **A (recommended).** The host writes Orbiter recorder files itself (`.pos`, `.att`, `system.dat`, a `Playback` scenario): review is the stock playback, the format is text and simple. Cons: vessels created during the session do not get into playback; the format is undocumented.
+  - **B.** An OLC log and viewer of our own: independent of the Orbiter format, but a separate program or window.
+  - **C.** Record with the stock Ctrl+C key on the flight director's client with graphics: no code, but usability is not verified and a graphical client is needed.
 
 ## Closed
 

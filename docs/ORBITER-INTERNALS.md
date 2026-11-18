@@ -763,3 +763,78 @@ reach the pilot's vessel on the host.
 | DG gear, cone, airlock | DG Lua | DG Lua | pilot only, stage 3 |
 
 The fork is question Q11 in `QUESTIONS.md`.
+
+## 20. The Orbiter flight recorder (reconnaissance 5.6)
+
+Task 3.19 (2026-11-19), base commit `a7a3396e`. Sources: `Src/Orbiter/FlightRecorder.cpp`,
+`Orbiter.cpp`, `Vessel.cpp`. Question: can the session flight be recorded so that review uses
+Orbiter's stock playback.
+
+### How recording works
+
+- Recording is started only by `Orbiter::ToggleRecorder` (`Orbiter.cpp:1550`): the Ctrl+C key
+  (`Keymap.cpp:214`, `Orbiter.cpp:2297`) or the `DlgRecorder` dialog (`DlgRecorder.cpp:38-52`).
+  The SDK has no function to start recording, and a plugin cannot call a method of class `Orbiter`.
+  The SDK only offers `VESSEL::Recording`/`Playback` and `VESSEL::RecordEvent`
+  (`VesselAPI.h:4117-4141`, `Vessel.cpp:10244-10257`), which work when a recording is already
+  running.
+- The key arrives from the render window, so a server without graphics has nothing to start the
+  stock recording with. The SDK does not let a plugin pass a key to the core (`SendBufferedKey`
+  acts on a vessel, `VesselAPI.h:3265`). Recording during playback is forbidden (`Orbiter.cpp:1552`).
+- Every vessel calls `Vessel::FRecorder_Save` each frame (`Vessel.cpp:7236`) if it has `bFRrecord`;
+  only `ToggleRecorder` sets that flag.
+
+### Files
+
+Directory `Flights\<name>\` (`FlightRecorder.cpp:776-790`), all files are text. Times in them are
+`SimT - SimT0` at the start of the recording.
+
+| File | Contents |
+|---|---|
+| `<vessel>.pos` | Headers `STARTMJD`, `REF <body>`, `FRM ECLIPTIC` or `EQUATORIAL`, `CRD CARTESIAN` or `POLAR`; then lines "time x y z vx vy vz" (position and velocity relative to the `REF` body) |
+| `<vessel>.att` | `STARTMJD`, `REF`, `FRM ECLIPTIC` or `HORIZON`; lines "time a0 a1 a2" (Euler angles) |
+| `<vessel>.atc` | Vessel events: "time ENG 0:0.50 1:…" (engine levels), `NAVMODE`, `RCSMODE`, `UNDOCK`, `ATTACH`, `DETACH`, `LANDED`, `TAKEOFF`, `LIGHTSOURCE` and custom `RecordEvent` events |
+| `system.dat` | World events: `TACC` (time acceleration), `CAMERA`, `FOCUS`, `NOTE`, `JUMPTOTIME`, `ENDSESSION` |
+| `Playback\<name>.scn` | The scenario at the start of the recording (`SavePlaybackScn`, `Orbiter.cpp:1533`); recorded vessels carry a `FLIGHTDATA` line in it (`Vessel.cpp:8403`) |
+
+- Sampling rate: in free flight a `.pos` line at least every 2 s (`max_step`), more often when the
+  velocity vector turns by more than 0.5° (`cddir < 0.995`), and on a state change (landing,
+  takeoff, reference body change). Playback interpolates between lines using position and
+  velocity (`FlightRecorder.cpp:479+`), so denser writing is not required.
+- Playback starts when the scenario has a `Playback <name>` line (`State.cpp:94`) and the vessels
+  have `FLIGHTDATA`: vessels read their files (`FRecorder_Read`, `Vessel.cpp:764`), the core
+  opens `system.dat` (`Orbiter.cpp:810-812`). The core drives vessels in playback itself and
+  ignores their physics and input (`bFRplayback`); playback ends with the end of the file
+  (`FRecorder_CheckEnd`).
+- The format has no version and no checksums; unknown `.atc` lines are passed to the vessel
+  module through `clbkPlaybackEvent`, others are skipped.
+
+### Can a plugin write it
+
+- **The stock recording cannot be started from a plugin** (no SDK function, no access to
+  `Orbiter`), and a server without graphics has no key either.
+- **Writing files in this format ourselves is possible**: every frame the host already knows the
+  position, velocity and angles of all vessels (`GetRelativePos`/`GetRelativeVel`,
+  `GetGlobalOrientation`; the reference body via `GetSurfaceRef` or `GetGravityRef`), the time,
+  the time acceleration and the dockings. `CRD CARTESIAN`, `FRM ECLIPTIC` and a sample every
+  1–2 s are enough. As `.atc` events, engine levels (optional) and `UNDOCK`/`ATTACH` are enough
+  for now; without them vessels fly but without exhaust and mode changes. The scenario at the
+  start is `oapiSaveScenario` (`OrbiterAPI.h`) plus adding the `Playback` and `FLIGHTDATA`
+  lines by hand.
+- Limits of this way: playback drives only vessels that existed at the start of the recording
+  (vessels created during the session do not get into the start scenario); flights across
+  reference bodies need a correct `REF` change; the format is undocumented and may change in new
+  Orbiter releases — the daily upstream check (step 4) catches this.
+
+### Not verified
+
+Everything above is reading the sources. It is not verified on a stand that playback accepts
+files not written by the core (small things such as mandatory headers are possible). This is
+checked in task 5.7 on the Windows stand in a short time.
+
+### The fork
+
+Question Q12 in `QUESTIONS.md`: how to review a flight — write recorder files ourselves
+(recommended), an OLC log of our own with its own viewer, or rely on the stock Ctrl+C recording on
+the flight director's client with graphics (other vessels there are driven by the received state;
+whether such a recording is usable is not verified).
