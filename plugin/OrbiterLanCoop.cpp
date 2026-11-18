@@ -116,6 +116,15 @@ public:
         }
     }
 
+    // Held keys: the client takes the vessel control keys for INPUT and clears them, so Orbiter does
+    // not apply them locally. Returns false: Orbiter still handles the rest (camera, dialogs).
+    bool clbkProcessKeyboardImmediate(char kstate[256], bool simRunning) override {
+        if (client_ && simRunning) {
+            client_->onKeyboard(kstate);
+        }
+        return false;
+    }
+
     // Ctrl+Alt+U releases the player's vessel (decision 35). Other keys go on to Orbiter.
     bool clbkProcessKeyboardBuffered(DWORD key, char kstate[256], bool simRunning) override {
         (void)simRunning;

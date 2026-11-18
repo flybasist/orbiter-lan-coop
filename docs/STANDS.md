@@ -102,7 +102,7 @@ invisible service session, not on the desktop. So:
   [`tools/stands/run-orbiter.ps1`](../tools/stands/run-orbiter.ps1) in the user's session.
   The agent puts the job (which Orbiter copies to start with which switches, when to take screenshots) into
   `C:\olc\run-orbiter.json` (the `window` field places the copies' windows side by side, the `ui` field presses
-  buttons and selects items by name, closes the simulation window — this is how the "Connect" button in
+  buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}` — this is how the "Connect" button in
   Launchpad and reconnecting are checked); the result is
   a log and screenshots in `C:\olc\run-orbiter`. The task
   is created once by [`tools/stands/register-run-task.ps1`](../tools/stands/register-run-task.ps1)
@@ -284,6 +284,8 @@ At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
 
 A new vessel takes the state of the existing one shifted by 200 m, so that they do not collide.
 The class must be installed, otherwise Orbiter terminates abnormally.
+
+Test scenarios need a `PRPLEVEL` line, otherwise vessels start with empty tanks.
 
 A Lua script in the scenario (`Script` in `BEGIN_ENVIRONMENT`) does not do for this: in a session
 without graphics started over SSH, Orbiter hangs when the script gets to creating and deleting

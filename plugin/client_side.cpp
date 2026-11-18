@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 
 #include "protocol.h"
 #include "scenario_launch.h"
@@ -62,6 +64,16 @@ bool ClientSide::start() {
     clientConfig.displayDelay = config_.displayDelay;
     clientConfig.classExists = classInstalled;
 
+    // Orbiter's key layout: keymap.cfg in the Orbiter folder (Orbiter writes it at start).
+    std::ifstream keymapFile("keymap.cfg");
+    if (keymapFile) {
+        std::stringstream text;
+        text << keymapFile.rdbuf();
+        oapiWriteLogV("OLC client: %d key bindings read from keymap.cfg", keymap_.parse(text.str()));
+    } else {
+        oapiWriteLogV("OLC client: keymap.cfg not found, Orbiter's default keys are used");
+    }
+
     const bool started = link_.start(clientConfig, oapiGetSysTime());
     flushLog();
     return started;
@@ -100,6 +112,7 @@ void ClientSide::tick(double now, bool paused) {
                 onFocusChanged(oapiGetFocusObject());
             }
             followOwnership();
+            sendInput(now);
             updateNotice(now);
         }
         if (now >= nextStats_) {
@@ -417,6 +430,45 @@ void ClientSide::onFocusChanged(OBJHANDLE vessel) {
     }
 }
 
+void ClientSide::onKeyboard(char kstate[256]) {
+    if (link_.state() != olc::ClientLink::State::Ready) {
+        return;
+    }
+    heldKeys_ = keymap_.inputKeys(kstate);
+    if (heldKeys_ != 0) {
+        keyFrames_++;
+    }
+    keymap_.clearControlKeys(kstate);
+}
+
+void ClientSide::sendInput(double now) {
+    uint16_t own = 0;
+    if (!ownVessel(own)) {
+        return;
+    }
+    olc::Input input;
+    input.netId = own;
+    OBJHANDLE handle = vesselHandle(own);
+    // Keys and joystick fly the vessel in focus only; while the pilot watches another vessel, the
+    // own one gets an empty INPUT (no key held).
+    if (handle && handle == oapiGetFocusObject()) {
+        input.keys = heldKeys_;
+        VESSEL* vessel = oapiGetVesselInterface(handle);
+        auto axis = [vessel](THGROUP_TYPE positive, THGROUP_TYPE negative) {
+            return static_cast<float>(
+                vessel->GetManualControlLevel(positive, MANCTRL_ANYMODE, MANCTRL_JOYSTICK) -
+                vessel->GetManualControlLevel(negative, MANCTRL_ANYMODE, MANCTRL_JOYSTICK));
+        };
+        input.rot[0] = axis(THGROUP_ATT_PITCHUP, THGROUP_ATT_PITCHDOWN);
+        input.rot[1] = axis(THGROUP_ATT_YAWLEFT, THGROUP_ATT_YAWRIGHT);
+        input.rot[2] = axis(THGROUP_ATT_BANKLEFT, THGROUP_ATT_BANKRIGHT);
+        input.lin[0] = axis(THGROUP_ATT_UP, THGROUP_ATT_DOWN);
+        input.lin[1] = axis(THGROUP_ATT_LEFT, THGROUP_ATT_RIGHT);
+        input.lin[2] = axis(THGROUP_ATT_FORWARD, THGROUP_ATT_BACK);
+    }
+    link_.sendInput(input, now);  // at most 60 times per second (ClientLink)
+}
+
 void ClientSide::releaseOwnVessel() {
     uint16_t own = 0;
     if (link_.state() == olc::ClientLink::State::Ready && ownVessel(own)) {
@@ -527,12 +579,14 @@ void ClientSide::logStats() {
     const olc::ClientStats& stats = link_.stats();
     const double average = timeErrorCount_ > 0 ? timeErrorSum_ / static_cast<double>(timeErrorCount_) : 0.0;
     oapiWriteLogV("OLC client: rtt %.1f ms, world states %llu, dropped %llu, starved %llu, "
-                  "sim time error avg %.3f s max %.3f s, time jumps %d",
+                  "sim time error avg %.3f s max %.3f s, time jumps %d, input sent %llu, "
+                  "frames with control keys %llu",
                   link_.rtt() * 1000.0,
                   static_cast<unsigned long long>(stats.worldStatePackets),
                   static_cast<unsigned long long>(stats.droppedPackets),
                   static_cast<unsigned long long>(stats.starvedSamples), average,
-                  timeErrorMax_, timeJumps_);
+                  timeErrorMax_, timeJumps_, static_cast<unsigned long long>(stats.inputPackets),
+                  static_cast<unsigned long long>(keyFrames_));
     timeErrorMax_ = 0.0;
     timeErrorSum_ = 0.0;
     timeErrorCount_ = 0;

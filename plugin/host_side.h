@@ -74,6 +74,8 @@ private:
     // Body number by handle; false - the body is not in the list.
     bool bodyId(OBJHANDLE body, uint16_t& id) const;
     void sendWorld(bool paused);
+    // Applies the pilots' latest INPUT to their vessels (every frame outside pause).
+    void applyInputs(double now);
     void sendFuel();
     void repeatLanded();
     void logStats();
@@ -97,6 +99,8 @@ private:
     double nextLanded_ = 0.0;
     double nextStats_ = 0.0;
     uint64_t worldStatesSent_ = 0;
+    uint64_t inputFrames_ = 0;     // frames in which a pilot's INPUT was applied (for the log)
+    uint64_t inputKeyFrames_ = 0;  // of them with a control key held
 };
 
 }  // namespace olcplugin

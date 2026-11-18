@@ -12,6 +12,7 @@ add_library(OrbiterLanCoop SHARED
     launchpad_item.cpp
     scenario_launch.cpp
     trace.cpp
+    vessel_control.cpp
     OrbiterLanCoop.rc
 )
 

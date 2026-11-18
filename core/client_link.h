@@ -16,6 +16,7 @@
 //   the client lacks goes to the host in one more CLASSES_MISSING;
 // - asks the host to take or release a vessel (requestTake, requestRelease); the answer is a new
 //   OWNERSHIP (the table changes) or OWNER_DENIED (takeOwnerDenials);
+// - sends INPUT (sendInput) to the host while the client controls a vessel, at most 60 per second;
 // - sends PING once per second and measures the round trip time from PONG.
 //
 // Orbiter is not needed here: the plugin asks for a vessel state at the needed moment
@@ -52,6 +53,9 @@ constexpr double kScenarioTimeout = 30.0;
 // How often the client sends PING, seconds.
 constexpr double kPingInterval = 1.0;
 
+// The most INPUT packets per second. PROTOCOL.md: "every frame, at most 60 Hz".
+constexpr double kMaxInputRate = 60.0;
+
 // Client settings.
 struct ClientConfig {
     Endpoint host;                // host address and port
@@ -79,6 +83,7 @@ struct ClientStats {
     uint64_t worldStatePackets = 0;  // received WORLD_STATE
     uint64_t droppedPackets = 0;     // foreign session, old seq, broken
     uint64_t starvedSamples = 0;     // sampleVessel when the buffer ran out
+    uint64_t inputPackets = 0;       // sent INPUT
 };
 
 class ClientLink {
@@ -158,6 +163,11 @@ public:
     // Takes refusals (OWNER_DENIED) received since the last call, in arrival order.
     std::vector<OwnerDenied> takeOwnerDenials();
 
+    // Sends the current state of the controls to the host in one UDP INPUT packet. Does nothing
+    // before the link is Ready, and if the previous INPUT went out less than 1 / kMaxInputRate
+    // seconds ago. now - real time, seconds.
+    void sendInput(const Input& input, double now);
+
     // The latest round trip time, seconds; below 0 - not measured yet.
     double rtt() const { return rtt_; }
 
@@ -221,6 +231,8 @@ private:
 
     uint32_t pingSeq_ = 0;
     double nextPing_ = 0.0;
+    uint32_t inputSeq_ = 0;
+    double nextInput_ = 0.0;  // the earliest time of the next INPUT
     double rtt_ = -1.0;
 
     ClientStats stats_;

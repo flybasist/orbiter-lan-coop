@@ -7,6 +7,7 @@ add_library(olc-core STATIC
     header.cpp
     host_link.cpp
     interpolation.cpp
+    keymap.cpp
     messages.cpp
     protocol.cpp
     scenario_filter.cpp

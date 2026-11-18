@@ -8,6 +8,7 @@
 #include <random>
 
 #include "protocol.h"
+#include "vessel_control.h"
 
 namespace olcplugin {
 
@@ -191,6 +192,9 @@ bool HostSide::bodyId(OBJHANDLE body, uint16_t& id) const {
 
 void HostSide::tick(double now, bool paused) {
     link_.poll(now);
+    if (!paused) {
+        applyInputs(now);
+    }
 
     const double rate = paused ? kPausedStateRate : static_cast<double>(config_.stateRateHz);
     if (now >= nextState_) {
@@ -362,6 +366,28 @@ void HostSide::onNewVessel(OBJHANDLE vessel) {
     newVessels_.push_back(vessel);
 }
 
+void HostSide::applyInputs(double now) {
+    const double simdt = oapiGetSimStep();
+    for (const Ship& ship : ships_) {
+        olc::Input input;
+        double receivedAt = 0.0;
+        // latestInput checks that the vessel belongs to the client that sent the input.
+        if (!link_.latestInput(ship.netId, input, receivedAt)) {
+            continue;
+        }
+        // No INPUT for a while (the connection is lost): the controls are released, no key stays
+        // held. Throttle and hover keep their levels, as after releasing the keys in Orbiter.
+        if (now - receivedAt > olc::kInputTimeout) {
+            continue;
+        }
+        applyInput(oapiGetVesselInterface(ship.handle), input, simdt);
+        inputFrames_++;
+        if (input.keys != 0) {
+            inputKeyFrames_++;
+        }
+    }
+}
+
 uint16_t HostSide::hostVessel() const {
     for (const Ship& ship : ships_) {
         const olc::VesselRecord* record = table_.findById(ship.netId);
@@ -411,11 +437,15 @@ void HostSide::releaseHostVessel() {
 void HostSide::logStats() {
     const olc::HostStats& stats = link_.stats();
     oapiWriteLogV("OLC host: %d client(s), %d ready, world states %llu, UDP packets %llu, "
-                  "bad UDP %llu",
+                  "bad UDP %llu, input accepted %llu rejected %llu, applied %llu (with keys %llu)",
                   link_.clientCount(), link_.readyClientCount(),
                   static_cast<unsigned long long>(worldStatesSent_),
                   static_cast<unsigned long long>(stats.udpPacketsSent),
-                  static_cast<unsigned long long>(stats.udpBadPackets));
+                  static_cast<unsigned long long>(stats.udpBadPackets),
+                  static_cast<unsigned long long>(stats.inputAccepted),
+                  static_cast<unsigned long long>(stats.inputRejected),
+                  static_cast<unsigned long long>(inputFrames_),
+                  static_cast<unsigned long long>(inputKeyFrames_));
 }
 
 void HostSide::flushLog() {

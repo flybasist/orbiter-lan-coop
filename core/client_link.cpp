@@ -460,6 +460,18 @@ void ClientLink::sendPing(double now) {
     nextPing_ = now + kPingInterval;
 }
 
+void ClientLink::sendInput(const Input& input, double now) {
+    if (state_ != State::Ready || now < nextInput_) {
+        return;
+    }
+    Writer body;
+    writeInput(body, input);
+    udp_.sendTo(config_.host,
+                makeUdpPacket(UdpType::Input, session_, inputSeq_++, body.bytes()));
+    nextInput_ = now + 1.0 / kMaxInputRate;
+    stats_.inputPackets++;
+}
+
 // ---------- What we hand to the plugin ----------
 
 double ClientLink::hostMjdAt(double simTime) const {

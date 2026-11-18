@@ -555,6 +555,146 @@ void testOwnership() {
     CHECK(hasLine(hostLog, "player 'Bob' got his vessel back"));
 }
 
+// Input with recognisable values; keys makes packets distinguishable.
+olc::Input makeInput(uint16_t netId, uint32_t keys) {
+    olc::Input input;
+    input.netId = netId;
+    input.keys = keys;
+    input.rot[0] = 0.5f;
+    input.rot[1] = -0.25f;
+    input.rot[2] = 1.0f;
+    input.lin[0] = -1.0f;
+    input.lin[1] = 0.75f;
+    input.lin[2] = 0.125f;
+    input.throttle = 0.5f;
+    return input;
+}
+
+// A client with a ready link takes vessel 2 (ISS) and waits until it owns it.
+bool takeIss(TestHost& host, olc::ClientLink& client) {
+    if (!client.start(makeClientConfig(host), now()) ||
+        !waitFor(host.link, {&client}, [&]() { return host.link.readyClientCount() == 1; })) {
+        return false;
+    }
+    client.requestTake(2);
+    return waitFor(host.link, {&client}, [&]() {
+        return client.table().findById(2)->owner == client.clientId();
+    });
+}
+
+// INPUT of the owner reaches the host with exactly the same values.
+void testInputDelivery() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(takeIss(host, client));
+
+    olc::Input sent = makeInput(2, olc::kInputPitchUp | olc::kInputFullMain | olc::kInputWheelBrakeRight);
+    olc::Input got;
+    double receivedAt = -1.0;
+    CHECK(!host.link.latestInput(2, got, receivedAt));  // nothing yet
+    client.sendInput(sent, now());
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.latestInput(2, got, receivedAt); }));
+    CHECK(got.netId == 2 && got.keys == sent.keys);
+    CHECK(got.rot[0] == 0.5f && got.rot[1] == -0.25f && got.rot[2] == 1.0f);
+    CHECK(got.lin[0] == -1.0f && got.lin[1] == 0.75f && got.lin[2] == 0.125f);
+    CHECK(got.throttle == 0.5f);
+    CHECK(receivedAt > 0.0 && receivedAt <= now());
+    CHECK(host.link.stats().inputRejected == 0);
+
+    // The newer packet replaces the older one.
+    client.sendInput(makeInput(2, olc::kInputKillMainRetro), now() + 1.0);
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        return host.link.latestInput(2, got, receivedAt) && got.keys == olc::kInputKillMainRetro;
+    }));
+}
+
+// INPUT for a vessel the client does not own is dropped and counted.
+void testInputNotOwned() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(takeIss(host, client));
+
+    client.sendInput(makeInput(1, olc::kInputPitchUp), now());  // vessel 1 belongs to the host
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.stats().inputRejected == 1; }));
+    olc::Input got;
+    double receivedAt = 0.0;
+    CHECK(!host.link.latestInput(1, got, receivedAt));
+    CHECK(!host.link.latestInput(2, got, receivedAt));
+}
+
+// No more than kMaxInputRate packets per second: of ten calls with one time only the first goes out.
+void testInputRateLimit() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(takeIss(host, client));
+
+    double t = now();
+    for (uint32_t i = 1; i <= 10; i++) {
+        client.sendInput(makeInput(2, i), t);
+    }
+    olc::Input got;
+    double receivedAt = 0.0;
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.latestInput(2, got, receivedAt); }));
+    // Wait a little more: later packets, if any, would have arrived by now.
+    waitFor(host.link, {&client}, []() { return false; }, 0.1);
+    CHECK(host.link.latestInput(2, got, receivedAt));
+    CHECK(got.keys == 1);
+
+    // After 1 / kMaxInputRate the next packet goes out.
+    client.sendInput(makeInput(2, 11), t + 1.0 / olc::kMaxInputRate + 0.001);
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        return host.link.latestInput(2, got, receivedAt) && got.keys == 11;
+    }));
+}
+
+// INPUT before the link is Ready is not sent; after the vessel is released it is not returned.
+void testInputAfterRelease() {
+    olc::ClientLink idle;
+    idle.sendInput(makeInput(2, 1), now());  // must do nothing and not crash
+
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(takeIss(host, client));
+
+    olc::Input got;
+    double receivedAt = 0.0;
+    client.sendInput(makeInput(2, olc::kInputFullMain), now());
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.latestInput(2, got, receivedAt); }));
+
+    client.requestRelease(2);
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        return client.table().findById(2)->owner == olc::kNoOwner;
+    }));
+    CHECK(!host.link.latestInput(2, got, receivedAt));
+}
+
+// The key bits do not overlap and fit into 24 bits (a check of the constants against typos).
+void testInputKeyBits() {
+    const uint32_t bits[] = {
+        olc::kInputPitchUp, olc::kInputPitchDown, olc::kInputYawLeft, olc::kInputYawRight,
+        olc::kInputBankLeft, olc::kInputBankRight, olc::kInputUp, olc::kInputDown,
+        olc::kInputLeft, olc::kInputRight, olc::kInputForward, olc::kInputBack,
+        olc::kInputLowPowerRcs, olc::kInputFullMain, olc::kInputFullRetro,
+        olc::kInputKillMainRetro, olc::kInputThrottleUp, olc::kInputThrottleDown,
+        olc::kInputHoverUp, olc::kInputHoverDown, olc::kInputTrimUp, olc::kInputTrimDown,
+        olc::kInputWheelBrakeLeft, olc::kInputWheelBrakeRight};
+    uint32_t all = 0;
+    for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); i++) {
+        CHECK(bits[i] == (1u << i));  // bit i, in the order of PROTOCOL.md section 7
+        CHECK((all & bits[i]) == 0);
+        all |= bits[i];
+    }
+    CHECK(all == 0x00FFFFFFu);
+}
+
 // An OWNER_REQUEST with an unknown action: the host drops the client.
 void testBrokenOwnerRequest() {
     TestHost host;
@@ -965,6 +1105,11 @@ int main() {
     testHandshakeWithScenarioId();
     testVesselAddedRemoved();
     testOwnership();
+    testInputDelivery();
+    testInputNotOwned();
+    testInputRateLimit();
+    testInputAfterRelease();
+    testInputKeyBits();
     testBrokenOwnerRequest();
     testScenarioRequest();
     testScenarioUnavailable();

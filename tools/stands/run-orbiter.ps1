@@ -18,7 +18,9 @@
 #       { "at": 8,  "click": "Extra" },             - a button: press it
 #       { "at": 9,  "select": "OLC - LAN co-op" },  - a list item: select it
 #       { "at": 10, "click": "Edit" },
-#       { "at": 60, "close": "session" }            - close the simulation window (back to Launchpad)
+#       { "at": 60, "close": "session" },           - close the simulation window (back to Launchpad)
+#       { "at": 70, "key": "0x4E", "seconds": 3 }   - hold a key (scan code, as OAPI_KEY_*) in the
+#                                                    active window: Orbiter's DirectInput sees it
 #     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
@@ -64,7 +66,24 @@ Add-Type -Namespace Olc -Name Win32 -MemberDefinition @'
 [DllImport("user32.dll")]
 public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 [DllImport("user32.dll")]
+public static extern bool SetForegroundWindow(IntPtr hWnd);
+[DllImport("user32.dll")]
 public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+[StructLayout(LayoutKind.Sequential)]
+public struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+[StructLayout(LayoutKind.Sequential)]
+public struct INPUT { public uint type; public KEYBDINPUT ki; public long padding; }
+[DllImport("user32.dll", SetLastError = true)]
+public static extern uint SendInput(uint count, INPUT[] inputs, int size);
+// Presses (up = false) or releases a key by its scan code, as a real keyboard would.
+public static void Key(ushort scan, bool up) {
+    INPUT[] input = new INPUT[1];
+    input[0].type = 1;  // INPUT_KEYBOARD
+    input[0].ki.wScan = (ushort)(scan & 0xFF);
+    // KEYEVENTF_SCANCODE, KEYEVENTF_KEYUP, KEYEVENTF_EXTENDEDKEY for codes above 0x80
+    input[0].ki.dwFlags = 0x0008u | (up ? 0x0002u : 0u) | (scan > 0x80 ? 0x0001u : 0u);
+    SendInput(1, input, System.Runtime.InteropServices.Marshal.SizeOf(typeof(INPUT)));
+}
 '@
 $SWP_NOSIZE = 0x0001
 $SWP_NOZORDER = 0x0004
@@ -74,6 +93,22 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 # Presses (click) or selects (select) the element with this name in the windows of the given processes,
 # or closes the simulation window (close) - the same as its close button.
 function Invoke-UiStep($step, $processIds) {
+    if ($step.key) {
+        # Keys go to the active window: bring the simulation window to the front first.
+        foreach ($id in $processIds) {
+            $process = Get-Process -Id $id -ErrorAction SilentlyContinue
+            if ($process -and $process.MainWindowTitle -like 'OpenOrbiter `[*') {
+                [Olc.Win32]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
+            }
+        }
+        Start-Sleep -Milliseconds 300
+        $scan = [Convert]::ToUInt16($step.key, 16)
+        [Olc.Win32]::Key($scan, $false)
+        Start-Sleep -Milliseconds ([int]([double]$step.seconds * 1000))
+        [Olc.Win32]::Key($scan, $true)
+        Write-Log "ui: held key $($step.key) for $($step.seconds) s"
+        return
+    }
     if ($step.close) {
         foreach ($id in $processIds) {
             $process = Get-Process -Id $id -ErrorAction SilentlyContinue

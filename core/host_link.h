@@ -12,6 +12,8 @@
 //   with the same sim_time;
 // - sends TCP messages (LANDED, VESSEL_ADDED, VESSEL_REMOVED) to all clients that finished
 //   the handshake;
+// - receives INPUT only from the UDP address of the client that owns the vessel, keeps the latest one
+//   per vessel (latestInput); the plugin applies it to the vessel;
 // - handles OWNER_REQUEST: a client takes a free vessel or releases its own one (the rules are in
 //   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
 //   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
@@ -29,6 +31,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,6 +47,10 @@ constexpr double kHelloTimeout = 5.0;
 
 // How many seconds the host gives a SCENARIO to go out before it drops the connection.
 constexpr double kScenarioSendTimeout = 30.0;
+
+// How many seconds an INPUT stays valid. The plugin releases the vessel's controls if the latest
+// INPUT is older (connection lost, so no key stays stuck).
+constexpr double kInputTimeout = 0.5;
 
 // Host settings.
 struct HostConfig {
@@ -62,6 +69,8 @@ struct HostConfig {
 struct HostStats {
     uint64_t udpPacketsSent = 0;
     uint64_t udpBadPackets = 0;   // foreign and broken incoming UDP packets
+    uint64_t inputRejected = 0;   // INPUT for a vessel the client does not own
+    uint64_t inputAccepted = 0;   // INPUT stored as a client's latest
 };
 
 class HostLink {
@@ -112,6 +121,11 @@ public:
     // vessel in the table (setOwner with kHostOwner or kNoOwner).
     void broadcastOwnership();
 
+    // The latest INPUT for vessel netId from the client that owns it right now. false - no
+    // INPUT yet, or the vessel has another owner now. receivedAt - host real time of the packet;
+    // the plugin compares it with kInputTimeout.
+    bool latestInput(uint16_t netId, Input& input, double& receivedAt) const;
+
     // How many clients finished the handshake (got WELCOME).
     int clientCount() const;
 
@@ -124,6 +138,12 @@ public:
     std::vector<std::string> takeLog();
 
 private:
+    // The latest accepted INPUT of one vessel.
+    struct LastInput {
+        Input input;
+        double receivedAt = 0.0;  // host real time
+    };
+
     // One connected client.
     struct Client {
         TcpConnection tcp;
@@ -135,6 +155,9 @@ private:
         bool udpReady = false;     // sent UDP_READY
         Endpoint udp;              // where to send UDP
         bool udpFromPing = false;  // address taken from PING, not from UDP_READY (see handleUdp)
+        bool haveInputSeq = false; // got at least one INPUT
+        uint32_t lastInputSeq = 0; // seq of the last accepted INPUT
+        std::map<uint16_t, LastInput> inputs;  // latest INPUT by net_id
         bool scenarioSent = false; // SCENARIO is in the queue: disconnect once it has gone out
         std::string leaveReason;   // why we disconnect; set when handleFrames returned false
     };
@@ -156,6 +179,8 @@ private:
     // Sends a UDP packet to all clients with udpReady.
     void sendUdpToReady(uint8_t type, const std::vector<uint8_t>& body);
     void handleUdp();
+    // Handles an INPUT packet (the header is already read) that came from address from.
+    void handleInput(Reader& reader, uint32_t seq, const Endpoint& from);
     // Remembers the address the PING of client clientId came from: UDP for it goes there.
     void learnUdpAddress(uint8_t clientId, const Endpoint& from);
     void dropClient(size_t index, const std::string& reason);

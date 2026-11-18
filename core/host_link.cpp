@@ -488,8 +488,56 @@ void HostLink::handleUdp() {
                 stats_.udpPacketsSent++;
             }
         }
-        // The host ignores INPUT and the rest at stage 1.
+        if (header.type == static_cast<uint8_t>(UdpType::Input)) {
+            handleInput(reader, header.seq, from);
+        }
+        // The rest is ignored.
     }
+}
+
+void HostLink::handleInput(Reader& reader, uint32_t seq, const Endpoint& from) {
+    // The sender is the welcomed client whose UDP address this is (from UDP_READY or PING).
+    Client* sender = nullptr;
+    for (Client& client : clients_) {
+        if (client.welcomed && client.udp == from) {
+            sender = &client;
+            break;
+        }
+    }
+    Input input;
+    if (sender == nullptr || !readInput(reader, input)) {
+        stats_.udpBadPackets++;
+        return;
+    }
+    // Old and repeated packets are dropped; the first one is always accepted.
+    if (sender->haveInputSeq && !isSequenceNewer(seq, sender->lastInputSeq)) {
+        return;
+    }
+    sender->haveInputSeq = true;
+    sender->lastInputSeq = seq;
+    if (!table_.isControlledBy(input.netId, sender->clientId)) {
+        stats_.inputRejected++;
+        return;
+    }
+    stats_.inputAccepted++;
+    LastInput& last = sender->inputs[input.netId];
+    last.input = input;
+    last.receivedAt = now_;
+}
+
+bool HostLink::latestInput(uint16_t netId, Input& input, double& receivedAt) const {
+    for (const Client& client : clients_) {
+        auto found = client.inputs.find(netId);
+        // The owner may have changed since the packet came: check at query time too.
+        if (!client.welcomed || found == client.inputs.end() ||
+            !table_.isControlledBy(netId, client.clientId)) {
+            continue;
+        }
+        input = found->second.input;
+        receivedAt = found->second.receivedAt;
+        return true;
+    }
+    return false;
 }
 
 void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from) {

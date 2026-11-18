@@ -185,6 +185,19 @@ controls a vessel; the host applies the latest one received.
 | `lin` | 3 × `f32` | Joystick: translation up-down, left-right, forward-back, −1…1 |
 | `throttle` | `f32` | Throttle lever 0…1; −1 — no lever or it has not moved |
 
+The client sends at most 60 packets per second. The host accepts `INPUT` only from the UDP
+address of the client that owns the vessel (`net_id`); input for someone else's vessel is dropped.
+Only a packet with a newer `seq` than the last accepted one counts (the first is always
+accepted), and the latest one wins. If no `INPUT` arrives for 0.5 s, the host releases the
+vessel's controls: with a lost connection no key stays stuck.
+
+Joystick signs: in `rot` positive means pitch up, yaw left, bank left; in `lin` positive means up,
+left, forward.
+
+In Orbiter, RCS rotation and translation share the same keys. The client does not know the RCS mode of
+the vessel on the host, so for such a key it sends both bits — rotation and translation. The host uses
+the bits of its vessel's RCS mode.
+
 ### `PING` and `PONG` (both directions)
 
 `PING`: `t: f64` — the sender's system time (`oapiGetSysTime`), `client_id: u8` — the client
@@ -194,8 +207,8 @@ time. Once per second.
 From `PING` the host learns the client's real UDP address: behind NAT (for example, a shared virtual
 machine network) the port the packets come from may differ from the port in `UDP_READY`, and
 `WORLD_STATE` sent to the port from `UDP_READY` would not arrive. The address is accepted only if the IP matches
-the IP of the TCP connection of the client with this number. The host will use the same address for
-`INPUT` (stage 3).
+the IP of the TCP connection of the client with this number. The host uses the same address for
+`INPUT`.
 
 ### `FUEL` (host → client)
 

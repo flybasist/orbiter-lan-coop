@@ -305,6 +305,38 @@ struct Input {
     float throttle = kNoThrottle;    // throttle 0…1 or kNoThrottle
 };
 
+// Bits of Input::keys (PROTOCOL.md, section 7). The client sends actions, not key codes.
+// RCS rotation.
+constexpr uint32_t kInputPitchUp = 1u << 0;
+constexpr uint32_t kInputPitchDown = 1u << 1;
+constexpr uint32_t kInputYawLeft = 1u << 2;
+constexpr uint32_t kInputYawRight = 1u << 3;
+constexpr uint32_t kInputBankLeft = 1u << 4;
+constexpr uint32_t kInputBankRight = 1u << 5;
+// RCS translation.
+constexpr uint32_t kInputUp = 1u << 6;
+constexpr uint32_t kInputDown = 1u << 7;
+constexpr uint32_t kInputLeft = 1u << 8;
+constexpr uint32_t kInputRight = 1u << 9;
+constexpr uint32_t kInputForward = 1u << 10;
+constexpr uint32_t kInputBack = 1u << 11;
+// RCS power and main/retro engines.
+constexpr uint32_t kInputLowPowerRcs = 1u << 12;
+constexpr uint32_t kInputFullMain = 1u << 13;
+constexpr uint32_t kInputFullRetro = 1u << 14;
+constexpr uint32_t kInputKillMainRetro = 1u << 15;
+// Smooth throttle change.
+constexpr uint32_t kInputThrottleUp = 1u << 16;
+constexpr uint32_t kInputThrottleDown = 1u << 17;
+// Hover engines and trim.
+constexpr uint32_t kInputHoverUp = 1u << 18;
+constexpr uint32_t kInputHoverDown = 1u << 19;
+constexpr uint32_t kInputTrimUp = 1u << 20;
+constexpr uint32_t kInputTrimDown = 1u << 21;
+// Wheel brakes.
+constexpr uint32_t kInputWheelBrakeLeft = 1u << 22;
+constexpr uint32_t kInputWheelBrakeRight = 1u << 23;
+
 // UDP message bodies: the header is writeUdpHeader and readUdpHeader.
 void writeInput(Writer& writer, const Input& message);
 bool readInput(Reader& reader, Input& message);

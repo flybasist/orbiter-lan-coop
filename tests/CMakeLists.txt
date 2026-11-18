@@ -44,3 +44,7 @@ add_test(NAME link COMMAND test-link)
 add_executable(test-scenario-filter test_scenario_filter.cpp)
 target_link_libraries(test-scenario-filter PRIVATE olc-core)
 add_test(NAME scenario_filter COMMAND test-scenario-filter)
+
+add_executable(test-keymap test_keymap.cpp)
+target_link_libraries(test-keymap PRIVATE olc-core)
+add_test(NAME keymap COMMAND test-keymap)
