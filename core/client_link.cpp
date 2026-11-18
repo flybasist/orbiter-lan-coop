@@ -472,6 +472,19 @@ void ClientLink::sendInput(const Input& input, double now) {
     stats_.inputPackets++;
 }
 
+void ClientLink::sendKey(uint16_t netId, uint8_t key, uint8_t mods) {
+    if (state_ != State::Ready) {
+        return;
+    }
+    KeyPress press;
+    press.netId = netId;
+    press.key = key;
+    press.mods = mods;
+    Writer body;
+    writeKey(body, press);
+    sendMessage(TcpType::Key, body);
+}
+
 // ---------- What we hand to the plugin ----------
 
 double ClientLink::hostMjdAt(double simTime) const {

@@ -14,6 +14,8 @@
 //   the handshake;
 // - receives INPUT only from the UDP address of the client that owns the vessel, keeps the latest one
 //   per vessel (latestInput); the plugin applies it to the vessel;
+// - receives KEY (single key presses) only for the vessel the client owns and queues them for the
+//   plugin (takeKeys), which passes them to the vessel (SendBufferedKey);
 // - handles OWNER_REQUEST: a client takes a free vessel or releases its own one (the rules are in
 //   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
 //   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
@@ -71,6 +73,8 @@ struct HostStats {
     uint64_t udpBadPackets = 0;   // foreign and broken incoming UDP packets
     uint64_t inputRejected = 0;   // INPUT for a vessel the client does not own
     uint64_t inputAccepted = 0;   // INPUT stored as a client's latest
+    uint64_t keysAccepted = 0;    // KEY presses queued for the plugin
+    uint64_t keysRejected = 0;    // KEY for a vessel the client does not own
 };
 
 class HostLink {
@@ -126,6 +130,10 @@ public:
     // the plugin compares it with kInputTimeout.
     bool latestInput(uint16_t netId, Input& input, double& receivedAt) const;
 
+    // Takes the KEY presses that came since the last call, oldest first. Only presses for the
+    // vessel the sender owns are here; the rest are counted in stats().keysRejected.
+    std::vector<KeyPress> takeKeys();
+
     // How many clients finished the handshake (got WELCOME).
     int clientCount() const;
 
@@ -167,6 +175,8 @@ private:
     bool handleHello(Client& client, Reader& reader);
     // Answers a HELLO with kNoScenario: puts SCENARIO into the queue or sends REJECT.
     bool sendScenario(Client& client, const Hello& hello);
+    // Handles KEY of a welcomed client. false - the message is broken.
+    bool handleKey(Client& client, Reader& reader);
     // Handles OWNER_REQUEST of a welcomed client. false - the message is broken.
     bool handleOwnerRequest(Client& client, Reader& reader);
     // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
@@ -193,6 +203,7 @@ private:
     UdpSocket udp_;
     std::vector<Client> clients_;
     std::vector<BodyEntry> bodies_;
+    std::vector<KeyPress> keys_;  // accepted KEY presses, not yet taken by the plugin
     double now_ = 0.0;  // real time of the last poll
     uint32_t seq_ = 0;  // sequence number of outgoing UDP packets
     uint32_t lastScenarioId_ = 0;  // number of the last SCENARIO sent

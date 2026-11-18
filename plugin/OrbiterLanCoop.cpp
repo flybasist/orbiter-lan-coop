@@ -10,6 +10,7 @@
 //   a timer: its messages always arrive, and while paused the role works by the timer
 //   (decision 23 in docs/DECISIONS.md);
 // - clbkSimulationEnd - stop;
+// - clbkProcessKeyboardBuffered - single key presses of the client go to the host (KEY);
 // - clbkFocusChanged and Ctrl+Alt+U (clbkProcessKeyboardBuffered) - take and release the
 //   player's own vessel (decision 35).
 // The "OLC" item in Launchpad (LaunchpadPanel) lives as long as the DLL: it is registered in
@@ -129,6 +130,9 @@ public:
     bool clbkProcessKeyboardBuffered(DWORD key, char kstate[256], bool simRunning) override {
         (void)simRunning;
         if (key != OAPI_KEY_U || !KEYMOD_CONTROL(kstate) || !KEYMOD_ALT(kstate)) {
+            if (client_) {
+                client_->onKeyPressed(key, kstate);  // Orbiter handles the key here as well
+            }
             return false;
         }
         if (host_) {

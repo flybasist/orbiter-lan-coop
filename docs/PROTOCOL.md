@@ -138,7 +138,7 @@ is closed to the others and goes back to the pilot who connects under the same n
 `HELLO`). The host sends `OWNERSHIP` on every change: take, release, a client leaving, a pilot
 coming back, a new vessel.
 
-Single presses (`KEY`) go over TCP because "engage autopilot" must not be lost.
+Single presses (`KEY`) go over TCP because "engage autopilot" must not be lost. The host accepts `KEY` only for the sender's own vessel and passes the key code to the vessel as is: the host's `keymap.cfg` decides which logical key ("Prograde") it is.
 
 ## 6. UDP messages
 

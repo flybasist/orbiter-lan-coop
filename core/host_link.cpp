@@ -241,6 +241,11 @@ bool HostLink::handleFrames(Client& client) {
                     " is ready for UDP at " + endpointToString(client.udp));
                 break;
             }
+            case TcpType::Key:
+                if (!handleKey(client, reader)) {
+                    return false;
+                }
+                break;
             case TcpType::OwnerRequest:
                 if (!handleOwnerRequest(client, reader)) {
                     return false;
@@ -255,7 +260,7 @@ bool HostLink::handleFrames(Client& client) {
                 return false;
             }
             default:
-                // Other messages (KEY and others) are not handled by the host yet.
+                // Other messages are not handled by the host.
                 break;
         }
     }
@@ -265,6 +270,27 @@ bool HostLink::handleFrames(Client& client) {
         return false;
     }
     return true;
+}
+
+bool HostLink::handleKey(Client& client, Reader& reader) {
+    KeyPress press;
+    if (!readKey(reader, press)) {
+        client.leaveReason = "broken KEY";
+        return false;
+    }
+    if (!table_.isControlledBy(press.netId, client.clientId)) {
+        stats_.keysRejected++;
+        return true;
+    }
+    stats_.keysAccepted++;
+    keys_.push_back(press);
+    return true;
+}
+
+std::vector<KeyPress> HostLink::takeKeys() {
+    std::vector<KeyPress> result;
+    result.swap(keys_);
+    return result;
 }
 
 bool HostLink::handleOwnerRequest(Client& client, Reader& reader) {

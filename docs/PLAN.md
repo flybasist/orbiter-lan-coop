@@ -260,7 +260,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.1 | Vessel ownership by decision 1 below (A2): take, release, keeping for 60 s after a break. The host sends `OWNERSHIP`, a refusal and "view only" are shown as on-screen notices | Mac (core) + Windows | A core test: take, release, a pilot leaving and coming back; two pilots do not control one vessel | done (2026-11-18; on the rigs: taking at join and "view only"; the take and release rules — by core tests; the Ctrl+Alt+U and F3 keys were not pressed on a rig) |
 | 3.2 | Client: the key layout from `keymap.cfg`; control keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); control keys of any vessel are cleared locally, the camera works | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host | done (2026-11-18; full throttle by key checked on the rig, the other keys and the joystick — by tests and by code) |
 | 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same | done (2026-11-18; full throttle by key checked on the rig, the other keys and the joystick — by tests and by code) |
-| 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host | waiting |
+| 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host | done (2026-11-18; "Prograde" `[` and gear `G` checked on the stand; RCS keys from the client as in 3.2–3.3) |
 | 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps | waiting |
 | 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | waiting |
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | waiting: the agent prepares scenarios and the memo, people check |
@@ -289,6 +289,15 @@ the full main engine of a DeltaGlider. Found on the way: a vessel in a scenario 
 line starts with empty tanks — this is why the first runs showed no acceleration. Test scenarios need
 `PRPLEVEL`. The RCS keys, throttle, trim, wheel brakes and the joystick were not pressed on the rig,
 only the full main engine: the rest is checked by tests and by code.
+
+**Results of 3.4 (2026-11-18).** The same host (Windows 11 x64, no graphics) and client
+(Windows 11 ARM with graphics); the DeltaGlider "Ref" belongs to the pilot. The `key` step pressed
+`[` ("Prograde" autopilot): the host received `KEY`, passed it to the vessel with `SendBufferedKey`,
+and the log shows mode 3 (`NAVMODE_PROGRADE`) on; the `G` key (gear) is reported as "taken by the
+vessel", i.e. the DeltaGlider took the key itself. The host drops and counts `KEY` for a vessel the
+sender does not own (core test). The press is carried out on the client too (decision 33, variant
+A); the host reads the key layout from its own `keymap.cfg`, so host and client layouts must match.
+A key that arrives during pause waits until the pause ends.
 
 **Stage 3 succeeds if:**
 

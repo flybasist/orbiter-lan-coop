@@ -194,6 +194,7 @@ void HostSide::tick(double now, bool paused) {
     link_.poll(now);
     if (!paused) {
         applyInputs(now);
+        applyKeys();
     }
 
     const double rate = paused ? kPausedStateRate : static_cast<double>(config_.stateRateHz);
@@ -388,6 +389,20 @@ void HostSide::applyInputs(double now) {
     }
 }
 
+void HostSide::applyKeys() {
+    // HostLink has already checked that the pilot owns the vessel. A key press that came during
+    // pause waits for the next step: the vessel's key handlers expect a running simulation.
+    for (const olc::KeyPress& press : link_.takeKeys()) {
+        for (const Ship& ship : ships_) {
+            if (ship.netId == press.netId) {
+                applyKey(oapiGetVesselInterface(ship.handle), press);
+                keysApplied_++;
+                break;
+            }
+        }
+    }
+}
+
 uint16_t HostSide::hostVessel() const {
     for (const Ship& ship : ships_) {
         const olc::VesselRecord* record = table_.findById(ship.netId);
@@ -437,7 +452,8 @@ void HostSide::releaseHostVessel() {
 void HostSide::logStats() {
     const olc::HostStats& stats = link_.stats();
     oapiWriteLogV("OLC host: %d client(s), %d ready, world states %llu, UDP packets %llu, "
-                  "bad UDP %llu, input accepted %llu rejected %llu, applied %llu (with keys %llu)",
+                  "bad UDP %llu, input accepted %llu rejected %llu, applied %llu (with keys %llu), "
+                  "key presses accepted %llu rejected %llu applied %llu",
                   link_.clientCount(), link_.readyClientCount(),
                   static_cast<unsigned long long>(worldStatesSent_),
                   static_cast<unsigned long long>(stats.udpPacketsSent),
@@ -445,7 +461,10 @@ void HostSide::logStats() {
                   static_cast<unsigned long long>(stats.inputAccepted),
                   static_cast<unsigned long long>(stats.inputRejected),
                   static_cast<unsigned long long>(inputFrames_),
-                  static_cast<unsigned long long>(inputKeyFrames_));
+                  static_cast<unsigned long long>(inputKeyFrames_),
+                  static_cast<unsigned long long>(stats.keysAccepted),
+                  static_cast<unsigned long long>(stats.keysRejected),
+                  static_cast<unsigned long long>(keysApplied_));
 }
 
 void HostSide::flushLog() {

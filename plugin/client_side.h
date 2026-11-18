@@ -65,6 +65,11 @@ public:
     // it. Camera and other keys stay.
     void onKeyboard(char kstate[256]);
 
+    // A single key press (clbkProcessKeyboardBuffered): while the pilot's own vessel is in focus,
+    // the press goes to the host in KEY (decision 33: it is carried out on the client too, so
+    // Orbiter is not told to skip it). The modifier keys themselves are not sent.
+    void onKeyPressed(DWORD key, const char kstate[256]);
+
 private:
     void followTime(double now, double displayTime);
     // Sends INPUT for the pilot's vessel: keys only while it is in focus, plus the joystick.
@@ -117,6 +122,7 @@ private:
     olc::Keymap keymap_;                    // Orbiter's key layout (keymap.cfg)
     uint32_t heldKeys_ = 0;                 // INPUT.keys from the last onKeyboard
     uint64_t keyFrames_ = 0;                // frames with a control key held (for the log)
+    uint64_t keyPresses_ = 0;               // KEY messages sent (for the log)
 
     Trace trace_;
     uint16_t traceNetId_ = 0;

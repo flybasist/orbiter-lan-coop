@@ -1,6 +1,7 @@
 #include "vessel_control.h"
 
 #include <algorithm>
+#include <string>
 
 namespace olcplugin {
 
@@ -147,6 +148,33 @@ void applyInput(VESSEL* vessel, const olc::Input& input, double simdt) {
     if (keys & olc::kInputWheelBrakeRight) {
         vessel->SetWheelbrakeLevel(1.0, 2, false);
     }
+}
+
+void applyKey(VESSEL* vessel, const olc::KeyPress& press) {
+    // The vessel's key handlers check the modifiers in the key state, so the state holds them.
+    char kstate[256] = {};
+    if (press.mods & 0x01) {
+        kstate[OAPI_KEY_LSHIFT] = static_cast<char>(0x80);
+    }
+    if (press.mods & 0x02) {
+        kstate[OAPI_KEY_LCONTROL] = static_cast<char>(0x80);
+    }
+    if (press.mods & 0x04) {
+        kstate[OAPI_KEY_LALT] = static_cast<char>(0x80);
+    }
+    kstate[press.key] = static_cast<char>(0x80);
+    const int consumed = vessel->SendBufferedKey(press.key, true, kstate);
+    // Autopilot modes after the key (NAVMODE_* are 1...7), to see in the log what the key did.
+    std::string modes;
+    for (int mode = NAVMODE_KILLROT; mode <= NAVMODE_ANTINORMAL; mode++) {
+        if (vessel->GetNavmodeState(mode)) {
+            modes += " " + std::to_string(mode);
+        }
+    }
+    oapiWriteLogV("OLC host: key 0x%02X mods %d for '%s': %s, autopilot modes on:%s", press.key,
+                  press.mods, vessel->GetName(),
+                  consumed ? "taken by the vessel" : "passed to the core handler",
+                  modes.empty() ? " none" : modes.c_str());
 }
 
 }  // namespace olcplugin

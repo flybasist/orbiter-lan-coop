@@ -626,6 +626,31 @@ void testInputNotOwned() {
     CHECK(!host.link.latestInput(2, got, receivedAt));
 }
 
+// KEY of the owner reaches the host in order; KEY for a foreign vessel is dropped and counted;
+// takeKeys empties the queue.
+void testKeyDelivery() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink client;
+    CHECK(takeIss(host, client));
+
+    client.sendKey(2, 0x13, 0x02);  // Ctrl+R
+    client.sendKey(1, 0x14, 0);     // vessel 1 belongs to the host
+    client.sendKey(2, 0x1E, 0);
+    std::vector<olc::KeyPress> keys;
+    CHECK(waitFor(host.link, {&client}, [&]() {
+        std::vector<olc::KeyPress> more = host.link.takeKeys();
+        keys.insert(keys.end(), more.begin(), more.end());
+        return keys.size() >= 2 && host.link.stats().keysRejected == 1;
+    }));
+    CHECK(keys.size() == 2);
+    CHECK(keys[0].netId == 2 && keys[0].key == 0x13 && keys[0].mods == 0x02);
+    CHECK(keys[1].netId == 2 && keys[1].key == 0x1E && keys[1].mods == 0);
+    CHECK(host.link.stats().keysAccepted == 2);
+    CHECK(host.link.takeKeys().empty());
+}
+
 // No more than kMaxInputRate packets per second: of ten calls with one time only the first goes out.
 void testInputRateLimit() {
     TestHost host;
@@ -1110,6 +1135,7 @@ int main() {
     testInputRateLimit();
     testInputAfterRelease();
     testInputKeyBits();
+    testKeyDelivery();
     testBrokenOwnerRequest();
     testScenarioRequest();
     testScenarioUnavailable();

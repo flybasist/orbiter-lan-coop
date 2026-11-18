@@ -441,6 +441,31 @@ void ClientSide::onKeyboard(char kstate[256]) {
     keymap_.clearControlKeys(kstate);
 }
 
+void ClientSide::onKeyPressed(DWORD key, const char kstate[256]) {
+    uint16_t own = 0;
+    if (link_.state() != olc::ClientLink::State::Ready || !ownVessel(own) ||
+        vesselHandle(own) != oapiGetFocusObject() || key > 0xFF) {
+        return;
+    }
+    switch (key) {
+        case OAPI_KEY_LSHIFT:
+        case OAPI_KEY_RSHIFT:
+        case OAPI_KEY_LCONTROL:
+        case OAPI_KEY_RCONTROL:
+        case OAPI_KEY_LALT:
+        case OAPI_KEY_RALT:
+            return;
+        default:
+            break;
+    }
+    uint8_t mods = 0;
+    if (KEYMOD_SHIFT(kstate)) mods |= 0x01;
+    if (KEYMOD_CONTROL(kstate)) mods |= 0x02;
+    if (KEYMOD_ALT(kstate)) mods |= 0x04;
+    link_.sendKey(own, static_cast<uint8_t>(key), mods);
+    keyPresses_++;
+}
+
 void ClientSide::sendInput(double now) {
     uint16_t own = 0;
     if (!ownVessel(own)) {
@@ -580,13 +605,14 @@ void ClientSide::logStats() {
     const double average = timeErrorCount_ > 0 ? timeErrorSum_ / static_cast<double>(timeErrorCount_) : 0.0;
     oapiWriteLogV("OLC client: rtt %.1f ms, world states %llu, dropped %llu, starved %llu, "
                   "sim time error avg %.3f s max %.3f s, time jumps %d, input sent %llu, "
-                  "frames with control keys %llu",
+                  "frames with control keys %llu, key presses sent %llu",
                   link_.rtt() * 1000.0,
                   static_cast<unsigned long long>(stats.worldStatePackets),
                   static_cast<unsigned long long>(stats.droppedPackets),
                   static_cast<unsigned long long>(stats.starvedSamples), average,
                   timeErrorMax_, timeJumps_, static_cast<unsigned long long>(stats.inputPackets),
-                  static_cast<unsigned long long>(keyFrames_));
+                  static_cast<unsigned long long>(keyFrames_),
+                  static_cast<unsigned long long>(keyPresses_));
     timeErrorMax_ = 0.0;
     timeErrorSum_ = 0.0;
     timeErrorCount_ = 0;

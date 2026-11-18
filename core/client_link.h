@@ -16,6 +16,7 @@
 //   the client lacks goes to the host in one more CLASSES_MISSING;
 // - asks the host to take or release a vessel (requestTake, requestRelease); the answer is a new
 //   OWNERSHIP (the table changes) or OWNER_DENIED (takeOwnerDenials);
+// - sends KEY (sendKey) for single key presses;
 // - sends INPUT (sendInput) to the host while the client controls a vessel, at most 60 per second;
 // - sends PING once per second and measures the round trip time from PONG.
 //
@@ -167,6 +168,10 @@ public:
     // before the link is Ready, and if the previous INPUT went out less than 1 / kMaxInputRate
     // seconds ago. now - real time, seconds.
     void sendInput(const Input& input, double now);
+
+    // Sends KEY: one key press for the client's own vessel netId (TCP, so it is not lost). mods -
+    // bits of KeyPress::mods. Does nothing before the handshake is over.
+    void sendKey(uint16_t netId, uint8_t key, uint8_t mods);
 
     // The latest round trip time, seconds; below 0 - not measured yet.
     double rtt() const { return rtt_; }
