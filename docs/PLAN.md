@@ -16,9 +16,9 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.11 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
-| 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
-| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.12 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 4. Crew | Two in one vessel: pilot and navigator with MFDs | detailed plan awaiting approval (question Q8) |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | detailed plan awaiting approval (question Q8) |
 
 The order of stages 4 and 5 depends on the space club's answers (what matters more to them).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
@@ -268,7 +268,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.9 | A headless host sometimes does not exit on `-T` (the log stops ~27 s before the limit): find the cause | Proxmox | The cause in the results; fixed if it is in OLC | done (2026-11-18): on the rigs `-T` fires on time, the cause is an outer run timeout, see the 3.9 results |
 | 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | done (2026-11-18): the outliers come from the rig network (Wi-Fi and NAT), see the 3.10 results |
 | 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | done (2026-11-18): everything except the retro engine is confirmed by the host log, see the 3.11 results |
-| 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | in progress |
+| 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | done (2026-11-18): section "Stages 4 and 5: detailed plan", question Q8 |
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | waiting |
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | waiting |
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | waiting |
@@ -447,6 +447,100 @@ checked: it needs a second client with a picture.
 
 Not part of stage 3: a crew in one vessel (stage 4), clicks in the cockpit and on panels, add-ons' own
 held keys (the SDK does not allow it), sending animations in a general way.
+
+## Stages 4 and 5: detailed plan (for the owner's approval)
+
+Written in task 3.12 (2026-11-18) from the Orbiter sources and the results of stages 2–3. The order
+of the stages, the way to recognise the flight director and the navigator's rights are question Q8
+in [QUESTIONS.md](QUESTIONS.md). Stage 5 is proposed first: it is cheaper, needs no research of
+cockpit clicks and is needed already in the club's lessons (shared pause, saves).
+
+### Stage 5. Flight director
+
+What there is now: pause and warp come only from the host, a client returns its own to the host's
+within 0.5–1 s; on a server without graphics nobody can press them except through the console
+(`console-send.ps1`). Watching another vessel is possible (F3 — "view only"), but the first focus on
+a free vessel takes it.
+
+**How it will work:**
+
+1. The flight director (FD) is a client with a picture on the server machine (decision 34) or on
+   any other one. The host recognises the FD by the player name from `HELLO` and a server setting
+   (question Q8, item 2).
+2. Pause and warp: for the FD they are not reverted but go to the host as a request; the host
+   applies them, and all clients follow as now. For pilots — as now.
+3. The FD owns no vessel: focus on any vessel is view only, control keys are cleared.
+4. The FD's screen shows a summary: players, who flies which vessel, latency and losses of each.
+5. Saving: on the FD's key and automatically every few minutes the host saves the world
+   (`oapiSaveScenario`) to `Scenarios\OLC\Saves\`; a new lesson can start from a save.
+6. Debriefing: Orbiter's flight recorder is switched on only by a key or a dialog
+   (`Orbiter::ToggleRecorder`, `Orbiter.cpp:1550`), the SDK has no function for it. How to record a
+   flight on a server without graphics is research 5.6: write files in the recorder format
+   ourselves (then the debriefing is the standard playback) or an OLC log of our own.
+
+**Task queue:**
+
+| No. | Task | Where | Done when |
+|---|---|---|---|
+| 5.1 | Protocol v5: a pause and warp request from a client (`TIME_REQUEST`), an FD flag in `WELCOME`, a player summary (`PLAYERS`); a decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and exchange tests on loopback; a request not from the FD is refused |
+| 5.2 | FD client: pause and warp go to the host; the FD has no vessel, focus is view only | Windows ARM | On the rig the FD sets pause and ×10 — the pilot has them within 0.5 s |
+| 5.3 | Player summary on the FD's screen (an annotation or an ImGui window) | Windows ARM | The FD sees the players, vessels, latency |
+| 5.4 | Saves: on the FD's key and every `AutosaveMinutes` minutes | Mac (core) + Windows | The file appears, a new session starts from it |
+| 5.5 | Server without graphics: pause and warp from the server console in the description (`console-send.ps1`) as a fallback | Mac | Description in `QUICKSTART.md` |
+| 5.6 | Research: Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner |
+| 5.7 | Recording a lesson and debriefing by the results of 5.6 | Mac + Windows | The flight can be watched again after the lesson |
+| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below |
+
+**Stage 5 succeeds if:**
+
+- the FD sets and clears the shared pause and changes warp at their own machine — everyone gets it within 0.5 s;
+- pilots do not change pause and warp themselves;
+- the FD watches any vessel and does not take over control;
+- the FD sees who flies which vessel and each pilot's connection;
+- saving on command and autosave work, a lesson starts from a save;
+- after the lesson the flight can be watched again.
+
+### Stage 4. Crew: pilot and navigator in one vessel
+
+**What is known from the sources:**
+
+- MFDs are computed in each Orbiter from its own world. The navigator has the pilot's vessel in
+  focus, and their MFDs work with the imposed state: the MFDs themselves need not be sent (section 7
+  of `ORBITER-INTERNALS.md`).
+- What MFDs change in the vessel itself, for example NAV receiver frequencies (`VESSEL::SetNavRecv`,
+  `VesselAPI.h:5343`), stays on the navigator's client and does not reach the host and the pilot.
+- Clicks in the cockpit and on panels are callbacks of the vessel module (`clbkPanelMouseEvent`,
+  `clbkVCMouseEvent`, `VesselAPI.h:5960, 6042`); they work for the focus vessel with a loaded panel.
+  Whether the host can apply them to a vessel not in focus is unknown — this is research 4.1.
+
+**How it will work:**
+
+1. The crew is a second client in the pilot's vessel: focus on the pilot's vessel and a "join the
+   crew" key. There is one owner (the pilot), the number of crew seats is a server setting, one by
+   default.
+2. The navigator: own MFDs and camera; held control keys are cleared for them — the pilot flies.
+   The navigator's single key presses (autopilots, RCS mode) — by the answer to question Q8, item 3.
+3. NAV frequencies and whatever research 4.1 finds the navigator changes locally, the client sends
+   the change to the host, the host applies it and sends it out.
+4. The pilot and the navigator swap roles with a key, without leaving the session.
+
+**Task queue:**
+
+| No. | Task | Where | Done when |
+|---|---|---|---|
+| 4.1 | Research: what the standard MFDs and the DeltaGlider change in the vessel and how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner |
+| 4.2 | Protocol: the crew in the session table (owner and crew members), `OWNER_REQUEST` "join" and "leave", the crew in `OWNERSHIP` | Mac, core | Core tests: joining, leaving, the pilot leaving, the seat limit |
+| 4.3 | Navigator client: joining the crew, control cleared, single key presses by the owner's decision | Windows | On the rig the navigator is in the pilot's vessel, no takeover |
+| 4.4 | Syncing NAV frequencies and whatever 4.1 finds | Mac (core) + Windows | A frequency set by the navigator is seen by the pilot |
+| 4.5 | Swapping roles pilot ↔ navigator | Mac (core) + Windows | Roles swap without leaving the session |
+| 4.6 | Check on the rigs and by people with a test package (decision 43) | Rigs, people | Results by the criteria below |
+
+**Stage 4 succeeds if:**
+
+- two in one vessel: the pilot flies, the navigator works with MFDs on their own screen;
+- NAV frequencies set by the navigator are seen by the pilot and the host;
+- the navigator cannot take over control by accident;
+- the pilot and the navigator swap roles without leaving the session.
 
 ## Test rigs
 
