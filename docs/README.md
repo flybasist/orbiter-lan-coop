@@ -128,7 +128,9 @@ the owner approved. Rules:
    checking results and tasks with the "(main session)" status — it does them itself. A scheduled
    run works on Sonnet: implementation and code analysis from a ready task description. Haiku — code
    search. An Opus subagent — only when a second parallel piece of Opus-level work is needed. Whoever
-   called a subagent always checks its result.
+   called a subagent always checks its result. The main session decides as the team lead which
+   model gets which task: a simple task goes to Sonnet, a hard one is marked "(main session)" and
+   done by the main session itself (decision 49).
 5. **Schedule (UTC+5).**
    - The scheduled run fires every hour at :00 (decision 45). It cheaply checks the lock, the
      limits and the queue and goes back to sleep at once if there is no work; if there is, it works
