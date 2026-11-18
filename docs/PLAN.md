@@ -279,8 +279,8 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.20 | Decision 52: stage 4 splits into 4A "everyone sees the vessel state" (not postponed) and 4B "crew" (postponed), Q11 postponed; the "mechanisms of someone else's vessel" limitation — into the procedure; rebuild the procedure PDFs | Mac | `DECISIONS.md`, `PLAN.md`, `TEST-PROCEDURE.md`, PDF | done (2026-11-19): decisions 52–53, the limitation in the procedure, the procedure PDFs and the overview report rebuilt |
 | 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): section 20 of `ORBITER-INTERNALS.md`; fork Q12 |
 | 3.21 | 4A, research: general animation transfer (`GetAnimPtr`, `GetAnimation`, `SetAnimation`) versus DeltaGlider Lua commands — what another participant will see, for which classes it works; NAV and transponder frequencies | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): section 21 of `ORBITER-INTERNALS.md`; fork Q13 |
-| 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | waiting (main session) |
-| 3.23 | Stage 5: the work queue — tasks 5.1–5.7, what the rigs can check now and what waits for people | Mac | Tasks in `PLAN.md` | waiting (main session) |
+| 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | stop: question Q13 |
+| 3.23 | Stage 5: the work queue — tasks 5.1–5.7, what the rigs can check now and what waits for people | Mac | Tasks in `PLAN.md` | done (2026-11-19): the stage 5 tasks got a "Status" column — the queue continues there |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
@@ -580,16 +580,16 @@ a free vessel takes it.
 
 **Task queue:**
 
-| No. | Task | Where | Done when |
-|---|---|---|---|
-| 5.1 | Protocol v5: a pause and warp request from a client (`TIME_REQUEST`), an FD flag in `WELCOME`, a player summary (`PLAYERS`); a decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and exchange tests on loopback; a request not from the FD is refused |
-| 5.2 | FD client: pause and warp go to the host; the FD has no vessel, focus is view only | Windows ARM | On the rig the FD sets pause and ×10 — the pilot has them within 0.5 s |
-| 5.3 | Player summary on the FD's screen (an annotation or an ImGui window) | Windows ARM | The FD sees the players, vessels, latency |
-| 5.4 | Saves: on the FD's key and every `AutosaveMinutes` minutes | Mac (core) + Windows | The file appears, a new session starts from it |
-| 5.5 | Server without graphics: pause and warp from the server console in the description (`console-send.ps1`) as a fallback | Mac | Description in `QUICKSTART.md` |
-| 5.6 | Research: Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner |
-| 5.7 | Recording a lesson and debriefing by the results of 5.6 | Mac + Windows | The flight can be watched again after the lesson |
-| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below |
+| No. | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| 5.1 | Protocol v5: a pause and warp request from a client (`TIME_REQUEST`), an FD flag in `WELCOME`, a player summary (`PLAYERS`); a decision in `DECISIONS.md`, `PROTOCOL.md` | Mac, core | Parsing and exchange tests on loopback; a request not from the FD is refused | waiting (main session): protocol v5 — architecture |
+| 5.2 | FD client: pause and warp go to the host; the FD has no vessel, focus is view only | Windows ARM | On the rig the FD sets pause and ×10 — the pilot has them within 0.5 s | waiting |
+| 5.3 | Player summary on the FD's screen (an annotation or an ImGui window) | Windows ARM | The FD sees the players, vessels, latency | waiting |
+| 5.4 | Saves: on the FD's key and every `AutosaveMinutes` minutes | Mac (core) + Windows | The file appears, a new session starts from it | waiting |
+| 5.5 | Server without graphics: pause and warp from the server console in the description (`console-send.ps1`) as a fallback | Mac | Description in `QUICKSTART.md` | waiting |
+| 5.6 | Research: Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): task 3.19, `ORBITER-INTERNALS.md`, section 20 |
+| 5.7 | Recording a lesson and debriefing by the results of 5.6 | Mac + Windows | The flight can be watched again after the lesson | stop: question Q12 |
+| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below | waiting |
 
 **Stage 5 succeeds if:**
 
