@@ -136,6 +136,9 @@ the owner approved. Rules:
    - The scheduled run fires every hour at :00 (decision 45). It cheaply checks the lock, the
      limits and the queue and goes back to sleep at once if there is no work; if there is, it works
      in a row while there is work and limit. A run that broke off is picked up by the next one.
+     The main session, having finished its own task or got an owner's answer that opens work,
+     starts the task at once ("Run now") instead of waiting for the hour: if work is still going at
+     :00, the regular run sees the lock and finishes (decision 51).
    - The lock `orbiter-lan-coop.out/.agent-lock` is shared by everyone: a line "time who"
      (`scheduled` or `main`). The main session sets it too when it edits project files. Whoever
      works updates the time before each step; a lock older than 40 minutes counts as abandoned.
