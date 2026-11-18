@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | plan agreed, in progress |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 

@@ -3,10 +3,10 @@
 # orbiter-lan-coop (OLC) documentation
 
 OLC is a plugin for the Orbiter space flight simulator that lets several people fly in one
-simulation from different computers on a local network. The prototype (stage 1) is under way:
+simulation from different computers on a local network. The prototype (stage 3) is under way:
 there is an architecture, a plan, a map of the Orbiter core, a smoothing model, a network core
-with tests and a plugin in which the host sends the world state and the client shows it.
-Testing happens on test rigs.
+with tests and a plugin in which a pilot connects with a button in Launchpad, gets the host's world
+and flies their own vessel, while the host computes the physics. Testing happens on test rigs.
 
 ## Contents
 
