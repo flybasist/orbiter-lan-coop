@@ -174,6 +174,32 @@ void testShortMessages() {
     CHECK(olc::readKey(rk, keyBack));
     CHECK(keyBack.netId == 3 && keyBack.key == 0x1E && keyBack.mods == 2);
 
+    olc::OwnerRequest request;
+    request.netId = 7;
+    request.action = olc::kOwnerRelease;
+    olc::Writer wr;
+    olc::writeOwnerRequest(wr, request);
+    olc::Reader rr(wr.bytes().data(), wr.bytes().size());
+    olc::OwnerRequest requestBack;
+    CHECK(olc::readOwnerRequest(rr, requestBack));
+    CHECK(requestBack.netId == 7 && requestBack.action == olc::kOwnerRelease);
+    // A short or long message is broken.
+    olc::Reader shortReader(wr.bytes().data(), wr.bytes().size() - 1);
+    CHECK(!olc::readOwnerRequest(shortReader, requestBack));
+
+    olc::OwnerDenied denied;
+    denied.netId = 9;
+    denied.reason = static_cast<uint8_t>(olc::OwnerResult::AlreadyHasVessel);
+    olc::Writer wden;
+    olc::writeOwnerDenied(wden, denied);
+    olc::Reader rden(wden.bytes().data(), wden.bytes().size());
+    olc::OwnerDenied deniedBack;
+    CHECK(olc::readOwnerDenied(rden, deniedBack));
+    CHECK(deniedBack.netId == 9 && deniedBack.reason == 3);
+    wden.writeU8(0);
+    olc::Reader longReader(wden.bytes().data(), wden.bytes().size());
+    CHECK(!olc::readOwnerDenied(longReader, deniedBack));
+
     olc::Dock dock;
     dock.a = 10;
     dock.portA = 0;

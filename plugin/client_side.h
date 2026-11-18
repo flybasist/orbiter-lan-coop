@@ -16,7 +16,10 @@
 //   are deleted;
 // - VESSEL_REMOVED deletes the vessel here too.
 // The last vessel is never deleted: Orbiter would end the session.
-// Classes that are not installed are shown to the player on screen for kNoticeSeconds.
+// The pilot's own vessel (decision 35): focusing a free vessel while having none asks the host
+// for it; the vessel stays the pilot's until Ctrl+Alt+U or leaving. Someone else's vessel in
+// focus is view only.
+// Messages for the pilot (missing classes, ownership) are shown on screen for kNoticeSeconds.
 #pragma once
 
 #include <cstdint>
@@ -50,6 +53,12 @@ public:
 
     void onDeleteVessel(OBJHANDLE vessel);
 
+    // The focus changed (F3): take the new vessel if the pilot has none and it is free.
+    void onFocusChanged(OBJHANDLE vessel);
+
+    // Ctrl+Alt+U: release the pilot's vessel.
+    void releaseOwnVessel();
+
 private:
     void followTime(double now, double displayTime);
     void applyFuel();
@@ -67,7 +76,13 @@ private:
     bool deleteVessel(OBJHANDLE handle);
     // Adds a class to the on-screen notice about classes that are not installed.
     void noticeMissingClass(const std::string& className);
+    // Shows text on screen for kNoticeSeconds (replaces the previous notice).
+    void showNotice(const std::string& text);
     void updateNotice(double now);
+    // The number of the pilot's own vessel; false - the pilot has none.
+    bool ownVessel(uint16_t& netId) const;
+    // Shows ownership news: a vessel taken or lost, refusals from the host.
+    void followOwnership();
     // The client vessel for a host net_id: found by name and remembered. nullptr - no such vessel
     // (yet: it may be created later, so a miss is not remembered).
     OBJHANDLE vesselHandle(uint16_t netId);
@@ -84,9 +99,13 @@ private:
     bool extrasRemoved_ = false;            // removeExtraVessels has run
     std::set<uint16_t> cannotCreate_;       // net_id whose class is not installed (logged once)
     int deletesThisFrame_ = 0;              // oapiDeleteVessel calls not yet carried out
-    std::vector<std::string> missingClasses_;  // shown in the notice
+    std::vector<std::string> missingClasses_;  // already named in a notice
+    std::string noticeText_;                // the notice to show; empty - nothing
     NOTEHANDLE notice_ = nullptr;           // on-screen text, nullptr - not shown
     double noticeShownAt_ = -1.0;           // < 0 - the notice is to be shown at the next tick
+    bool focusChecked_ = false;             // the start focus was checked (onFocusChanged)
+    bool hadOwnVessel_ = false;             // the pilot had a vessel at the last check
+    uint16_t lastOwnVessel_ = 0;
 
     Trace trace_;
     uint16_t traceNetId_ = 0;

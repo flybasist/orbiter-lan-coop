@@ -9,7 +9,9 @@
 // - clbkPreStep is not called while paused, so the plugin has a hidden Windows window with
 //   a timer: its messages always arrive, and while paused the role works by the timer
 //   (decision 23 in docs/DECISIONS.md);
-// - clbkSimulationEnd - stop.
+// - clbkSimulationEnd - stop;
+// - clbkFocusChanged and Ctrl+Alt+U (clbkProcessKeyboardBuffered) - take and release the
+//   player's own vessel (decision 35).
 // The "OLC" item in Launchpad (LaunchpadPanel) lives as long as the DLL: it is registered in
 // InitModule and removed in ExitModule.
 
@@ -60,7 +62,7 @@ public:
 
         bool started = false;
         if (config_.role == olcplugin::Role::Host) {
-            host_.reset(new olcplugin::HostSide(config_));
+            host_.reset(new olcplugin::HostSide(config_, mode == RENDER_NONE));
             started = host_->start();
         } else {
             client_.reset(new olcplugin::ClientSide(config_, panel_->takeLaunchedScenarioId()));
@@ -102,6 +104,31 @@ public:
         if (host_) {
             host_->onNewVessel(vessel);
         }
+    }
+
+    void clbkFocusChanged(OBJHANDLE newFocus, OBJHANDLE oldFocus) override {
+        (void)oldFocus;
+        if (host_) {
+            host_->onFocusChanged(newFocus);
+        }
+        if (client_) {
+            client_->onFocusChanged(newFocus);
+        }
+    }
+
+    // Ctrl+Alt+U releases the player's vessel (decision 35). Other keys go on to Orbiter.
+    bool clbkProcessKeyboardBuffered(DWORD key, char kstate[256], bool simRunning) override {
+        (void)simRunning;
+        if (key != OAPI_KEY_U || !KEYMOD_CONTROL(kstate) || !KEYMOD_ALT(kstate)) {
+            return false;
+        }
+        if (host_) {
+            host_->releaseHostVessel();
+        }
+        if (client_) {
+            client_->releaseOwnVessel();
+        }
+        return host_ || client_;
     }
 
     // Hidden window timer. Outside pause clbkPreStep does the work.

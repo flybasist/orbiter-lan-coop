@@ -92,7 +92,7 @@ Client                                   Host
 | Field | Type | Meaning |
 |---|---|---|
 | `magic` | 4 bytes | `O`, `L`, `C`, `0` |
-| `version` | `u16` | Protocol version, currently `3` |
+| `version` | `u16` | Protocol version, currently `4` |
 | `type` | `u8` | Message type (section 6) |
 | `session` | `u32` | Session number from `WELCOME`; foreign packets are dropped |
 | `seq` | `u32` | The sender's sequence number; old and repeated packets are dropped |
@@ -105,7 +105,7 @@ with the same `sim_time`.
 
 | Channel | Numbers |
 |---|---|
-| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE` |
+| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED` |
 | UDP | 1 `WORLD_STATE`, 2 `INPUT`, 3 `PING`, 4 `PONG`, 5 `FUEL` |
 
 A message with extra bytes after the last field is treated as broken, the same as a truncated one.
@@ -128,7 +128,15 @@ A message with extra bytes after the last field is treated as broken, the same a
 | `KEY` | client → host | `net_id: u16`, `key: u8` (an `OAPI_KEY_*` code), `mods: u8` (bits: 0 — Shift, 1 — Ctrl, 2 — Alt) |
 | `DOCK` | host → client | `a: u16`, `port_a: u8`, `b: u16`, `port_b: u8`, `docked: u8` (1 — docked, 0 — undocked) |
 | `LANDED` | host → client | `net_id: u16`, `lng: f64`, `lat: f64`, `hdg: f64` (rad) — a vessel came to rest on a surface |
+| `OWNER_REQUEST` | client → host | `net_id: u16`, `action: u8` (1 — take a free vessel, 0 — release one's own). The host checks the rules and on success sends the whole `OWNERSHIP` to everyone |
+| `OWNER_DENIED` | host → client | `net_id: u16`, `reason: u8` (1 — no such vessel, 2 — the vessel is busy: it belongs to the host, to another client or is kept for a pilot who dropped out, 3 — the client already has another vessel, 4 — not the client's vessel, cannot release). Only to the one who asked |
 | `BYE` | any | `reason: str` |
+
+Ownership (decision 35): one client — one vessel, a vessel without an owner is free. If a client
+left or lost the connection, its vessel stays without an owner but for 60 s (`kOwnerHoldSeconds`)
+is closed to the others and goes back to the pilot who connects under the same name (`player` from
+`HELLO`). The host sends `OWNERSHIP` on every change: take, release, a client leaving, a pilot
+coming back, a new vessel.
 
 Single presses (`KEY`) go over TCP because "engage autopilot" must not be lost.
 

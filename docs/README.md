@@ -126,24 +126,25 @@ the owner approved. Rules:
    implementation and code analysis from a ready task description. Haiku — code search. Opus always
    checks a subagent's result itself.
 5. **Schedule (UTC+5).**
-   - Weekdays: wake-ups every hour from 00:00 to 19:00. A run skipped because of the limit is not
-     repeated, so frequent wake-ups avoid losing time after the window resets.
+   - The agent works in a row while there is work and limit. It does not wake up by itself after a
+     stop, so on reaching 90% of the window it schedules a one-time run for the window reset plus
+     5 minutes in advance (at the limit the session is cut off, and there is no time left to schedule).
+     Waiting for a long process — a one-time check after the needed time. There are no permanent
+     periodic runs.
    - 20:00–00:00 is the owner's time: they answer questions, check work, set up test rigs.
      During this time the agent works only at their request.
    - Weekends are discussed separately each time; without an agreement the agent does not
      work on weekends.
-6. **Limits** (decision 22). Before each piece of work the agent checks usage:
-   - the 5-hour window — no more than 90%: the owner always has a reserve for a question or
-     a small task;
-   - the week is used evenly and fully: at any moment no more than
-     (share of the week passed) × 100% + 5% is used. This way the owner still has
-     limit on Thursday and Friday, and by the reset (Saturday, 18:00) the week is fully used;
+6. **Limits** (decisions 22 and 40). Before each piece of work the agent checks usage:
+   - the 5-hour window: new work only below 90%; a step already started is brought to a whole state,
+     but not above 95%: the owner can always write a message;
+   - the week is spent by the reset (Saturday, 18:00): at any moment no more than
+     (share of the week passed) × 100% + 5% is used. Running out a few hours before the reset is fine,
+     a day before is not;
    - the limit is not spent for the sake of spending: if there is no useful work (everything waits for test rigs or
      the owner's answer), the agent stops;
-   - if the threshold is crossed in the middle of work, the agent brings the step to a whole state, writes down
-     where it stopped, and waits for the next window;
-   - the owner may for a while allow spending the week faster (decision 37): so it was in the week of
-     17–21 November 2026 — a pause only at 95% of the week, the window still no more than 90%.
+   - if the threshold is crossed in the middle of work, the agent schedules the next run, brings the step to a
+     whole state and writes down where it stopped.
 7. **Check against Orbiter.** If the check log (`ORBITER-INTERNALS.md`, section 13) has no
    entry for today, the first thing is an upstream check following the procedure described there.
 8. **No needless stops** (decision 37). The agent works through the queue in a row and does not wait

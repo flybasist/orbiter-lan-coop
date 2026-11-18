@@ -199,6 +199,15 @@ bool ClientLink::handleFrames(double now) {
                 }
                 break;
             }
+            case TcpType::OwnerDenied: {
+                OwnerDenied denied;
+                if (!readOwnerDenied(reader, denied)) {
+                    close("broken OWNER_DENIED message");
+                    break;
+                }
+                ownerDenials_.push_back(denied);
+                break;
+            }
             case TcpType::Landed: {
                 Landed landed;
                 if (!readLanded(reader, landed)) {
@@ -478,6 +487,32 @@ std::vector<VesselFuel> ClientLink::takeFuel() {
         result.push_back(entry.second);
     }
     fuel_.clear();
+    return result;
+}
+
+void ClientLink::sendOwnerRequest(uint16_t netId, uint8_t action) {
+    if (state_ != State::Ready) {
+        return;
+    }
+    OwnerRequest request;
+    request.netId = netId;
+    request.action = action;
+    Writer body;
+    writeOwnerRequest(body, request);
+    sendMessage(TcpType::OwnerRequest, body);
+}
+
+void ClientLink::requestTake(uint16_t netId) {
+    sendOwnerRequest(netId, kOwnerTake);
+}
+
+void ClientLink::requestRelease(uint16_t netId) {
+    sendOwnerRequest(netId, kOwnerRelease);
+}
+
+std::vector<OwnerDenied> ClientLink::takeOwnerDenials() {
+    std::vector<OwnerDenied> result;
+    result.swap(ownerDenials_);
     return result;
 }
 

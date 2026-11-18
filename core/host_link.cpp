@@ -75,7 +75,7 @@ void HostLink::stop(const std::string& reason) {
         client.tcp.flush();
         client.tcp.close();
         if (client.welcomed) {
-            table_.removePlayer(client.clientId);
+            table_.removePlayer(client.clientId, "", now_);  // the session ends: nothing to reserve
         }
     }
     clients_.clear();
@@ -129,6 +129,7 @@ void HostLink::poll(double now) {
     if (!running_) {
         return;
     }
+    now_ = now;
 
     // New connections.
     while (true) {
@@ -240,6 +241,11 @@ bool HostLink::handleFrames(Client& client) {
                     " is ready for UDP at " + endpointToString(client.udp));
                 break;
             }
+            case TcpType::OwnerRequest:
+                if (!handleOwnerRequest(client, reader)) {
+                    return false;
+                }
+                break;
             case TcpType::Bye: {
                 std::string reason;
                 if (!readBye(reader, reason)) {
@@ -249,7 +255,7 @@ bool HostLink::handleFrames(Client& client) {
                 return false;
             }
             default:
-                // Other messages (KEY and others) are not needed by the host at stage 1.
+                // Other messages (KEY and others) are not handled by the host yet.
                 break;
         }
     }
@@ -259,6 +265,51 @@ bool HostLink::handleFrames(Client& client) {
         return false;
     }
     return true;
+}
+
+bool HostLink::handleOwnerRequest(Client& client, Reader& reader) {
+    OwnerRequest request;
+    if (!readOwnerRequest(reader, request) ||
+        (request.action != kOwnerTake && request.action != kOwnerRelease)) {
+        client.leaveReason = "broken OWNER_REQUEST";
+        return false;
+    }
+
+    OwnerResult result =
+        request.action == kOwnerTake
+            ? table_.takeVessel(request.netId, client.clientId, client.player, now_)
+            : table_.releaseVessel(request.netId, client.clientId);
+    const char* verb = request.action == kOwnerTake ? "take" : "release";
+    std::string who = "client " + std::to_string(client.clientId) + " ('" + client.player + "')";
+
+    if (result == OwnerResult::Ok) {
+        const VesselRecord* vessel = table_.findById(request.netId);
+        log("OLC host: " + who + " " + verb + "s vessel '" + (vessel ? vessel->name : "?") + "'");
+        broadcastOwnership();
+        return true;
+    }
+
+    log("OLC host: " + who + " cannot " + verb + " vessel " + std::to_string(request.netId) +
+        " (reason " + std::to_string(static_cast<int>(result)) + ")");
+    OwnerDenied denied;
+    denied.netId = request.netId;
+    denied.reason = static_cast<uint8_t>(result);
+    Writer body;
+    writeOwnerDenied(body, denied);
+    sendMessage(client, TcpType::OwnerDenied, body);
+    return true;
+}
+
+void HostLink::broadcastOwnership() {
+    Writer body;
+    if (!writeOwnership(body, table_.ownerEntries())) {
+        return;  // more than 65535 vessels: not reachable, VESSELS would not have been built either
+    }
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::Ownership, body);
+        }
+    }
 }
 
 bool HostLink::handleHello(Client& client, Reader& reader) {
@@ -290,6 +341,8 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     client.welcomed = true;
     client.clientId = clientId;
     client.player = hello.player;
+    // A pilot who dropped out and came back under the same name gets his vessel back.
+    bool restored = table_.restoreHeldVessels(clientId, hello.player, now_) > 0;
 
     Welcome welcome;
     welcome.clientId = clientId;
@@ -312,6 +365,10 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
                                : "scenario #" + std::to_string(hello.scenarioId);
     log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId) +
         " (" + scenario + ")");
+    if (restored) {
+        log("OLC host: player '" + hello.player + "' got his vessel back");
+        broadcastOwnership();
+    }
     return true;
 }
 
@@ -386,8 +443,10 @@ bool HostLink::reject(Client& client, RejectReason reason, const std::string& te
 
 void HostLink::dropClient(size_t index, const std::string& reason) {
     Client& client = clients_[index];
+    bool announceOwners = false;
     if (client.welcomed) {
-        table_.removePlayer(client.clientId);
+        table_.removePlayer(client.clientId, client.player, now_);
+        announceOwners = true;
         log("OLC host: client " + std::to_string(client.clientId) + " left (" + reason + ")");
     } else {
         log("OLC host: connection from " + endpointToString(client.tcp.remote()) +
@@ -397,6 +456,10 @@ void HostLink::dropClient(size_t index, const std::string& reason) {
     client.tcp.flush();
     client.tcp.close();
     clients_.erase(clients_.begin() + static_cast<std::ptrdiff_t>(index));
+    // The others learn that the leaver's vessels have no owner now.
+    if (announceOwners) {
+        broadcastOwnership();
+    }
 }
 
 void HostLink::handleUdp() {
@@ -573,6 +636,8 @@ bool HostLink::sendVesselAdded(const VesselAdded& added) {
     }
     log("OLC host: vessel '" + added.name + "' (" + added.className + ") added as " +
         std::to_string(added.state.netId));
+    // The plugin may have set the owner of the new vessel: clients should know it.
+    broadcastOwnership();
     return true;
 }
 

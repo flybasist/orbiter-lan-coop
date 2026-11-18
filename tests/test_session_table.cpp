@@ -42,19 +42,19 @@ void testPlayerIds() {
     table.addPlayer(id);
 
     // A freed number is given again, and it is the lowest free one.
-    CHECK(table.removePlayer(2));
+    CHECK(table.removePlayer(2, "", 0.0));
     CHECK(table.playerCount() == 3);
     CHECK(table.addPlayer(id) && id == 2);
 
-    CHECK(table.removePlayer(1));
-    CHECK(table.removePlayer(3));
+    CHECK(table.removePlayer(1, "", 0.0));
+    CHECK(table.removePlayer(3, "", 0.0));
     CHECK(table.addPlayer(id) && id == 1);
 
     // Nonexistent clients cannot be removed.
-    CHECK(!table.removePlayer(9));
-    CHECK(!table.removePlayer(olc::kHostOwner));
-    CHECK(!table.removePlayer(olc::kNoOwner));
-    CHECK(!table.removePlayer(100));
+    CHECK(!table.removePlayer(9, "", 0.0));
+    CHECK(!table.removePlayer(olc::kHostOwner, "", 0.0));
+    CHECK(!table.removePlayer(olc::kNoOwner, "", 0.0));
+    CHECK(!table.removePlayer(100, "", 0.0));
 }
 
 void testRemovePlayerReleasesVessels() {
@@ -73,7 +73,7 @@ void testRemovePlayerReleasesVessels() {
     table.setOwner(c, first);
     table.setOwner(d, olc::kHostOwner);
 
-    CHECK(table.removePlayer(first));
+    CHECK(table.removePlayer(first, "", 0.0));
     CHECK(table.findById(a)->owner == olc::kNoOwner);
     CHECK(table.findById(c)->owner == olc::kNoOwner);
     CHECK(table.findById(b)->owner == second);
@@ -243,6 +243,89 @@ void testHostToClient() {
     }
 }
 
+void testTakeAndRelease() {
+    olc::SessionTable table;
+    uint8_t first = 0, second = 0;
+    table.addPlayer(first);
+    table.addPlayer(second);
+    uint16_t a = 0, b = 0, c = 0;
+    table.addVessel("A", "DeltaGlider", a);
+    table.addVessel("B", "DeltaGlider", b);
+    table.addVessel("C", "ShuttleA", c);
+    table.setOwner(c, olc::kHostOwner);
+
+    // A free vessel can be taken; a repeated request changes nothing.
+    CHECK(table.takeVessel(a, first, "Ann", 0.0) == olc::OwnerResult::Ok);
+    CHECK(table.takeVessel(a, first, "Ann", 0.0) == olc::OwnerResult::Ok);
+    CHECK(table.isControlledBy(a, first));
+
+    // Two pilots do not control one vessel; the host's vessel cannot be taken; one pilot - one vessel.
+    CHECK(table.takeVessel(a, second, "Bob", 0.0) == olc::OwnerResult::Busy);
+    CHECK(table.takeVessel(c, second, "Bob", 0.0) == olc::OwnerResult::Busy);
+    CHECK(table.takeVessel(b, first, "Ann", 0.0) == olc::OwnerResult::AlreadyHasVessel);
+    CHECK(table.takeVessel(99, second, "Bob", 0.0) == olc::OwnerResult::NoSuchVessel);
+    CHECK(table.findById(a)->owner == first && table.findById(b)->owner == olc::kNoOwner);
+
+    // Release: only the owner can do it, and then the vessel is free for anyone.
+    CHECK(table.releaseVessel(a, second) == olc::OwnerResult::NotOwner);
+    CHECK(table.releaseVessel(c, first) == olc::OwnerResult::NotOwner);
+    CHECK(table.releaseVessel(99, first) == olc::OwnerResult::NoSuchVessel);
+    CHECK(table.releaseVessel(a, first) == olc::OwnerResult::Ok);
+    CHECK(table.findById(a)->owner == olc::kNoOwner);
+    CHECK(table.takeVessel(a, second, "Bob", 1.0) == olc::OwnerResult::Ok);
+    CHECK(table.takeVessel(b, first, "Ann", 1.0) == olc::OwnerResult::Ok);
+}
+
+void testHoldAfterDropout() {
+    olc::SessionTable table;
+    uint8_t ann = 0, bob = 0;
+    table.addPlayer(ann);
+    table.addPlayer(bob);
+    uint16_t a = 0;
+    table.addVessel("A", "DeltaGlider", a);
+    table.takeVessel(a, ann, "Ann", 10.0);
+
+    // Ann drops out: the vessel has no owner but is reserved for her.
+    CHECK(table.removePlayer(ann, "Ann", 100.0));
+    CHECK(table.findById(a)->owner == olc::kNoOwner);
+    CHECK(table.takeVessel(a, bob, "Bob", 120.0) == olc::OwnerResult::Busy);
+    CHECK(table.takeVessel(a, bob, "Bob", 159.0) == olc::OwnerResult::Busy);
+
+    // After the hold has run out anyone may take it.
+    CHECK(table.takeVessel(a, bob, "Bob", 160.0) == olc::OwnerResult::Ok);
+}
+
+void testRestoreHeldVessels() {
+    olc::SessionTable table;
+    uint8_t ann = 0, bob = 0;
+    table.addPlayer(ann);
+    table.addPlayer(bob);
+    uint16_t a = 0, b = 0;
+    table.addVessel("A", "DeltaGlider", a);
+    table.addVessel("B", "DeltaGlider", b);
+    table.takeVessel(a, ann, "Ann", 0.0);
+    table.takeVessel(b, bob, "Bob", 0.0);
+    table.removePlayer(ann, "Ann", 100.0);
+    table.removePlayer(bob, "", 100.0);  // no name - nothing is reserved
+
+    // A pilot with another name gets nothing; so does Ann after the hold has run out.
+    uint8_t carl = 0;
+    table.addPlayer(carl);
+    CHECK(table.restoreHeldVessels(carl, "Carl", 110.0) == 0);
+    CHECK(table.restoreHeldVessels(carl, "Ann", 161.0) == 0);
+
+    // Ann is back in time and gets her vessel under her new number.
+    uint8_t annAgain = 0;
+    table.addPlayer(annAgain);
+    CHECK(table.restoreHeldVessels(annAgain, "Ann", 130.0) == 1);
+    CHECK(table.isControlledBy(a, annAgain));
+    CHECK(table.findById(b)->owner == olc::kNoOwner);
+    CHECK(table.restoreHeldVessels(annAgain, "Ann", 131.0) == 0);
+
+    // An empty name never matches an empty reservation.
+    CHECK(table.restoreHeldVessels(annAgain, "", 131.0) == 0);
+}
+
 }  // namespace
 
 int main() {
@@ -256,5 +339,8 @@ int main() {
     testOwnership();
     testOwnerEntries();
     testHostToClient();
+    testTakeAndRelease();
+    testHoldAfterDropout();
+    testRestoreHeldVessels();
     return checkResult();
 }

@@ -131,3 +131,12 @@
   "flight director", server modes, the stage 3 choices. The defaults for a LAN are changed by a
   measurement: 60 states per second and a 30 ms display delay (was 30 and 100 ms) — half the error over a
   wire, the own vessel will respond faster.
+- **Task 3.1, core:** vessel ownership. Protocol version 4: `OWNER_REQUEST` (take or release) and
+  `OWNER_DENIED` (a refusal with a reason). One client — one vessel, someone else's vessel and the
+  host's vessel cannot be taken; a pilot who dropped out keeps the vessel for 60 s and gets it back by
+  returning under the same name; the host sends ownership changes to everyone in `OWNERSHIP`.
+  `ClientLink::requestTake`, `requestRelease`, `takeOwnerDenials`. Tests: the table, messages, two
+  clients over loopback. The plugin: a host without graphics owns no vessels, the host-player and the pilots
+  take a free vessel by focusing it (F3), Ctrl+Alt+U releases it; someone else's vessel in focus is view only,
+  refusals and ownership changes are shown on screen. Checked on the rigs: a pilot took a vessel at join,
+  the second pilot sees "view only". The agent's limit and run rules — decision 40.

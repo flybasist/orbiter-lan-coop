@@ -37,7 +37,7 @@ bool SessionTable::addPlayer(uint8_t& clientId) {
     return false;  // unreachable: fewer than 8 clients and 254 numbers
 }
 
-bool SessionTable::removePlayer(uint8_t clientId) {
+bool SessionTable::removePlayer(uint8_t clientId, const std::string& player, double now) {
     auto it = std::find(clients_.begin(), clients_.end(), clientId);
     if (it == clients_.end()) {
         return false;
@@ -47,6 +47,8 @@ bool SessionTable::removePlayer(uint8_t clientId) {
     for (VesselRecord& vessel : vessels_) {
         if (vessel.owner == clientId) {
             vessel.owner = kNoOwner;
+            vessel.holdPlayer = player;
+            vessel.holdUntil = now + kOwnerHoldSeconds;
         }
     }
     return true;
@@ -146,6 +148,60 @@ bool SessionTable::setOwner(uint16_t netId, uint8_t owner) {
         }
     }
     return false;
+}
+
+OwnerResult SessionTable::takeVessel(uint16_t netId, uint8_t clientId, const std::string& player,
+                                     double now) {
+    VesselRecord* target = nullptr;
+    for (VesselRecord& vessel : vessels_) {
+        if (vessel.netId == netId) {
+            target = &vessel;
+        } else if (vessel.owner == clientId) {
+            return OwnerResult::AlreadyHasVessel;
+        }
+    }
+    if (target == nullptr) {
+        return OwnerResult::NoSuchVessel;
+    }
+    if (target->owner == clientId) {
+        return OwnerResult::Ok;  // already his: a repeated request changes nothing
+    }
+    if (target->owner != kNoOwner) {
+        return OwnerResult::Busy;
+    }
+    bool held = !target->holdPlayer.empty() && now < target->holdUntil;
+    if (held && target->holdPlayer != player) {
+        return OwnerResult::Busy;
+    }
+    target->owner = clientId;
+    target->holdPlayer.clear();
+    return OwnerResult::Ok;
+}
+
+OwnerResult SessionTable::releaseVessel(uint16_t netId, uint8_t clientId) {
+    for (VesselRecord& vessel : vessels_) {
+        if (vessel.netId == netId) {
+            if (vessel.owner != clientId) {
+                return OwnerResult::NotOwner;
+            }
+            vessel.owner = kNoOwner;
+            return OwnerResult::Ok;
+        }
+    }
+    return OwnerResult::NoSuchVessel;
+}
+
+int SessionTable::restoreHeldVessels(uint8_t clientId, const std::string& player, double now) {
+    int restored = 0;
+    for (VesselRecord& vessel : vessels_) {
+        if (vessel.owner == kNoOwner && !player.empty() && vessel.holdPlayer == player &&
+            now < vessel.holdUntil) {
+            vessel.owner = clientId;
+            vessel.holdPlayer.clear();
+            restored++;
+        }
+    }
+    return restored;
 }
 
 bool SessionTable::isControlledBy(uint16_t netId, uint8_t clientId) const {

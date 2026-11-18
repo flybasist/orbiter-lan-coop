@@ -23,12 +23,19 @@ constexpr int kDefaultMaxPlayers = 4;
 constexpr int kMaxPlayersLimit = 8;
 constexpr uint8_t kHostOwner = 0;  // the "host" owner in OWNERSHIP
 
+// How long a vessel stays reserved for a pilot who dropped out, seconds (decision 35).
+constexpr double kOwnerHoldSeconds = 60.0;
+
 // One vessel in the table.
 struct VesselRecord {
     uint16_t netId = 0;
     std::string name;
     std::string className;
     uint8_t owner = kNoOwner;  // 0 - host, 1…254 - client, kNoOwner - nobody
+    // Host only: the pilot dropped out and the vessel is reserved for this pilot until holdUntil.
+    // The owner is kNoOwner meanwhile; only a pilot with the same name can take the vessel back.
+    std::string holdPlayer;
+    double holdUntil = 0.0;  // real time, seconds
 };
 
 class SessionTable {
@@ -43,9 +50,11 @@ public:
     // NoFreeSlots.
     bool addPlayer(uint8_t& clientId);
 
-    // A client left: its number is freed and its vessels become ownerless (kNoOwner).
+    // A client left: its number is freed and its vessels become ownerless (kNoOwner), but
+    // for kOwnerHoldSeconds after now they are reserved for the pilot named player (an empty
+    // name reserves nothing). now - real time, seconds.
     // Returns false if there is no such client.
-    bool removePlayer(uint8_t clientId);
+    bool removePlayer(uint8_t clientId, const std::string& player, double now);
 
     int playerCount() const;  // host + clients
     int maxPlayers() const;
@@ -74,6 +83,19 @@ public:
     // Does not check whether such a client is connected: the client does not know the player list,
     // and the host passes only numbers from addPlayer. Returns false if there is no vessel.
     bool setOwner(uint16_t netId, uint8_t owner);
+
+    // The client takes a free vessel. Ok if the vessel has no owner, or is already this client's,
+    // or is reserved for this pilot (player is the name from HELLO). A client may have only one
+    // vessel. Host only.
+    OwnerResult takeVessel(uint16_t netId, uint8_t clientId, const std::string& player, double now);
+
+    // The client releases its own vessel: the owner becomes kNoOwner without a reservation.
+    // NotOwner if the vessel is not this client's. Host only.
+    OwnerResult releaseVessel(uint16_t netId, uint8_t clientId);
+
+    // A pilot who dropped out came back: gives this pilot back the vessels reserved for this name.
+    // Returns how many. Host only.
+    int restoreHeldVessels(uint8_t clientId, const std::string& player, double now);
 
     // Whether input from client clientId may be applied to vessel netId: the vessel exists and its
     // owner is this client. kHostOwner and kNoOwner are never client numbers, so for them

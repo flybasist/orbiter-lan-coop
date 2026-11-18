@@ -71,8 +71,8 @@ uint8_t levelToByte(double level) {
 
 }  // namespace
 
-HostSide::HostSide(const Config& config)
-    : config_(config), table_(config.maxPlayers), link_(table_) {}
+HostSide::HostSide(const Config& config, bool headless)
+    : config_(config), headless_(headless), table_(config.maxPlayers), link_(table_) {}
 
 bool HostSide::start() {
     buildBodies();
@@ -142,17 +142,21 @@ void HostSide::buildShips() {
         VESSEL* vessel = oapiGetVesselInterface(handle);
         const char* className = vessel->GetClassName();
         uint16_t netId = 0;
-        // The host owns all vessels: at stage 1 clients only watch.
+        // All vessels start free; the host-player takes its focus vessel after the list is built.
         if (!table_.addVessel(vessel->GetName(), className ? className : "", netId)) {
             oapiWriteLogV("OLC host: vessel '%s' skipped (duplicate or too long name)",
                           vessel->GetName());
             continue;
         }
-        table_.setOwner(netId, olc::kHostOwner);
         Ship ship;
         ship.netId = netId;
         ship.handle = handle;
         ships_.push_back(ship);
+    }
+    // A host with graphics is a pilot too: it flies the vessel in its focus (decision 35).
+    // A server without graphics flies nothing, all vessels are for the pilots.
+    if (!headless_) {
+        takeHostVessel(oapiGetFocusObject());
     }
 }
 
@@ -166,7 +170,6 @@ void HostSide::addNewShips() {
                           vessel->GetName());
             continue;
         }
-        table_.setOwner(netId, olc::kHostOwner);
         Ship ship;
         ship.netId = netId;
         ship.handle = handle;
@@ -357,6 +360,52 @@ void HostSide::onNewVessel(OBJHANDLE vessel) {
     // The vessel's setup is not finished yet (ORBITER-INTERNALS.md, "Plugin life"), so it gets
     // its number and goes to clients at the next state capture.
     newVessels_.push_back(vessel);
+}
+
+uint16_t HostSide::hostVessel() const {
+    for (const Ship& ship : ships_) {
+        const olc::VesselRecord* record = table_.findById(ship.netId);
+        if (record && record->owner == olc::kHostOwner) {
+            return ship.netId;
+        }
+    }
+    return kNoVessel;
+}
+
+void HostSide::takeHostVessel(OBJHANDLE vessel) {
+    if (headless_ || hostVessel() != kNoVessel) {
+        return;  // the host keeps its vessel until it releases it (Ctrl+Alt+U)
+    }
+    for (const Ship& ship : ships_) {
+        if (ship.handle != vessel) {
+            continue;
+        }
+        const olc::VesselRecord* record = table_.findById(ship.netId);
+        // The same rule as for clients: only a free vessel that is not reserved for a pilot.
+        if (record && record->owner == olc::kNoOwner && record->holdPlayer.empty()) {
+            table_.setOwner(ship.netId, olc::kHostOwner);
+            link_.broadcastOwnership();
+            oapiWriteLogV("OLC host: the host flies '%s'", record->name.c_str());
+        } else if (record) {
+            oapiWriteLogV("OLC host: '%s' is flown by a pilot, the host only watches it",
+                          record->name.c_str());
+        }
+        return;
+    }
+}
+
+void HostSide::onFocusChanged(OBJHANDLE vessel) {
+    takeHostVessel(vessel);
+}
+
+void HostSide::releaseHostVessel() {
+    const uint16_t netId = hostVessel();
+    if (netId == kNoVessel) {
+        return;
+    }
+    table_.setOwner(netId, olc::kNoOwner);
+    link_.broadcastOwnership();
+    oapiWriteLogV("OLC host: the host released '%s'", table_.findById(netId)->name.c_str());
 }
 
 void HostSide::logStats() {

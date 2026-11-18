@@ -12,6 +12,10 @@
 //   with the same sim_time;
 // - sends TCP messages (LANDED, VESSEL_ADDED, VESSEL_REMOVED) to all clients that finished
 //   the handshake;
+// - handles OWNER_REQUEST: a client takes a free vessel or releases its own one (the rules are in
+//   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
+//   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
+//   back when a player with the same name joins;
 // - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout) from the session table.
 //
 // Orbiter is not needed here: the plugin describes vessels and bodies via SessionTable and
@@ -103,6 +107,11 @@ public:
     bool sendVesselAdded(const VesselAdded& added);
     void sendVesselRemoved(uint16_t netId);
 
+    // Sends OWNERSHIP with the whole table to all clients that finished the handshake. HostLink
+    // calls it itself after client requests; the plugin calls it after it changes the host's own
+    // vessel in the table (setOwner with kHostOwner or kNoOwner).
+    void broadcastOwnership();
+
     // How many clients finished the handshake (got WELCOME).
     int clientCount() const;
 
@@ -135,6 +144,8 @@ private:
     bool handleHello(Client& client, Reader& reader);
     // Answers a HELLO with kNoScenario: puts SCENARIO into the queue or sends REJECT.
     bool sendScenario(Client& client, const Hello& hello);
+    // Handles OWNER_REQUEST of a welcomed client. false - the message is broken.
+    bool handleOwnerRequest(Client& client, Reader& reader);
     // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
     bool sendWorldLists(Client& client);
     // Puts a TCP message into the client's queue.
@@ -157,6 +168,7 @@ private:
     UdpSocket udp_;
     std::vector<Client> clients_;
     std::vector<BodyEntry> bodies_;
+    double now_ = 0.0;  // real time of the last poll
     uint32_t seq_ = 0;  // sequence number of outgoing UDP packets
     uint32_t lastScenarioId_ = 0;  // number of the last SCENARIO sent
     HostStats stats_;

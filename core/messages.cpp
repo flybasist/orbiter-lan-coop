@@ -200,6 +200,28 @@ bool readKey(Reader& reader, KeyPress& message) {
     return finished(reader);
 }
 
+void writeOwnerRequest(Writer& writer, const OwnerRequest& message) {
+    writer.writeU16(message.netId);
+    writer.writeU8(message.action);
+}
+
+bool readOwnerRequest(Reader& reader, OwnerRequest& message) {
+    reader.readU16(message.netId);
+    reader.readU8(message.action);
+    return finished(reader);
+}
+
+void writeOwnerDenied(Writer& writer, const OwnerDenied& message) {
+    writer.writeU16(message.netId);
+    writer.writeU8(message.reason);
+}
+
+bool readOwnerDenied(Reader& reader, OwnerDenied& message) {
+    reader.readU16(message.netId);
+    reader.readU8(message.reason);
+    return finished(reader);
+}
+
 void writeDock(Writer& writer, const Dock& message) {
     writer.writeU16(message.a);
     writer.writeU8(message.portA);

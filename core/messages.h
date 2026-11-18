@@ -33,6 +33,8 @@ enum class TcpType : uint8_t {
     Dock = 13,
     Landed = 14,
     Bye = 15,
+    OwnerRequest = 16,
+    OwnerDenied = 17,
 };
 
 // UDP message type numbers (section 6).
@@ -110,6 +112,32 @@ struct OwnerEntry {
 };
 constexpr uint8_t kNoOwner = 255;
 
+// Why a request to take or release a vessel was refused (OWNER_DENIED), and the result of
+// SessionTable::takeVessel and releaseVessel. Ok is never sent over the network.
+enum class OwnerResult : uint8_t {
+    Ok = 0,
+    NoSuchVessel = 1,      // no vessel with this number
+    Busy = 2,              // the vessel belongs to the host, another client or a pilot who dropped out
+    AlreadyHasVessel = 3,  // this client already has another vessel
+    NotOwner = 4,          // release of a vessel that is not this client's
+};
+
+// OWNER_REQUEST.action
+constexpr uint8_t kOwnerRelease = 0;
+constexpr uint8_t kOwnerTake = 1;
+
+// OWNER_REQUEST, client → host: take a free vessel or release the client's own one.
+struct OwnerRequest {
+    uint16_t netId = 0;
+    uint8_t action = kOwnerTake;  // kOwnerTake or kOwnerRelease
+};
+
+// OWNER_DENIED, host → client: the request was refused. The new owners come in OWNERSHIP.
+struct OwnerDenied {
+    uint16_t netId = 0;
+    uint8_t reason = 0;  // OwnerResult
+};
+
 // KEY, client → host: a single key press.
 struct KeyPress {
     uint16_t netId = 0;
@@ -158,6 +186,12 @@ bool readUdpReady(Reader& reader, uint16_t& udpPort);
 
 void writeKey(Writer& writer, const KeyPress& message);
 bool readKey(Reader& reader, KeyPress& message);
+
+void writeOwnerRequest(Writer& writer, const OwnerRequest& message);
+bool readOwnerRequest(Reader& reader, OwnerRequest& message);
+
+void writeOwnerDenied(Writer& writer, const OwnerDenied& message);
+bool readOwnerDenied(Reader& reader, OwnerDenied& message);
 
 void writeDock(Writer& writer, const Dock& message);
 bool readDock(Reader& reader, Dock& message);

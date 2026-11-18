@@ -10,6 +10,9 @@
 // Vessels and bodies are taken at session start. A vessel created during the session gets a
 // number at the next state capture and goes to clients in VESSEL_ADDED together with its
 // state; a deleted vessel goes to clients in VESSEL_REMOVED at once.
+// Vessels start free. A host with graphics flies the vessel in its focus, by the same rules as the
+// pilots (decision 35): a free vessel is taken by focusing it, Ctrl+Alt+U releases it. A server
+// without graphics flies nothing.
 #pragma once
 
 #include <cstdint>
@@ -27,7 +30,8 @@ namespace olcplugin {
 
 class HostSide {
 public:
-    explicit HostSide(const Config& config);
+    // headless - Orbiter runs without graphics (a server): the host then flies no vessel.
+    HostSide(const Config& config, bool headless);
 
     // Session start: vessel and body tables, network start. false - did not start (see the log).
     bool start();
@@ -44,6 +48,12 @@ public:
     // A vessel was created during the session.
     void onNewVessel(OBJHANDLE vessel);
 
+    // The host-player's focus changed: it takes the new vessel if it has none and the vessel is free.
+    void onFocusChanged(OBJHANDLE vessel);
+
+    // Ctrl+Alt+U on the host: release the host's vessel so a pilot can take it.
+    void releaseHostVessel();
+
 private:
     // A host vessel: number in the table and handle in Orbiter.
     struct Ship {
@@ -55,6 +65,10 @@ private:
 
     void buildBodies();
     void buildShips();
+    // The number of the vessel the host flies; kNoVessel - none.
+    uint16_t hostVessel() const;
+    // Takes this vessel for the host if the host has none and the vessel is free.
+    void takeHostVessel(OBJHANDLE vessel);
     // Gives numbers to vessels created since the last capture (onNewVessel).
     void addNewShips();
     // Body number by handle; false - the body is not in the list.
@@ -65,7 +79,11 @@ private:
     void logStats();
     void flushLog();
 
+    // hostVessel: "no vessel". net_id are handed out from 0, 65535 is never reached in practice.
+    static constexpr uint16_t kNoVessel = 0xFFFF;
+
     Config config_;
+    bool headless_;
     olc::SessionTable table_;
     olc::HostLink link_;
     std::vector<OBJHANDLE> bodies_;  // index - body net_id

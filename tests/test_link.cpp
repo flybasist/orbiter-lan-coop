@@ -471,6 +471,129 @@ void testVesselAddedRemoved() {
     CHECK(hasLine(hostLog, "OLC host: vessel 3 removed"));
 }
 
+// Takes and releases vessels: two pilots, the rules of SessionTable over the network, a dropout and a return.
+void testOwnership() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);  // ISS (net_id 2) is free, the two gliders belong to the host
+
+    olc::ClientConfig annConfig = makeClientConfig(host);
+    annConfig.player = "Ann";
+    olc::ClientConfig bobConfig = makeClientConfig(host);
+    bobConfig.player = "Bob";
+    olc::ClientLink ann;
+    olc::ClientLink bob;
+    CHECK(ann.start(annConfig, now()));
+    CHECK(bob.start(bobConfig, now()));
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() { return host.link.readyClientCount() == 2; }));
+
+    // Ann takes the free vessel: everybody sees the new owner.
+    ann.requestTake(2);
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() {
+        return sameTables(host.table, ann.table()) && sameTables(host.table, bob.table()) &&
+               host.table.findById(2)->owner == ann.clientId();
+    }));
+    CHECK(bob.table().findById(2)->owner == ann.clientId());
+
+    // Bob cannot take Ann's vessel or the host's one; both refusals reach him, nothing changes.
+    bob.requestTake(2);
+    bob.requestTake(0);
+    std::vector<olc::OwnerDenied> denials;
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() {
+        std::vector<olc::OwnerDenied> got = bob.takeOwnerDenials();
+        denials.insert(denials.end(), got.begin(), got.end());
+        return denials.size() == 2;
+    }));
+    if (denials.size() == 2) {
+        CHECK(denials[0].netId == 2 && denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::Busy));
+        CHECK(denials[1].netId == 0 && denials[1].reason == static_cast<uint8_t>(olc::OwnerResult::Busy));
+    }
+    CHECK(host.table.findById(2)->owner == ann.clientId());
+    CHECK(ann.takeOwnerDenials().empty());
+
+    // Bob cannot release somebody else's vessel.
+    bob.requestRelease(2);
+    denials.clear();
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() {
+        std::vector<olc::OwnerDenied> got = bob.takeOwnerDenials();
+        denials.insert(denials.end(), got.begin(), got.end());
+        return !denials.empty();
+    }));
+    CHECK(denials.size() == 1 && denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::NotOwner));
+
+    // Ann releases, Bob takes it.
+    ann.requestRelease(2);
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() { return bob.table().findById(2)->owner == olc::kNoOwner; }));
+    bob.requestTake(2);
+    CHECK(waitFor(host.link, {&ann, &bob}, [&]() { return ann.table().findById(2)->owner == bob.clientId(); }));
+
+    // Bob drops out: the vessel has no owner, but Ann cannot take it during the hold.
+    uint8_t bobId = bob.clientId();
+    bob.stop("test");
+    CHECK(waitFor(host.link, {&ann}, [&]() { return ann.table().findById(2)->owner == olc::kNoOwner; }));
+    ann.requestTake(2);
+    denials.clear();
+    CHECK(waitFor(host.link, {&ann}, [&]() {
+        std::vector<olc::OwnerDenied> got = ann.takeOwnerDenials();
+        denials.insert(denials.end(), got.begin(), got.end());
+        return !denials.empty();
+    }));
+    CHECK(denials.size() == 1 && denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::Busy));
+
+    // Bob returns under the same name and gets the vessel back at once, Ann sees it.
+    olc::ClientLink bobAgain;
+    CHECK(bobAgain.start(bobConfig, now()));
+    CHECK(waitFor(host.link, {&ann, &bobAgain}, [&]() {
+        return bobAgain.state() == olc::ClientLink::State::Ready &&
+               bobAgain.table().findById(2)->owner == bobAgain.clientId() &&
+               ann.table().findById(2)->owner == bobAgain.clientId();
+    }));
+    CHECK(bobAgain.clientId() == bobId);  // the lowest free number is Bob's old one
+
+    std::vector<std::string> hostLog = host.link.takeLog();
+    CHECK(hasLine(hostLog, "client " + std::to_string(ann.clientId()) + " ('Ann') takes vessel 'ISS'"));
+    CHECK(hasLine(hostLog, "player 'Bob' got his vessel back"));
+}
+
+// An OWNER_REQUEST with an unknown action: the host drops the client.
+void testBrokenOwnerRequest() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::TcpConnection raw;
+    olc::Endpoint endpoint;
+    endpoint.ip = kLoopback;
+    endpoint.port = host.link.port();
+    CHECK(raw.startConnect(endpoint));
+
+    olc::Hello hello;
+    hello.protocol = olc::kProtocolVersion;
+    hello.orbiterVersion = kOrbiterVersion;
+    hello.scenarioId = olc::kOwnScenario;
+    hello.pluginVersion = "test";
+    hello.player = "Raw";
+    olc::Writer helloBody;
+    CHECK(olc::writeHello(helloBody, hello));
+    raw.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::Hello), helloBody.bytes()));
+
+    olc::OwnerRequest request;
+    request.netId = 2;
+    request.action = 7;  // neither take nor release
+    olc::Writer requestBody;
+    olc::writeOwnerRequest(requestBody, request);
+    raw.send(olc::makeTcpFrame(static_cast<uint8_t>(olc::TcpType::OwnerRequest),
+                               requestBody.bytes()));
+
+    olc::TcpFrameReader frames;
+    bool closed = waitFor(host.link, {}, [&]() {
+        raw.flush();
+        return !raw.receive(frames) && raw.state() == olc::TcpConnection::State::Closed;
+    });
+    CHECK(closed);
+    CHECK(hasLine(host.link.takeLog(), "broken OWNER_REQUEST"));
+}
+
 // Starts a client that asks for the host's scenario and waits until it is closed.
 void requestScenario(TestHost& host, olc::ClientLink& client) {
     olc::ClientConfig config = makeClientConfig(host);
@@ -841,6 +964,8 @@ int main() {
     testRejectProtocolVersion();
     testHandshakeWithScenarioId();
     testVesselAddedRemoved();
+    testOwnership();
+    testBrokenOwnerRequest();
     testScenarioRequest();
     testScenarioUnavailable();
     testMessageBeforeHello();

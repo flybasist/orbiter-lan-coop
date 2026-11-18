@@ -95,6 +95,11 @@ void ClientSide::tick(double now, bool paused) {
                 removeExtraVessels();
                 extrasRemoved_ = true;
             }
+            // The focus at session start counts as a focus change: the pilot takes this vessel.
+            if (!focusChecked_) {
+                onFocusChanged(oapiGetFocusObject());
+            }
+            followOwnership();
             updateNotice(now);
         }
         if (now >= nextStats_) {
@@ -338,15 +343,26 @@ bool ClientSide::deleteVessel(OBJHANDLE handle) {
 }
 
 void ClientSide::noticeMissingClass(const std::string& className) {
-    if (std::find(missingClasses_.begin(), missingClasses_.end(), className) ==
+    if (std::find(missingClasses_.begin(), missingClasses_.end(), className) !=
         missingClasses_.end()) {
-        missingClasses_.push_back(className);
-        noticeShownAt_ = -1.0;  // show again with the new list
+        return;
     }
+    missingClasses_.push_back(className);
+    std::string text = "OLC: the host has vessels of classes not installed on this computer, "
+                       "they are not shown: ";
+    for (size_t i = 0; i < missingClasses_.size(); i++) {
+        text += (i == 0 ? "" : ", ") + missingClasses_[i];
+    }
+    showNotice(text);
+}
+
+void ClientSide::showNotice(const std::string& text) {
+    noticeText_ = text;
+    noticeShownAt_ = -1.0;  // shown at the next tick
 }
 
 void ClientSide::updateNotice(double now) {
-    if (missingClasses_.empty()) {
+    if (noticeText_.empty()) {
         return;
     }
     if (noticeShownAt_ < 0.0) {
@@ -355,16 +371,93 @@ void ClientSide::updateNotice(double now) {
             // Below the HUD text at the top of the window.
             oapiAnnotationSetPos(notice_, 0.1, 0.35, 0.9, 0.6);
         }
-        std::string text = "OLC: the host has vessels of classes not installed on this computer, "
-                           "they are not shown: ";
-        for (size_t i = 0; i < missingClasses_.size(); i++) {
-            text += (i == 0 ? "" : ", ") + missingClasses_[i];
-        }
-        oapiAnnotationSetText(notice_, &text[0]);
+        oapiAnnotationSetText(notice_, &noticeText_[0]);
         noticeShownAt_ = now;
-    } else if (notice_ && now - noticeShownAt_ > kNoticeSeconds) {
-        oapiDelAnnotation(notice_);
-        notice_ = nullptr;
+    } else if (now - noticeShownAt_ > kNoticeSeconds) {
+        if (notice_) {
+            oapiDelAnnotation(notice_);
+            notice_ = nullptr;
+        }
+        noticeText_.clear();
+    }
+}
+
+bool ClientSide::ownVessel(uint16_t& netId) const {
+    for (const olc::VesselEntry& entry : link_.table().vesselEntries()) {
+        if (link_.table().isControlledBy(entry.netId, link_.clientId())) {
+            netId = entry.netId;
+            return true;
+        }
+    }
+    return false;
+}
+
+void ClientSide::onFocusChanged(OBJHANDLE vessel) {
+    // Before the vessel list has arrived, the start focus is checked later from tick.
+    if (link_.state() != olc::ClientLink::State::Ready || !vessel) {
+        return;
+    }
+    focusChecked_ = true;
+    const olc::VesselRecord* record = link_.table().findByName(objectName(vessel));
+    if (!record) {
+        return;  // not a host vessel
+    }
+    uint16_t own = 0;
+    if (ownVessel(own)) {
+        if (own != record->netId) {
+            showNotice("OLC: view only - your vessel is '" +
+                       link_.table().findById(own)->name + "'. Ctrl+Alt+U releases it.");
+        }
+        return;
+    }
+    if (record->owner == olc::kNoOwner) {
+        link_.requestTake(record->netId);  // the answer comes as OWNERSHIP or OWNER_DENIED
+    } else {
+        showNotice("OLC: view only - '" + record->name + "' is flown by another pilot.");
+    }
+}
+
+void ClientSide::releaseOwnVessel() {
+    uint16_t own = 0;
+    if (link_.state() == olc::ClientLink::State::Ready && ownVessel(own)) {
+        link_.requestRelease(own);
+    }
+}
+
+void ClientSide::followOwnership() {
+    uint16_t own = 0;
+    const bool hasOwn = ownVessel(own);
+    if (hasOwn && (!hadOwnVessel_ || own != lastOwnVessel_)) {
+        const std::string name = link_.table().findById(own)->name;
+        showNotice("OLC: you fly '" + name + "'. Ctrl+Alt+U releases it.");
+        oapiWriteLogV("OLC client: flying '%s'", name.c_str());
+    } else if (!hasOwn && hadOwnVessel_) {
+        showNotice("OLC: your vessel is released. Focus a free vessel (F3) to take it.");
+        oapiWriteLogV("OLC client: vessel released");
+    }
+    hadOwnVessel_ = hasOwn;
+    lastOwnVessel_ = own;
+
+    for (const olc::OwnerDenied& denied : link_.takeOwnerDenials()) {
+        const olc::VesselRecord* record = link_.table().findById(denied.netId);
+        const std::string name = record ? record->name : "vessel";
+        std::string reason;
+        switch (static_cast<olc::OwnerResult>(denied.reason)) {
+        case olc::OwnerResult::Busy:
+            reason = "it is flown or reserved by another pilot";
+            break;
+        case olc::OwnerResult::AlreadyHasVessel:
+            reason = "you already fly another vessel";
+            break;
+        case olc::OwnerResult::NoSuchVessel:
+            reason = "the host has no such vessel";
+            break;
+        default:
+            reason = "the host refused";
+            break;
+        }
+        showNotice("OLC: cannot take '" + name + "': " + reason + ". View only.");
+        oapiWriteLogV("OLC client: cannot take '%s': %s", name.c_str(), reason.c_str());
     }
 }
 

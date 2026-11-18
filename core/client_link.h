@@ -14,6 +14,8 @@
 // - receives VESSEL_ADDED and VESSEL_REMOVED, changes the session table and tells the plugin
 //   which vessels to create and delete (takeVesselChanges); a class from VESSEL_ADDED that
 //   the client lacks goes to the host in one more CLASSES_MISSING;
+// - asks the host to take or release a vessel (requestTake, requestRelease); the answer is a new
+//   OWNERSHIP (the table changes) or OWNER_DENIED (takeOwnerDenials);
 // - sends PING once per second and measures the round trip time from PONG.
 //
 // Orbiter is not needed here: the plugin asks for a vessel state at the needed moment
@@ -146,6 +148,16 @@ public:
     // The session table is already changed; the plugin creates and deletes the vessels itself.
     std::vector<VesselChange> takeVesselChanges();
 
+    // Asks the host to give a free vessel to this client. The result comes later: the table
+    // changes by OWNERSHIP or the refusal arrives (takeOwnerDenials). Does nothing before the handshake is done.
+    void requestTake(uint16_t netId);
+
+    // Asks the host to release this client's vessel.
+    void requestRelease(uint16_t netId);
+
+    // Takes refusals (OWNER_DENIED) received since the last call, in arrival order.
+    std::vector<OwnerDenied> takeOwnerDenials();
+
     // The latest round trip time, seconds; below 0 - not measured yet.
     double rtt() const { return rtt_; }
 
@@ -166,6 +178,7 @@ private:
     void handleVesselRemoved(Reader& reader);
     // true if the client lacks this class and has not reported it yet (then remembers it).
     bool isNewMissingClass(const std::string& className);
+    void sendOwnerRequest(uint16_t netId, uint8_t action);
     // Puts a TCP message into the queue and sends as much as it can.
     void sendMessage(TcpType type, const Writer& body);
     void handleUdp(double now);
@@ -201,6 +214,7 @@ private:
     std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
     std::vector<VesselChange> vesselChanges_;
+    std::vector<OwnerDenied> ownerDenials_;
     std::vector<std::string> missingClasses_;  // already reported in CLASSES_MISSING
     bool hasScenario_ = false;
     Scenario scenario_;
