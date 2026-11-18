@@ -1,5 +1,6 @@
 #include "host_link.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "protocol.h"
@@ -448,6 +449,12 @@ bool HostLink::sendWorldLists(Client& client) {
         return false;
     }
     sendMessage(client, TcpType::Ownership, owners);
+
+    for (const Dock& dock : docks_) {
+        Writer body;
+        writeDock(body, dock);
+        sendMessage(client, TcpType::Dock, body);
+    }
     return true;
 }
 
@@ -685,6 +692,27 @@ void HostLink::sendFuel(const Fuel& fuel) {
     }
     if (!packet.vessels.empty()) {
         flushPacket();
+    }
+}
+
+void HostLink::sendDock(const Dock& dock) {
+    // The same link may be given in either order: vessel a with b or b with a.
+    auto sameLink = [&dock](const Dock& other) {
+        return (other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
+                other.portB == dock.portB) ||
+               (other.a == dock.b && other.portA == dock.portB && other.b == dock.a &&
+                other.portB == dock.portA);
+    };
+    docks_.erase(std::remove_if(docks_.begin(), docks_.end(), sameLink), docks_.end());
+    if (dock.docked) {
+        docks_.push_back(dock);
+    }
+    Writer body;
+    writeDock(body, dock);
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::Dock, body);
+        }
     }
 }
 

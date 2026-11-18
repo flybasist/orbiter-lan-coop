@@ -10,7 +10,7 @@
 // - receives WORLD_STATE: checks the session number and packet order, puts the
 //   states into the vessels' interpolation buffers (InterpolationBuffer) and adjusts the
 //   display clock (ClientClock);
-// - receives FUEL and LANDED and hands them to the plugin (takeFuel, takeLanded);
+// - receives FUEL, LANDED and DOCK and hands them to the plugin (takeFuel, takeLanded, takeDocks);
 // - receives VESSEL_ADDED and VESSEL_REMOVED, changes the session table and tells the plugin
 //   which vessels to create and delete (takeVesselChanges); a class from VESSEL_ADDED that
 //   the client lacks goes to the host in one more CLASSES_MISSING;
@@ -150,6 +150,9 @@ public:
     // Takes LANDED messages received since the last call, in arrival order.
     std::vector<Landed> takeLanded();
 
+    // Takes the DOCK messages that came since the last call, oldest first.
+    std::vector<Dock> takeDocks();
+
     // Takes vessel additions and deletions received since the last call, in arrival order.
     // The session table is already changed; the plugin creates and deletes the vessels itself.
     std::vector<VesselChange> takeVesselChanges();
@@ -228,6 +231,7 @@ private:
 
     std::map<uint16_t, VesselFuel> fuel_;  // by net_id, not yet taken
     std::vector<Landed> landed_;
+    std::vector<Dock> docks_;
     std::vector<VesselChange> vesselChanges_;
     std::vector<OwnerDenied> ownerDenials_;
     std::vector<std::string> missingClasses_;  // already reported in CLASSES_MISSING

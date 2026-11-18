@@ -27,6 +27,9 @@ constexpr double kPauseRequestPause = 0.5;
 
 constexpr double kStatsInterval = 10.0;
 
+// How long a DOCK waits for a vessel that is not created yet, seconds.
+constexpr double kDockRetrySeconds = 5.0;
+
 constexpr double kSecondsPerDay = 86400.0;
 
 // How long the notice about classes that are not installed stays on screen, seconds.
@@ -98,6 +101,7 @@ void ClientSide::tick(double now, bool paused) {
         followTime(now, displayTime);
         if (!paused) {
             applyVesselChanges();
+            applyDocks(now);
             applyFuel();
             collectLanded();
             applyStates(displayTime);
@@ -208,6 +212,66 @@ void ClientSide::putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed&
     oapiWriteLogV("OLC client: vessel '%s' landed", vessel->GetName());
 }
 
+void ClientSide::applyDocks(double now) {
+    for (const olc::Dock& dock : link_.takeDocks()) {
+        pendingDocks_.push_back({dock, now + config_.displayDelay});
+    }
+    while (!pendingDocks_.empty() && pendingDocks_.front().applyAt <= now) {
+        const olc::Dock dock = pendingDocks_.front().dock;
+        OBJHANDLE handleA = vesselHandle(dock.a);
+        OBJHANDLE handleB = vesselHandle(dock.b);
+        if (!handleA || !handleB) {
+            // A vessel is not created yet: try again for a few seconds, then give up.
+            if (now - pendingDocks_.front().applyAt > kDockRetrySeconds) {
+                oapiWriteLogV("OLC client: DOCK for vessels %d and %d dropped: no such vessel", dock.a,
+                              dock.b);
+                pendingDocks_.erase(pendingDocks_.begin());
+                continue;
+            }
+            break;
+        }
+        VESSEL* vesselA = oapiGetVesselInterface(handleA);
+        auto sameLink = [&dock](const olc::Dock& other) {
+            return other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
+                   other.portB == dock.portB;
+        };
+        dockedLinks_.erase(std::remove_if(dockedLinks_.begin(), dockedLinks_.end(), sameLink),
+                           dockedLinks_.end());
+        if (dock.docked) {
+            // Mode 0: the vessels are not moved, they are already where the host docked them.
+            const int result = vesselA->Dock(handleB, dock.portA, dock.portB, 0);
+            if (result == 0) {
+                dockedLinks_.push_back(dock);
+            }
+            oapiWriteLogV("OLC client: docking vessels %d and %d: %s (code %d)", dock.a, dock.b,
+                          result == 0 ? "done" : "failed", result);
+        } else {
+            vesselA->Undock(dock.portA);
+            oapiWriteLogV("OLC client: undocked vessels %d and %d", dock.a, dock.b);
+        }
+        pendingDocks_.erase(pendingDocks_.begin());
+    }
+}
+
+std::map<uint16_t, uint16_t> ClientSide::dockLeaders() const {
+    // Each vessel starts as its own leader; every link joins two bundles under the smaller leader.
+    std::map<uint16_t, uint16_t> leader;
+    for (const olc::Dock& link : dockedLinks_) {
+        leader.emplace(link.a, link.a);
+        leader.emplace(link.b, link.b);
+    }
+    for (const olc::Dock& link : dockedLinks_) {
+        const uint16_t from = (std::max)(leader[link.a], leader[link.b]);
+        const uint16_t to = (std::min)(leader[link.a], leader[link.b]);
+        for (auto& entry : leader) {
+            if (entry.second == from) {
+                entry.second = to;
+            }
+        }
+    }
+    return leader;
+}
+
 void ClientSide::applyStates(double displayTime) {
     // Trace: the vessel is looked up once, when the table has arrived.
     if (!traceResolved_ && !config_.traceVessel.empty()) {
@@ -222,7 +286,10 @@ void ClientSide::applyStates(double displayTime) {
         }
     }
 
+    const std::map<uint16_t, uint16_t> leaders = dockLeaders();
     for (const olc::VesselEntry& entry : link_.table().vesselEntries()) {
+        auto bundle = leaders.find(entry.netId);
+        const bool inBundle = bundle != leaders.end();
         olc::VesselState state;
         bool starved = false;
         if (!link_.sampleVessel(entry.netId, displayTime, state, starved)) {
@@ -241,7 +308,10 @@ void ClientSide::applyStates(double displayTime) {
         }
         VESSEL* vessel = oapiGetVesselInterface(handle);
 
-        if (state.status == static_cast<uint8_t>(olc::VesselStatus::Flying)) {
+        if (inBundle && bundle->second != entry.netId) {
+            // Not the leader of its bundle: the leader moves the whole bundle (ORBITER-INTERNALS.md,
+            // section 9), a state of this vessel would only fight with it.
+        } else if (state.status == static_cast<uint8_t>(olc::VesselStatus::Flying)) {
             VESSELSTATUS2 status;
             std::memset(&status, 0, sizeof(status));
             status.version = 2;
@@ -252,6 +322,12 @@ void ClientSide::applyStates(double displayTime) {
             status.arot = toVector3(state.arot);
             status.vrot = toVector3(state.vrot);
             vessel->DefSetStateEx(&status);
+            if (inBundle) {
+                // Position and velocity move the whole bundle, the orientation of the bundle is set
+                // separately (and would be overwritten at the next step otherwise).
+                vessel->SetGlobalOrientation(status.arot);
+                vessel->SetAngularVel(status.vrot);
+            }
 
             if (traceResolved_ && trace_.isOpen() && entry.netId == traceNetId_) {
                 trace_.write(link_.hostMjdAt(displayTime), objectName(body).c_str(),

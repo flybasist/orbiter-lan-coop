@@ -217,6 +217,15 @@ bool ClientLink::handleFrames(double now) {
                 landed_.push_back(landed);
                 break;
             }
+            case TcpType::Dock: {
+                Dock dock;
+                if (!readDock(reader, dock)) {
+                    close("broken DOCK message");
+                    break;
+                }
+                docks_.push_back(dock);
+                break;
+            }
             case TcpType::Bye: {
                 std::string reason;
                 if (!readBye(reader, reason)) {
@@ -538,6 +547,12 @@ void ClientLink::requestRelease(uint16_t netId) {
 std::vector<OwnerDenied> ClientLink::takeOwnerDenials() {
     std::vector<OwnerDenied> result;
     result.swap(ownerDenials_);
+    return result;
+}
+
+std::vector<Dock> ClientLink::takeDocks() {
+    std::vector<Dock> result;
+    result.swap(docks_);
     return result;
 }
 

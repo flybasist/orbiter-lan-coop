@@ -9,6 +9,10 @@
 // Actions are read from Config\OlcRigTest.cfg at session start, one per line:
 //   <sim time, s> create <name> <class> <existing vessel>
 //   <sim time, s> delete <name>
+//   <sim time, s> dock <vessel> <its port> <other vessel> <its port>
+//   <sim time, s> undock <vessel> <its port>
+// "dock" brings the other vessel to the first one and docks them (mode 1), so the vessels may start
+// far apart; port numbers start from 0.
 // A created vessel takes the state of the existing vessel, shifted 200 m along x so that the
 // two do not collide. Empty lines and lines starting with ; are skipped.
 // Load it only on rigs: Orbiter.exe ... -p OlcRigTest
@@ -32,7 +36,9 @@ struct Action {
     std::string command;  // create or delete
     std::string name;
     std::string className;  // create only
-    std::string nearVessel;  // create only
+    std::string nearVessel;  // create: vessel to copy; dock: the other vessel
+    int port = 0;            // dock, undock: port of the vessel `name`
+    int otherPort = 0;       // dock: port of the other vessel
     bool done = false;
 };
 
@@ -55,7 +61,14 @@ public:
             if (action.command == "create") {
                 words >> action.className >> action.nearVessel;
             }
-            if (words.fail() || (action.command != "create" && action.command != "delete")) {
+            if (action.command == "dock") {
+                words >> action.port >> action.nearVessel >> action.otherPort;
+            } else if (action.command == "undock") {
+                words >> action.port;
+            }
+            const bool known = action.command == "create" || action.command == "delete" ||
+                               action.command == "dock" || action.command == "undock";
+            if (words.fail() || !known) {
                 oapiWriteLogV("OLC rig test: bad line '%s'", line.c_str());
                 continue;
             }
@@ -74,8 +87,12 @@ public:
             action.done = true;
             if (action.command == "create") {
                 create(action);
-            } else {
+            } else if (action.command == "delete") {
                 remove(action);
+            } else if (action.command == "dock") {
+                dock(action);
+            } else {
+                undock(action);
             }
         }
     }
@@ -96,6 +113,26 @@ private:
         if (oapiCreateVesselEx(action.name.c_str(), action.className.c_str(), &status)) {
             oapiWriteLogV("OLC rig test: created '%s'", action.name.c_str());
         }
+    }
+
+    void dock(const Action& action) {
+        OBJHANDLE first = oapiGetVesselByName(const_cast<char*>(action.name.c_str()));
+        OBJHANDLE second = oapiGetVesselByName(const_cast<char*>(action.nearVessel.c_str()));
+        if (!first || !second) {
+            oapiWriteLogV("OLC rig test: dock: no vessel '%s' or '%s'", action.name.c_str(),
+                          action.nearVessel.c_str());
+            return;
+        }
+        const int result = oapiGetVesselInterface(first)->Dock(second, action.port, action.otherPort, 1);
+        oapiWriteLogV("OLC rig test: dock '%s' and '%s': code %d", action.name.c_str(),
+                      action.nearVessel.c_str(), result);
+    }
+
+    void undock(const Action& action) {
+        OBJHANDLE handle = oapiGetVesselByName(const_cast<char*>(action.name.c_str()));
+        const bool done = handle && oapiGetVesselInterface(handle)->Undock(action.port);
+        oapiWriteLogV("OLC rig test: undock '%s' port %d: %s", action.name.c_str(), action.port,
+                      done ? "done" : "failed");
     }
 
     void remove(const Action& action) {

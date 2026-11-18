@@ -261,7 +261,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.2 | Client: the key layout from `keymap.cfg`; control keys and the joystick of the own vessel → `INPUT` over UDP every frame (at most 60 Hz); control keys of any vessel are cleared locally, the camera works | Windows ARM | `INPUT` arrives in the host log, the local physics does not argue with the host | done (2026-11-18; full throttle by key checked on the rig, the other keys and the joystick — by tests and by code) |
 | 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same | done (2026-11-18; full throttle by key checked on the rig, the other keys and the joystick — by tests and by code) |
 | 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host | done (2026-11-18; "Prograde" `[` and gear `G` checked on the stand; RCS keys from the client as in 3.2–3.3) |
-| 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps | waiting |
+| 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps | done (2026-11-18; docking and undocking are repeated on the client on the stand; jerks were not measured, only looked at in a screenshot) |
 | 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | waiting |
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | waiting: the agent prepares scenarios and the memo, people check |
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | waiting |
@@ -298,6 +298,17 @@ vessel", i.e. the DeltaGlider took the key itself. The host drops and counts `KE
 sender does not own (core test). The press is carried out on the client too (decision 33, variant
 A); the host reads the key layout from its own `keymap.cfg`, so host and client layouts must match.
 A key that arrives during pause waits until the pause ends.
+
+**Results of 3.5 (2026-11-18).** `OlcRigTest` has `dock` and `undock`. The host (Windows 11 x64) finds
+links itself: every frame it looks at the ports (`GetDockStatus`) and sends `DOCK` on a change,
+naming the link from the vessel with the smaller `net_id`; a client that joins later gets the
+current links from `HostLink` right after `OWNERSHIP`. The client (Windows 11 ARM) carries out `DOCK`
+after the display delay (30 ms): `Dock` in mode 0, `Undock`. While vessels are docked, the state is
+imposed only on the vessel with the smaller `net_id` (position and velocity via `DefSetStateEx`,
+orientation and rotation via `SetGlobalOrientation` and `SetAngularVel`); the others are left alone.
+The run: two DeltaGliders 200 m apart, `dock` at 95 s, `undock` at 115 s: the client docks with
+code 0 and undocks, and its screenshot shows the pair nose to nose. Jerks were not measured (task
+3.6 and the check by people).
 
 **Stage 3 succeeds if:**
 

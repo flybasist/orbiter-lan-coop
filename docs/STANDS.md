@@ -277,6 +277,8 @@ At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
 ```text
 ; <sim time, s> create <name> <class> <existing vessel>
 ; <sim time, s> delete <name>
+; <sim time, s> dock <vessel> <its port> <other vessel> <its port>
+; <sim time, s> undock <vessel> <its port>
 60 create GL-NEW DeltaGlider Ref
 60 delete Ref
 90 delete GL-NEW

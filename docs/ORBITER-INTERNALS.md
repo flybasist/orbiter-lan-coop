@@ -325,7 +325,7 @@ Empty when an ImGui window has taken the keyboard.
 - `DefSetStateEx` on a part of a superstructure: position and velocity move **the whole assembly**
   (`SuperVessel::RPlace`, `SuperVessel.cpp:309-331`), while the attitude is written only into the part and
   overwritten on the next step. The assembly's attitude is set by `SetGlobalOrientation` and
-  `SetAngularVel` — they take the superstructure into account. Check at stage 3.
+  `SetAngularVel` — they take the superstructure into account. Checked on the stand (stage 3.5): the client flies the stack through one vessel and leaves the others alone.
 - `VS_DOCKINFOLIST` in `DefSetStateEx` at run time only rearranges pointers and does not
   create a superstructure — do not use it.
 - `VESSEL::Dock (target, n, tgtn, mode)` and `Undock (n)` (`VesselAPI.h:4520, 4535`) work

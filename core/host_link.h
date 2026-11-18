@@ -10,6 +10,8 @@
 // - sends WORLD_STATE and FUEL to clients whose UDP port is known; a state that does
 //   not fit into one packet (kMaxUdpPacketSize) is split into several packets
 //   with the same sim_time;
+// - sends DOCK (docked and undocked) the same way and keeps the list of current links for
+//   clients that join later;
 // - sends TCP messages (LANDED, VESSEL_ADDED, VESSEL_REMOVED) to all clients that finished
 //   the handshake;
 // - receives INPUT only from the UDP address of the client that owns the vessel, keeps the latest one
@@ -113,6 +115,10 @@ public:
     // Sends LANDED over TCP to all clients that finished the handshake.
     void sendLanded(const Landed& landed);
 
+    // Sends DOCK over TCP to all clients that finished the handshake. HostLink remembers the
+    // links that are docked now and sends them to clients that join later, right after OWNERSHIP.
+    void sendDock(const Dock& dock);
+
     // A vessel appeared or was deleted during the session. The plugin first changes the session
     // table (addVessel, removeVessel), then calls these: clients that join later get the vessel
     // in VESSELS anyway. sendVesselAdded returns false if the message cannot be built (see
@@ -203,6 +209,7 @@ private:
     UdpSocket udp_;
     std::vector<Client> clients_;
     std::vector<BodyEntry> bodies_;
+    std::vector<Dock> docks_;     // links that are docked now (see sendDock)
     std::vector<KeyPress> keys_;  // accepted KEY presses, not yet taken by the plugin
     double now_ = 0.0;  // real time of the last poll
     uint32_t seq_ = 0;  // sequence number of outgoing UDP packets

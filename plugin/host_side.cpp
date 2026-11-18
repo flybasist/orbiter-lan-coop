@@ -195,6 +195,7 @@ void HostSide::tick(double now, bool paused) {
     if (!paused) {
         applyInputs(now);
         applyKeys();
+        detectDocking();
     }
 
     const double rate = paused ? kPausedStateRate : static_cast<double>(config_.stateRateHz);
@@ -387,6 +388,60 @@ void HostSide::applyInputs(double now) {
             inputKeyFrames_++;
         }
     }
+}
+
+void HostSide::detectDocking() {
+    std::vector<olc::Dock> current;
+    for (const Ship& a : ships_) {
+        VESSEL* vesselA = oapiGetVesselInterface(a.handle);
+        for (UINT portA = 0; portA < vesselA->DockCount(); portA++) {
+            OBJHANDLE mate = vesselA->GetDockStatus(vesselA->GetDockHandle(portA));
+            if (!mate) {
+                continue;
+            }
+            for (const Ship& b : ships_) {
+                if (b.handle != mate || b.netId < a.netId) {
+                    continue;  // each link is found once, from the side with the smaller net_id
+                }
+                VESSEL* vesselB = oapiGetVesselInterface(b.handle);
+                for (UINT portB = 0; portB < vesselB->DockCount(); portB++) {
+                    if (vesselB->GetDockStatus(vesselB->GetDockHandle(portB)) == a.handle) {
+                        olc::Dock link;
+                        link.a = a.netId;
+                        link.portA = static_cast<uint8_t>(portA);
+                        link.b = b.netId;
+                        link.portB = static_cast<uint8_t>(portB);
+                        link.docked = 1;
+                        current.push_back(link);
+                    }
+                }
+            }
+        }
+    }
+
+    auto sameLink = [](const olc::Dock& x, const olc::Dock& y) {
+        return x.a == y.a && x.portA == y.portA && x.b == y.b && x.portB == y.portB;
+    };
+    auto contains = [&sameLink](const std::vector<olc::Dock>& list, const olc::Dock& link) {
+        return std::any_of(list.begin(), list.end(),
+                           [&](const olc::Dock& other) { return sameLink(other, link); });
+    };
+    for (const olc::Dock& link : docked_) {
+        if (!contains(current, link)) {
+            olc::Dock undocked = link;
+            undocked.docked = 0;
+            link_.sendDock(undocked);
+            oapiWriteLogV("OLC host: vessels %d and %d undocked", link.a, link.b);
+        }
+    }
+    for (const olc::Dock& link : current) {
+        if (!contains(docked_, link)) {
+            link_.sendDock(link);
+            oapiWriteLogV("OLC host: vessels %d (port %d) and %d (port %d) docked", link.a,
+                          link.portA, link.b, link.portB);
+        }
+    }
+    docked_ = current;
 }
 
 void HostSide::applyKeys() {

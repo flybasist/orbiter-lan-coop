@@ -126,7 +126,7 @@ A message with extra bytes after the last field is treated as broken, the same a
 | `OWNERSHIP` | host → client | `count: u16`, then `net_id: u16`, `owner: u8` (0 — host, 1…254 — client, 255 — nobody) |
 | `UDP_READY` | client → host | `udp_port: u16` — the port on the client machine; if the client is behind NAT, the host takes the real address from `PING` (section 6) |
 | `KEY` | client → host | `net_id: u16`, `key: u8` (an `OAPI_KEY_*` code), `mods: u8` (bits: 0 — Shift, 1 — Ctrl, 2 — Alt) |
-| `DOCK` | host → client | `a: u16`, `port_a: u8`, `b: u16`, `port_b: u8`, `docked: u8` (1 — docked, 0 — undocked) |
+| `DOCK` | host → client | `a: u16`, `port_a: u8`, `b: u16`, `port_b: u8`, `docked: u8` (1 — docked, 0 — undocked). The link is named from the vessel with the smaller `net_id`. The host remembers the current links and sends them to a client that joins later, right after `OWNERSHIP` |
 | `LANDED` | host → client | `net_id: u16`, `lng: f64`, `lat: f64`, `hdg: f64` (rad) — a vessel came to rest on a surface |
 | `OWNER_REQUEST` | client → host | `net_id: u16`, `action: u8` (1 — take a free vessel, 0 — release one's own). The host checks the rules and on success sends the whole `OWNERSHIP` to everyone |
 | `OWNER_DENIED` | host → client | `net_id: u16`, `reason: u8` (1 — no such vessel, 2 — the vessel is busy: it belongs to the host, to another client or is kept for a pilot who dropped out, 3 — the client already has another vessel, 4 — not the client's vessel, cannot release). Only to the one who asked |

@@ -76,6 +76,9 @@ private:
     void sendWorld(bool paused);
     // Applies the pilots' latest INPUT to their vessels (every frame outside pause).
     void applyInputs(double now);
+    // Finds vessels that docked or undocked since the last call and sends DOCK. Called every frame
+    // outside pause; a link is named from the vessel with the smaller net_id.
+    void detectDocking();
     // Passes the pilots' key presses (KEY) to their vessels.
     void applyKeys();
     void sendFuel();
@@ -92,6 +95,7 @@ private:
     olc::HostLink link_;
     std::vector<OBJHANDLE> bodies_;  // index - body net_id
     std::vector<Ship> ships_;
+    std::vector<olc::Dock> docked_;  // links docked at the last detectDocking
     std::vector<OBJHANDLE> newVessels_;  // created during the session, no number yet
     Trace trace_;
     OBJHANDLE traceHandle_ = nullptr;

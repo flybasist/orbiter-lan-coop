@@ -626,6 +626,58 @@ void testInputNotOwned() {
     CHECK(!host.link.latestInput(2, got, receivedAt));
 }
 
+// DOCK reaches the clients in order; a client that joins later gets the links docked now,
+// and an undocked link is not sent to it.
+void testDock() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink first;
+    CHECK(first.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&first}, [&]() { return host.link.readyClientCount() == 1; }));
+
+    olc::Dock one;
+    one.a = 1;
+    one.portA = 0;
+    one.b = 2;
+    one.portB = 1;
+    one.docked = 1;
+    olc::Dock two = one;
+    two.a = 3;
+    two.b = 4;
+    olc::Dock oneUndocked = one;
+    oneUndocked.a = 2;  // the same link, named from the other side
+    oneUndocked.portA = 1;
+    oneUndocked.b = 1;
+    oneUndocked.portB = 0;
+    oneUndocked.docked = 0;
+    host.link.sendDock(one);
+    host.link.sendDock(two);
+    host.link.sendDock(oneUndocked);
+
+    std::vector<olc::Dock> got;
+    CHECK(waitFor(host.link, {&first}, [&]() {
+        std::vector<olc::Dock> more = first.takeDocks();
+        got.insert(got.end(), more.begin(), more.end());
+        return got.size() >= 3;
+    }));
+    CHECK(got.size() == 3);
+    CHECK(got[0].a == 1 && got[0].portB == 1 && got[0].docked == 1);
+    CHECK(got[1].a == 3 && got[1].b == 4 && got[1].docked == 1);
+    CHECK(got[2].a == 2 && got[2].docked == 0);
+
+    // The late client gets only link two.
+    olc::ClientLink late;
+    CHECK(late.start(makeClientConfig(host), now()));
+    std::vector<olc::Dock> lateGot;
+    CHECK(waitFor(host.link, {&first, &late}, [&]() {
+        std::vector<olc::Dock> more = late.takeDocks();
+        lateGot.insert(lateGot.end(), more.begin(), more.end());
+        return !lateGot.empty();
+    }));
+    CHECK(lateGot.size() == 1 && lateGot[0].a == 3 && lateGot[0].b == 4);
+}
+
 // KEY of the owner reaches the host in order; KEY for a foreign vessel is dropped and counted;
 // takeKeys empties the queue.
 void testKeyDelivery() {
@@ -1136,6 +1188,7 @@ int main() {
     testInputAfterRelease();
     testInputKeyBits();
     testKeyDelivery();
+    testDock();
     testBrokenOwnerRequest();
     testScenarioRequest();
     testScenarioUnavailable();

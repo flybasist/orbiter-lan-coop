@@ -277,6 +277,8 @@ orbiter-lan-coop.out/tools/netcheck/olc-netcheck client 192.168.1.10 47800 300 3
 ```text
 ; <сим-время, с> create <имя> <класс> <существующий корабль>
 ; <сим-время, с> delete <имя>
+; <сим-время, с> dock <корабль> <его порт> <другой корабль> <его порт>
+; <сим-время, с> undock <корабль> <его порт>
 60 create GL-NEW DeltaGlider Ref
 60 delete Ref
 90 delete GL-NEW

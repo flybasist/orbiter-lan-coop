@@ -15,6 +15,8 @@
 // - once, right after the first states are applied, client vessels the host does not have
 //   are deleted;
 // - VESSEL_REMOVED deletes the vessel here too.
+// Docking follows the host (DOCK): Dock in mode 0 and Undock after the display delay; vessels that are
+// docked are flown through the one with the smallest net_id.
 // The last vessel is never deleted: Orbiter would end the session.
 // The pilot's own vessel (decision 35): focusing a free vessel while having none asks the host
 // for it; the vessel stays the pilot's until Ctrl+Alt+U or leaving. Someone else's vessel in
@@ -54,6 +56,7 @@ public:
 
     void onDeleteVessel(OBJHANDLE vessel);
 
+
     // The focus changed (F3): take the new vessel if the pilot has none and it is free.
     void onFocusChanged(OBJHANDLE vessel);
 
@@ -74,6 +77,12 @@ private:
     void followTime(double now, double displayTime);
     // Sends INPUT for the pilot's vessel: keys only while it is in focus, plus the joystick.
     void sendInput(double now);
+    // Repeats the host's docking and undocking: a DOCK is carried out after the display delay, so the
+    // client vessels have reached the places they had when the host docked them.
+    void applyDocks(double now);
+    // Docked vessels are flown through one vessel of the bundle (the one with the smallest net_id):
+    // net_id -> leader of its bundle, for vessels that are docked now.
+    std::map<uint16_t, uint16_t> dockLeaders() const;
     void applyFuel();
     void collectLanded();
     void putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place);
@@ -119,6 +128,12 @@ private:
     bool focusChecked_ = false;             // the start focus was checked (onFocusChanged)
     bool hadOwnVessel_ = false;             // the pilot had a vessel at the last check
     uint16_t lastOwnVessel_ = 0;
+    struct PendingDock {
+        olc::Dock dock;
+        double applyAt;  // real time
+    };
+    std::vector<PendingDock> pendingDocks_;  // DOCK messages waiting for their time
+    std::vector<olc::Dock> dockedLinks_;     // links docked on this client now
     olc::Keymap keymap_;                    // Orbiter's key layout (keymap.cfg)
     uint32_t heldKeys_ = 0;                 // INPUT.keys from the last onKeyboard
     uint64_t keyFrames_ = 0;                // frames with a control key held (for the log)
