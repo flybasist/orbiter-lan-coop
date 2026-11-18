@@ -17,10 +17,10 @@ I — research, S — test rigs.
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.12 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
-| 4. Crew | Two in one vessel: pilot and navigator with MFDs | detailed plan awaiting approval (question Q8) |
-| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | detailed plan awaiting approval (question Q8) |
+| 4. Crew | Two in one vessel: pilot and navigator with MFDs | plan approved on 2026-11-18 (decision 46); after stage 5, research 4.1 — now (task 3.18) |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); code — after the stage 3 tests by people (decision 47), research 5.6 — now (task 3.19) |
 
-The order of stages 4 and 5 depends on the space club's answers (what matters more to them).
+Order: stage 5 first, then 4; research 4.1 and 5.6 — at once (decision 46). The code of stages 4 and 5 is written after the stage 3 tests by people (decision 47).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
 error), documentation.
 
@@ -274,6 +274,8 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | waiting |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | waiting |
 | 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | waiting |
+| 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
+| 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
@@ -471,11 +473,11 @@ be checked against the code:
 Not part of stage 3: a crew in one vessel (stage 4), clicks in the cockpit and on panels, add-ons' own
 held keys (the SDK does not allow it), sending animations in a general way.
 
-## Stages 4 and 5: detailed plan (for the owner's approval)
+## Stages 4 and 5: detailed plan (approved by the owner on 2026-11-18)
 
 Written in task 3.12 (2026-11-18) from the Orbiter sources and the results of stages 2–3. The order
-of the stages, the way to recognise the flight director and the navigator's rights are question Q8
-in [QUESTIONS.md](QUESTIONS.md). Stage 5 is proposed first: it is cheaper, needs no research of
+of the stages, the way to recognise the flight director and the navigator's rights are question Q8,
+decision 46. Stage 5 is proposed first: it is cheaper, needs no research of
 cockpit clicks and is needed already in the club's lessons (shared pause, saves).
 
 ### Stage 5. Flight director
