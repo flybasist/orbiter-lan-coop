@@ -487,6 +487,7 @@ void ClientSide::noticeMissingClass(const std::string& className) {
 }
 
 void ClientSide::showNotice(const std::string& text) {
+    oapiWriteLogV("OLC client: notice: %s", text.c_str());  // the screen is not always watched
     noticeText_ = text;
     noticeShownAt_ = -1.0;  // shown at the next tick
 }

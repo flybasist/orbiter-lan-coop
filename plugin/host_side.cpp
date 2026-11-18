@@ -85,6 +85,27 @@ bool hasThrust(VESSEL* vessel) {
     return false;
 }
 
+// What a pilot's keys did to the vessel, for checks on the rigs (task 3.11). Written when the set of
+// held keys changes, right after the INPUT is applied: on a press the levels show what the key set,
+// on a release the rotation shows what the RCS did.
+void logControls(VESSEL* vessel, uint32_t keys) {
+    double rcs = 0.0;
+    for (int group = THGROUP_ATT_PITCHUP; group <= THGROUP_ATT_BACK; group++) {
+        rcs = (std::max)(rcs, vessel->GetThrusterGroupLevel(static_cast<THGROUP_TYPE>(group)));
+    }
+    VECTOR3 rotation;
+    vessel->GetAngularVel(rotation);
+    oapiWriteLogV("OLC host: '%s' keys 0x%06X: RCS mode %d level %.2f, main %.2f, retro %.2f, "
+                  "hover %.2f, trim %.2f, wheel brakes %.2f %.2f, rotation %.2f %.2f %.2f deg/s",
+                  vessel->GetName(), static_cast<unsigned>(keys), vessel->GetAttitudeMode(), rcs,
+                  vessel->GetThrusterGroupLevel(THGROUP_MAIN),
+                  vessel->GetThrusterGroupLevel(THGROUP_RETRO),
+                  vessel->GetThrusterGroupLevel(THGROUP_HOVER),
+                  vessel->GetControlSurfaceLevel(AIRCTRL_ELEVATORTRIM),
+                  vessel->GetWheelbrakeLevel(1), vessel->GetWheelbrakeLevel(2),
+                  rotation.x * DEG, rotation.y * DEG, rotation.z * DEG);
+}
+
 }  // namespace
 
 HostSide::HostSide(const Config& config, bool headless)
@@ -425,13 +446,16 @@ void HostSide::applyInputs(double now) {
         VESSEL* vessel = oapiGetVesselInterface(ship.handle);
         // A new press of the full main engine key on a quiet vessel starts a latency probe, as on
         // the client (see sendWorld).
-        const bool fullMain = (input.keys & olc::kInputFullMain) != 0;
-        if (fullMain && !ship.fullMain && !hasThrust(vessel)) {
+        const uint32_t fullMain = olc::kInputFullMain;
+        if ((input.keys & fullMain) != 0 && (ship.keys & fullMain) == 0 && !hasThrust(vessel)) {
             ship.probeAt = wallClock();
             ship.probeLongestFrame = 0.0;
         }
-        ship.fullMain = fullMain;
         applyInput(vessel, input, simdt);
+        if (input.keys != ship.keys) {
+            logControls(vessel, input.keys);
+            ship.keys = input.keys;
+        }
         inputFrames_++;
         if (input.keys != 0) {
             inputKeyFrames_++;

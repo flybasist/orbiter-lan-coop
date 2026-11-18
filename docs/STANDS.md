@@ -102,7 +102,7 @@ invisible service session, not on the desktop. So:
   [`tools/stands/run-orbiter.ps1`](../tools/stands/run-orbiter.ps1) in the user's session.
   The agent puts the job (which Orbiter copies to start with which switches, when to take screenshots) into
   `C:\olc\run-orbiter.json` (the `window` field places the copies' windows side by side, the `ui` field presses
-  buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}` — this is how the "Connect" button in
+  buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}`, several keys at once — joined with `+`: `"0x1D+0x38+0x16"` (Ctrl+Alt+U) — this is how the "Connect" button in
   Launchpad and reconnecting are checked); the result is
   a log and screenshots in `C:\olc\run-orbiter`. The log notes after how many seconds a copy
   exited by itself; the `timeout` field counts from the start of the copies, so with `-T` it must be
@@ -281,12 +281,15 @@ At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
 ; <sim time, s> delete <name>
 ; <sim time, s> dock <vessel> <its port> <other vessel> <its port>
 ; <sim time, s> undock <vessel> <its port>
+; <sim time, s> focus <vessel>
 60 create GL-NEW DeltaGlider Ref
 60 delete Ref
 90 delete GL-NEW
 ```
 
 A new vessel takes the state of the existing one shifted by 200 m, so that they do not collide.
+`focus` moves the focus to the vessel, as F3 does; this is needed on a client: the F3 window is drawn
+by ImGui, and the rig scripts cannot click in it.
 The class must be installed, otherwise Orbiter terminates abnormally.
 
 Test scenarios need a `PRPLEVEL` line, otherwise vessels start with empty tanks.

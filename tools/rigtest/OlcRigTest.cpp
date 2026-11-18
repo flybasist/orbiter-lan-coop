@@ -2,6 +2,8 @@
 //
 // Creates and deletes vessels at given sim times, so that a host session can be checked
 // without a person: OLC must send these changes to clients (VESSEL_ADDED, VESSEL_REMOVED).
+// On a client it can switch the focus, as F3 would (the F3 dialog is drawn by ImGui and cannot be
+// clicked by the rig scripts).
 // A Lua scenario script would do the same, but in a session without graphics started over SSH
 // Orbiter hangs when such a script creates and deletes vessels (checked 2026-11-17, without OLC
 // too), while a plugin works.
@@ -11,6 +13,7 @@
 //   <sim time, s> delete <name>
 //   <sim time, s> dock <vessel> <its port> <other vessel> <its port>
 //   <sim time, s> undock <vessel> <its port>
+//   <sim time, s> focus <vessel>
 // "dock" brings the other vessel to the first one and docks them (mode 1), so the vessels may start
 // far apart; port numbers start from 0.
 // A created vessel takes the state of the existing vessel, shifted 200 m along x so that the
@@ -33,7 +36,7 @@ constexpr double kCreateOffset = 200.0;
 
 struct Action {
     double simTime = 0.0;
-    std::string command;  // create or delete
+    std::string command;  // create, delete, dock, undock or focus
     std::string name;
     std::string className;  // create only
     std::string nearVessel;  // create: vessel to copy; dock: the other vessel
@@ -67,7 +70,8 @@ public:
                 words >> action.port;
             }
             const bool known = action.command == "create" || action.command == "delete" ||
-                               action.command == "dock" || action.command == "undock";
+                               action.command == "dock" || action.command == "undock" ||
+                               action.command == "focus";
             if (words.fail() || !known) {
                 oapiWriteLogV("OLC rig test: bad line '%s'", line.c_str());
                 continue;
@@ -91,8 +95,10 @@ public:
                 remove(action);
             } else if (action.command == "dock") {
                 dock(action);
-            } else {
+            } else if (action.command == "undock") {
                 undock(action);
+            } else {
+                focus(action);
             }
         }
     }
@@ -133,6 +139,12 @@ private:
         const bool done = handle && oapiGetVesselInterface(handle)->Undock(action.port);
         oapiWriteLogV("OLC rig test: undock '%s' port %d: %s", action.name.c_str(), action.port,
                       done ? "done" : "failed");
+    }
+
+    void focus(const Action& action) {
+        OBJHANDLE handle = oapiGetVesselByName(const_cast<char*>(action.name.c_str()));
+        const bool done = handle && oapiSetFocusObject(handle) != nullptr;
+        oapiWriteLogV("OLC rig test: focus '%s': %s", action.name.c_str(), done ? "done" : "failed");
     }
 
     void remove(const Action& action) {

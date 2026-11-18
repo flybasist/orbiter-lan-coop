@@ -61,9 +61,9 @@ private:
         OBJHANDLE handle = nullptr;  // a deleted vessel is removed from the list at once
         bool landed = false;         // was landed at the last capture
         bool announce = false;       // created during the session: VESSEL_ADDED not sent yet
+        uint32_t keys = 0;           // INPUT.keys of the last applied pilot's INPUT
         // Latency probe (task 3.10): the full main engine key of a pilot's INPUT was applied at
         // probeAt (wall clock) and no state with thrust has gone out yet. < 0 - no probe.
-        bool fullMain = false;       // the key was held in the last applied INPUT
         double probeAt = -1.0;
         double probeLongestFrame = 0.0;  // the longest host frame since probeAt, seconds
     };

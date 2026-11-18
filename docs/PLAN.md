@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.10 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.11 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
@@ -267,7 +267,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | done (2026-11-18; Windows 11 ARM: a server without graphics and a client with graphics on one machine, `HostAddress = 127.0.0.1`, RTT about 16 ms; described in `QUICKSTART.md`, section 6) |
 | 3.9 | A headless host sometimes does not exit on `-T` (the log stops ~27 s before the limit): find the cause | Proxmox | The cause in the results; fixed if it is in OLC | done (2026-11-18): on the rigs `-T` fires on time, the cause is an outer run timeout, see the 3.9 results |
 | 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | done (2026-11-18): the outliers come from the rig network (Wi-Fi and NAT), see the 3.10 results |
-| 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | waiting |
+| 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | done (2026-11-18): everything except the retro engine is confirmed by the host log, see the 3.11 results |
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | waiting |
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | waiting |
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | waiting |
@@ -373,6 +373,36 @@ second, the press went out after 31–34 ms in 5 of 20 cases. Now the next time 
 one (`nextSendTime` in `core/protocol.h`), `INPUT` goes out 60 times per second, the press — within one
 client frame. The host times `WORLD_STATE` by the same rule: a host with graphics at 60 frames per
 second will not lose half of the states.
+
+**Results of 3.11 (2026-11-18).** Host Windows 11 x64 without graphics, client Windows 11 ARM with a
+picture, the pilot's DeltaGlider "Ref" in orbit. The keys were pressed by `run-orbiter.ps1` (it now
+handles combinations like Ctrl+Alt+U), the focus on the client was moved by `OlcRigTest` (the new
+`focus` action: the F3 window is drawn by ImGui, a script cannot click in it). The host logs what the
+pilot's keys did: at each change of the held keys — the RCS mode, the levels of RCS, main, retro and
+hover engines, the trim, the wheel brakes and the rotation; the client logs its notices.
+
+| Key | Result on the host |
+|---|---|
+| `/` (RCS mode) | The mode switched: rotation → translation → rotation |
+| Numpad 2 in translation mode | RCS 1.00, no rotation — moving up |
+| Numpad 4 in translation mode | Nothing, as in Orbiter: it has no translation |
+| Numpad 2 and 6 in rotation mode | Pitch 12.5 °/s, bank 18.6 °/s |
+| Ctrl + numpad 2 (low power RCS) | RCS 0.10, pitch 1.2 °/s |
+| Numpad 5 (kill rotation) | Autopilot 1 (`KILLROT`) on, rotation 0 |
+| Ctrl + numpad "+" (throttle) for 2 s | Main engine 0.40 (0.2 per second) |
+| Numpad `*` | Main engine 0 |
+| Numpad 0 and "." (hover) for 2 s each | 0.42, then 0.02 |
+| Delete and Insert (trim) for 2 s each | 0.50, then 0.00 |
+| "," and "." (wheel brakes) | Left 1.00, right 1.00 |
+| Numpad "−" (retro) | `INPUT` with the key arrived, but the level is not visible: a DeltaGlider's retro engines have no fuel while the covers are closed (`EnableRetroThrusters`); not checked with the covers open |
+| Ctrl+Alt+U | Host: "releases vessel 'Ref'", the client shows a notice about it |
+| Focus on a free vessel after that | The client took `GL-01S` |
+| Focus on another vessel while owning one | Notice "view only - your vessel is 'Ref'"; numpad 2 at that time did not reach `Ref` |
+| Ctrl+F3 (back to one's own) | The focus came back: the next numpad 2 rotated `Ref` (6.3 °/s) |
+
+Ctrl+F3 and the RCS keys also go to the host as `KEY` (decision 33, option A) and are passed to the
+vessel; the DeltaGlider does not take them, no harm. Focus on a vessel flown by another pilot was not
+checked: it needs a second client with a picture.
 
 **Stage 3 succeeds if:**
 

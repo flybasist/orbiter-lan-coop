@@ -20,7 +20,8 @@
 #       { "at": 10, "click": "Edit" },
 #       { "at": 60, "close": "session" },           - close the simulation window (back to Launchpad)
 #       { "at": 70, "key": "0x4E", "seconds": 3 }   - hold a key (scan code, as OAPI_KEY_*) in the
-#                                                    active window: Orbiter's DirectInput sees it
+#                                                    active window: Orbiter's DirectInput sees it;
+#       { "at": 80, "key": "0x1D+0x38+0x16", "seconds": 0.3 } - several keys (Ctrl+Alt+U)
 #     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
@@ -82,9 +83,12 @@ public static extern uint SendInput(uint count, INPUT[] inputs, int size);
 public static void Key(ushort scan, bool up) {
     INPUT[] input = new INPUT[1];
     input[0].type = 1;  // INPUT_KEYBOARD
-    input[0].ki.wScan = (ushort)(scan & 0xFF);
-    // KEYEVENTF_SCANCODE, KEYEVENTF_KEYUP, KEYEVENTF_EXTENDEDKEY for codes above 0x80
-    input[0].ki.dwFlags = 0x0008u | (up ? 0x0002u : 0u) | (scan > 0x80 ? 0x0001u : 0u);
+    // A code above 0x80 (DIK_DELETE = 0xD3, DIK_DIVIDE = 0xB5) is an extended key: the keyboard
+    // sends its low 7 bits with the extended flag (KEYEVENTF_EXTENDEDKEY).
+    bool extended = scan > 0x80;
+    input[0].ki.wScan = (ushort)(extended ? scan & 0x7F : scan & 0xFF);
+    // KEYEVENTF_SCANCODE, KEYEVENTF_KEYUP, KEYEVENTF_EXTENDEDKEY
+    input[0].ki.dwFlags = 0x0008u | (up ? 0x0002u : 0u) | (extended ? 0x0001u : 0u);
     SendInput(1, input, System.Runtime.InteropServices.Marshal.SizeOf(typeof(INPUT)));
 }
 '@
@@ -105,10 +109,13 @@ function Invoke-UiStep($step, $processIds) {
             }
         }
         Start-Sleep -Milliseconds 300
-        $scan = [Convert]::ToUInt16($step.key, 16)
-        [Olc.Win32]::Key($scan, $false)
+        # Several keys at once are joined with "+" (modifiers first): pressed in order, released
+        # in reverse order.
+        $scans = @($step.key -split '\+' | ForEach-Object { [Convert]::ToUInt16($_.Trim(), 16) })
+        foreach ($scan in $scans) { [Olc.Win32]::Key($scan, $false) }
         Start-Sleep -Milliseconds ([int]([double]$step.seconds * 1000))
-        [Olc.Win32]::Key($scan, $true)
+        [array]::Reverse($scans)
+        foreach ($scan in $scans) { [Olc.Win32]::Key($scan, $true) }
         Write-Log "ui: held key $($step.key) for $($step.seconds) s"
         return
     }
