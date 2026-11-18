@@ -709,3 +709,56 @@ is written to the file, then step 3.
   (`Psys.cpp`, `InitState` → `Vessel::Vessel` → `TerminateOnError`). So before starting it, the plugin
   removes from the received scenario the vessels of classes the client lacks
   (`core/scenario_filter.h`).
+
+## 19. What the MFDs and DeltaGlider change in the vessel (reconnaissance 4.1)
+
+Task 3.18 (2026-11-18), base commit `a7a3396e`. What the navigator does locally and what of it must
+reach the pilot's vessel on the host.
+
+### Standard MFDs
+
+- Almost all MFDs (Orbit, Map, Align, Sync, Transfer, Landing, HSI, Surface) only **read** the vessel.
+  The only writes into the vessel come from Comms and MFD Map.
+- **Comms** (`MfdComms.cpp:171-172`) changes the NAV receiver frequencies (`Vessel::IncNavChannel`)
+  and the transponder (`IncXpdrChannel`). From the SDK: `VESSEL::SetNavRecv`/`GetNavChannel`
+  (`VesselAPI.h:5343`); a frequency is a step 0…NAV_RADIO_NSTEP, `freq = step*0.05 +
+  NAV_RADIO_FREQ_MIN` (`Vessel.cpp:1070-1076`). A vessel has `nnav` receivers (2 by default,
+  `Vessel.cpp:745`).
+- **MFD Map** (`MfdMap.cpp:549`) sets the landing target `SetLandingTarget(Base*)`; it has no public
+  SDK access and only affects hints (`Vessel.cpp:7037`). No need to send it.
+- **Docking** changes nothing in the vessel except its own port selection (the IDS frequency of a
+  port, `SetIDSChannel`, belongs to the target and is not changed by the navigator).
+- Other MFD state (mode, target, reference) lives in the navigator's MFD and is not sent.
+
+### Vessel modes
+
+- Autopilots: `ActivateNavmode`/`DeactivateNavmode`/`GetNavmodeState` (`VesselAPI.h:898-925`) are
+  readable and settable without knowing the class; the host can apply a mode to the pilot's vessel.
+- RCS mode: `GetAttitudeMode`/`SetAttitudeMode` (`VesselAPI.h:3114`).
+- Core autopilots must not run on the client copy (section 17), so modes are applied on the host
+  and the pilot's client gets the result through the ordinary state.
+
+### DeltaGlider
+
+- Gear, nose cone, airlock, radiators and air brake state is kept in the vessel module and is not
+  part of `VESSELSTATUS2` (section 17). It can be read and set through the class's Lua
+  interface: `DG:Gear`, `Nosecone`, `Hatch`, `Retro`, `OLock`, `ILock`, `Radiator`, `ABrake`
+  (`DGLua.cpp:52-61`); the plugin calls them through `oapiExecScriptCmd` (`OrbiterAPI.h:4512`).
+  This only works for the DeltaGlider class.
+- Panel and cockpit clicks (`clbkPanelMouseEvent`, `clbkVCMouseEvent`, `DeltaGlider.cpp:1546, 1648`)
+  are called by the core only for the focus vessel with a loaded panel (`Pane.cpp:162-170`); a
+  plugin cannot call another module's callback (the class is not exposed). Conclusion: **the host
+  cannot apply the navigator's clicks**; a "command → Lua or SDK" path is needed.
+- The DG control dialog (Ctrl+Space, `DeltaGlider.cpp:1697`) is the vessel's own dialog and is not
+  moved to the host.
+
+### What can be synchronized (candidates)
+
+| What | How to read | How to set on the host | Needed |
+|---|---|---|---|
+| NAV frequencies, transponder | `GetNavChannel`, `GetXpdrChannel` | `SetNavRecv`, `SetXpdrChannel` | yes, stage 4 |
+| Autopilots | `GetNavmodeState` | `ActivateNavmode` | per the answer to Q8 item 3 |
+| RCS mode | `GetAttitudeMode` | `SetAttitudeMode` | pilot, not navigator |
+| DG gear, cone, airlock | DG Lua | DG Lua | pilot only, stage 3 |
+
+The fork is question Q11 in `QUESTIONS.md`.

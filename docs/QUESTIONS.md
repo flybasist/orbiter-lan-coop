@@ -12,7 +12,15 @@ and the question to the "Closed" section.
 
 ## Open
 
-There are no open questions now.
+### Q11. What the navigator changes in the pilot's vessel (task 3.18)
+
+Reconnaissance (`ORBITER-INTERNALS.md`, section 19): standard MFDs write into the vessel only NAV
+and transponder frequencies (Comms); the host cannot apply panel clicks.
+
+- **A (recommended).** In stage 4 synchronize only NAV and transponder frequencies through the SDK;
+  the navigator does not change autopilots or RCS mode (as in Q8, item 3).
+- **B.** Plus autopilots (`ActivateNavmode`) from the navigator — one more message type.
+- **C.** Plus DeltaGlider details through Lua — that class only, a lot of code.
 
 ## Closed
 
