@@ -12,7 +12,7 @@ and the question to the "Closed" section.
 
 ## Open
 
-There are no open questions now.
+- **Q10. What textures and kernels go into the test archive.** Options: **A (recommended)** - the archive holds only Orbiter, D3D9Client, the plugin, settings and scenarios; the SPICE kernels and base Earth textures come by links in the instructions, high resolution is not needed; **B** - also put the SPICE kernels in (the Orbiter site states no license); **C** - put the textures in too, but only after you confirm the license from the author's page. Details - `TEXTURES.md`.
 
 ## Closed
 

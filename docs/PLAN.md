@@ -272,7 +272,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | done (2026-11-18): section "Stages 4 and 5: detailed plan", question Q8 |
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | done (2026-11-18): the bugs found are fixed, 4 findings are not bugs, see the results of 3.13 |
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | done (2026-11-18): documents and comments checked against the code, see the results of 3.14 |
-| 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | in progress |
+| 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | done (2026-11-18): `TEXTURES.md`; the download list waits for the answer to Q10 |
 | 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | waiting |
 | 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | waiting (main session) |
 | 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
@@ -469,6 +469,14 @@ itself. The Russian and English versions agree in meaning everywhere. Fixed:
 Left as is: task labels in comments (references to the plan), the "minimum to start" in `STANDS.md`
 (advice for a new rig), `ClientClock::jumps` and `HostLink::port` — the tests check by them.
 Check: builds without warnings on Mac and MSVC x64, `ctest` 13 of 13 on both, `olc-doccheck` passes.
+
+**Results of 3.15 (2026-11-18).** The research is in `TEXTURES.md`. The main points: Orbiter 2024
+(373 MB) and the SPICE kernels come from GitHub and `cdn.openorbiter.space`; they hold no Earth
+textures, the base textures come from an Orbiter 2016 installation; the high-resolution packs (Earth
+32.83 GB) are not needed for orbital docking. No license is stated for the texture packs and the forum
+pages are closed to the agent (403), so they must not go into the archive until the owner confirms.
+The download list is question Q10 (I recommend option A: only our files and Orbiter with D3D9Client
+in the archive, the rest by links).
 
 **Stage 3 succeeds if:**
 

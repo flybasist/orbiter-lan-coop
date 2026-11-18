@@ -17,6 +17,7 @@ and flies their own vessel, while the host computes the physics. Testing happens
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the plugin is built and why it is done this way |
 | [PROTOCOL.md](PROTOCOL.md) | Network protocol: channels, messages, fields (draft) |
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
+| [TEXTURES.md](TEXTURES.md) | Where textures and kernels come from, sizes, licenses and the contents of the test archive |
 | [SMOOTHING.md](SMOOTHING.md) | Motion smoothing: state rate, buffer delay and interpolation method based on the model results |
 | [RESEARCH.md](RESEARCH.md) | Research: Orbiter, past attempts, Linux and macOS, licenses, releases |
 | [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md) | Map of the Orbiter core: what the plugin relies on, with references to the code |
