@@ -137,6 +137,10 @@ private:
     olc::Keymap keymap_;                    // Orbiter's key layout (keymap.cfg)
     uint32_t heldKeys_ = 0;                 // INPUT.keys from the last onKeyboard
     uint64_t keyFrames_ = 0;                // frames with a control key held (for the log)
+    // Control latency (task 3.6): from pressing the full main engine key to thrust on the displayed
+    // own vessel. keyDownAt_ < 0 - no press is being timed.
+    double keyDownAt_ = -1.0;
+    bool ownThrusting_ = false;             // the displayed own vessel had thrust at the last frame
     uint64_t keyPresses_ = 0;               // KEY messages sent (for the log)
 
     Trace trace_;

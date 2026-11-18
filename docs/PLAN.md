@@ -262,7 +262,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.3 | Host: apply `INPUT` to the client's vessel (RCS — `IncThrusterGroupLevel_SingleStep`, throttle, hover, trim, brakes — as the core does); no `INPUT` for more than 0.5 s — release the controls | Windows x64 | A rig check: the client turns and accelerates its vessel, the host sees the same | done (2026-11-18; full throttle by key checked on the rig, the other keys and the joystick — by tests and by code) |
 | 3.4 | One-time key presses → `KEY` over TCP → `SendBufferedKey` on the host: autopilot modes, RCS, vessel keys (gear, hatches) | Windows | The "Prograde" autopilot and the DeltaGlider gear from the client work on the host | done (2026-11-18; "Prograde" `[` and gear `G` checked on the stand; RCS keys from the client as in 3.2–3.3) |
 | 3.5 | Docking: the host reports `DOCK` (docking and undocking), the client repeats `Dock` in mode 0 and moves the stack through one vessel | Mac + Windows | `OlcRigTest` docks and undocks two vessels on the host — the client shows the same, without jumps | done (2026-11-18; docking and undocking are repeated on the client on the stand; jerks were not measured, only looked at in a screenshot) |
-| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | waiting |
+| 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | done (2026-11-18; median 67 ms at 60 Hz and a 30 ms display delay, see the results of 3.6) |
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | scenarios and guide are ready (2026-11-18, `tools/scenarios/`, [PILOT-GUIDE.md](PILOT-GUIDE.md)); waiting for people |
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | done (2026-11-18; Windows 11 ARM: a server without graphics and a client with graphics on one machine, `HostAddress = 127.0.0.1`, RTT about 16 ms; described in `QUICKSTART.md`, section 6) |
 
@@ -309,6 +309,16 @@ orientation and rotation via `SetGlobalOrientation` and `SetAngularVel`); the ot
 The run: two DeltaGliders 200 m apart, `dock` at 95 s, `undock` at 115 s: the client docks with
 code 0 and undocks, and its screenshot shows the pair nose to nose. Jerks were not measured (task
 3.6 and the check by people).
+
+**Results of 3.6 (2026-11-18).** The client notes the time of pressing the full main engine key and
+the time when thrust appears on the displayed vessel of the pilot (`OLC client: control latency` in
+the log; the thrust is seen in the exhaust, and the velocity grows after it). The host is Windows 11
+x64 on Proxmox, the client is Windows 11 ARM in Parallels (Wi-Fi and NAT, RTT 14–18 ms), so it is not
+a wired pair. Five presses at 30 Hz and a 100 ms display delay: 131, 136, 150, 135 ms. With the
+default values (60 Hz, 30 ms): 63, 67, 67, 148, 370 ms — about 65 ms in most cases, two outliers;
+their cause was not found out (suspects: a host frame or Wi-Fi). The latency is made of the `INPUT`
+path (up to 16 ms until the next send, about RTT/2), the host frame, the state interval (17 ms at
+60 Hz) and the display delay. It was not measured on a wired LAN.
 
 **Stage 3 succeeds if:**
 

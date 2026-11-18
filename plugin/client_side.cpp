@@ -27,6 +27,9 @@ constexpr double kPauseRequestPause = 0.5;
 
 constexpr double kStatsInterval = 10.0;
 
+// A latency measurement is dropped after this many seconds without thrust.
+constexpr double kLatencyGiveUp = 2.0;
+
 // How long a DOCK waits for a vessel that is not created yet, seconds.
 constexpr double kDockRetrySeconds = 5.0;
 
@@ -342,6 +345,21 @@ void ClientSide::applyStates(double displayTime) {
             }
         }
 
+        uint16_t own = 0;
+        if (ownVessel(own) && own == entry.netId) {
+            const bool thrusting = std::any_of(state.thrusters.begin(), state.thrusters.end(),
+                                               [](uint8_t level) { return level > 0; });
+            const double now = oapiGetSysTime();
+            if (keyDownAt_ >= 0.0 && thrusting) {
+                oapiWriteLogV("OLC client: control latency %.0f ms (key press to thrust on the "
+                              "displayed vessel)", (now - keyDownAt_) * 1000.0);
+                keyDownAt_ = -1.0;
+            } else if (keyDownAt_ >= 0.0 && now - keyDownAt_ > kLatencyGiveUp) {
+                keyDownAt_ = -1.0;  // the key had no effect (vessel not in focus, no fuel)
+            }
+            ownThrusting_ = thrusting;
+        }
+
         // Thruster levels: for the exhaust, and also the client physics between packets
         // moves the vessel the same way as the host.
         const DWORD thrusters = vessel->GetThrusterCount();
@@ -510,7 +528,13 @@ void ClientSide::onKeyboard(char kstate[256]) {
     if (link_.state() != olc::ClientLink::State::Ready) {
         return;
     }
+    const uint32_t before = heldKeys_;
     heldKeys_ = keymap_.inputKeys(kstate);
+    // A new press of the full main engine key starts a latency measurement, if the vessel is quiet.
+    if ((heldKeys_ & olc::kInputFullMain) != 0 && (before & olc::kInputFullMain) == 0 &&
+        !ownThrusting_) {
+        keyDownAt_ = oapiGetSysTime();
+    }
     if (heldKeys_ != 0) {
         keyFrames_++;
     }

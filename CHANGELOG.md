@@ -140,6 +140,7 @@
   take a free vessel by focusing it (F3), Ctrl+Alt+U releases it; someone else's vessel in focus is view only,
   refusals and ownership changes are shown on screen. Checked on the rigs: a pilot took a vessel at join,
   the second pilot sees "view only". The agent's limit and run rules — decision 40.
+- **Control latency (stage 3.6):** the client logs the time from pressing the full throttle key to thrust on the displayed vessel (`control latency`). On the stand (Wi-Fi and NAT): about 65 ms at 60 Hz and a 30 ms display delay, about 135 ms at 30 Hz and 100 ms.
 - **A server without graphics and a client on one machine (stage 3.8):** checked on the stand, described in `docs/QUICKSTART.md`, section 6.
 - **Check by people (stage 3.7, preparation):** three scenarios in `tools/scenarios/` (a station, two DeltaGliders 20 m and 3 km apart) and a pilot guide `docs/PILOT-GUIDE.md`; the host loading the scenarios was checked on the stand, the check itself is for people.
 - **Docking (stage 3.5):** the host notices docking and undocking itself (vessel ports, `GetDockStatus`) and sends `DOCK`; a client that joins later gets the current links. The client repeats `Dock` in mode 0 and `Undock` after the display delay, and while vessels are docked flies the stack through the vessel with the smaller `net_id`. `OlcRigTest` got the `dock` and `undock` actions. On the stand the client repeated both docking and undocking of two DeltaGliders.
