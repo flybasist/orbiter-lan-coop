@@ -9,6 +9,7 @@
 
 #include "protocol.h"
 #include "vessel_control.h"
+#include "wall_clock.h"
 
 namespace olcplugin {
 
@@ -22,6 +23,9 @@ constexpr double kLandedRepeat = 2.0;
 
 // How often to write statistics to the log, seconds.
 constexpr double kStatsInterval = 10.0;
+
+// A latency probe is dropped after this many seconds without thrust (no fuel, engine off).
+constexpr double kProbeGiveUp = 2.0;
 
 // Where the host saves its world for clients that ask for it: oapiSaveScenario takes the name
 // without the Scenarios folder and the .scn extension.
@@ -68,6 +72,17 @@ uint8_t levelToByte(double level) {
         return 255;
     }
     return static_cast<uint8_t>(std::lround(level * 255.0));
+}
+
+// Whether any thruster of the vessel would show thrust in WORLD_STATE.
+bool hasThrust(VESSEL* vessel) {
+    const DWORD thrusters = vessel->GetThrusterCount();
+    for (DWORD i = 0; i < thrusters; i++) {
+        if (levelToByte(vessel->GetThrusterLevel(vessel->GetThrusterHandleByIndex(i))) > 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace
@@ -191,6 +206,18 @@ bool HostSide::bodyId(OBJHANDLE body, uint16_t& id) const {
 }
 
 void HostSide::tick(double now, bool paused) {
+    // Frame length by the wall clock: oapiGetSysTime does not see frames longer than 0.1 s.
+    const double frameAt = wallClock();
+    if (lastFrameAt_ >= 0.0) {
+        const double frame = frameAt - lastFrameAt_;
+        longestFrame_ = (std::max)(longestFrame_, frame);
+        for (Ship& ship : ships_) {
+            if (ship.probeAt >= 0.0) {
+                ship.probeLongestFrame = (std::max)(ship.probeLongestFrame, frame);
+            }
+        }
+    }
+    lastFrameAt_ = frameAt;
     link_.poll(now);
     if (!paused) {
         applyInputs(now);
@@ -201,8 +228,9 @@ void HostSide::tick(double now, bool paused) {
     const double rate = paused ? kPausedStateRate : static_cast<double>(config_.stateRateHz);
     if (now >= nextState_) {
         sendWorld(paused);
-        // Count from now, not from nextState_: after a long frame do not send a burst of packets.
-        nextState_ = now + 1.0 / rate;
+        // From the planned time: a host with graphics at about 60 frames per second keeps 60 states
+        // per second; after a long frame - from now, without a burst (nextSendTime).
+        nextState_ = olc::nextSendTime(nextState_, now, 1.0 / rate);
     }
     if (now >= nextFuel_) {
         sendFuel();
@@ -286,6 +314,18 @@ void HostSide::sendWorld(bool paused) {
             link_.sendLanded(message);
         }
         ship.landed = landed;
+        if (ship.probeAt >= 0.0) {
+            const double probeTime = wallClock() - ship.probeAt;
+            if (hasThrust(vessel)) {
+                oapiWriteLogV("OLC host: input to state %.0f ms (full main engine key of '%s' "
+                              "applied to the first state with thrust sent), longest frame %.0f ms",
+                              probeTime * 1000.0, vessel->GetName(),
+                              ship.probeLongestFrame * 1000.0);
+                ship.probeAt = -1.0;
+            } else if (probeTime > kProbeGiveUp) {
+                ship.probeAt = -1.0;
+            }
+        }
         world.vessels.push_back(state);
 
         if (ship.handle == traceHandle_ && !landed) {
@@ -370,7 +410,7 @@ void HostSide::onNewVessel(OBJHANDLE vessel) {
 
 void HostSide::applyInputs(double now) {
     const double simdt = oapiGetSimStep();
-    for (const Ship& ship : ships_) {
+    for (Ship& ship : ships_) {
         olc::Input input;
         double receivedAt = 0.0;
         // latestInput checks that the vessel belongs to the client that sent the input.
@@ -382,7 +422,16 @@ void HostSide::applyInputs(double now) {
         if (now - receivedAt > olc::kInputTimeout) {
             continue;
         }
-        applyInput(oapiGetVesselInterface(ship.handle), input, simdt);
+        VESSEL* vessel = oapiGetVesselInterface(ship.handle);
+        // A new press of the full main engine key on a quiet vessel starts a latency probe, as on
+        // the client (see sendWorld).
+        const bool fullMain = (input.keys & olc::kInputFullMain) != 0;
+        if (fullMain && !ship.fullMain && !hasThrust(vessel)) {
+            ship.probeAt = wallClock();
+            ship.probeLongestFrame = 0.0;
+        }
+        ship.fullMain = fullMain;
+        applyInput(vessel, input, simdt);
         inputFrames_++;
         if (input.keys != 0) {
             inputKeyFrames_++;
@@ -508,7 +557,7 @@ void HostSide::logStats() {
     const olc::HostStats& stats = link_.stats();
     oapiWriteLogV("OLC host: %d client(s), %d ready, world states %llu, UDP packets %llu, "
                   "bad UDP %llu, input accepted %llu rejected %llu, applied %llu (with keys %llu), "
-                  "key presses accepted %llu rejected %llu applied %llu",
+                  "key presses accepted %llu rejected %llu applied %llu, longest frame %.0f ms",
                   link_.clientCount(), link_.readyClientCount(),
                   static_cast<unsigned long long>(worldStatesSent_),
                   static_cast<unsigned long long>(stats.udpPacketsSent),
@@ -519,7 +568,8 @@ void HostSide::logStats() {
                   static_cast<unsigned long long>(inputKeyFrames_),
                   static_cast<unsigned long long>(stats.keysAccepted),
                   static_cast<unsigned long long>(stats.keysRejected),
-                  static_cast<unsigned long long>(keysApplied_));
+                  static_cast<unsigned long long>(keysApplied_), longestFrame_ * 1000.0);
+    longestFrame_ = 0.0;
 }
 
 void HostSide::flushLog() {

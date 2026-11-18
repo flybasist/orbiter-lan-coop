@@ -68,6 +68,7 @@ void testEdges() {
 
     // An empty buffer - nothing to show.
     CHECK(!buffer.sample(1.0, shown, starved));
+    CHECK(!buffer.latest(shown));
 
     CHECK(buffer.add(1.0, orbitState(1.0)));
     CHECK(buffer.add(2.0, orbitState(2.0)));
@@ -76,6 +77,10 @@ void testEdges() {
     CHECK(!buffer.add(1.5, orbitState(1.5)));
     CHECK(!buffer.add(2.0, orbitState(2.0)));
     CHECK(buffer.size() == 2);
+
+    // The newest packet as it came, whatever moment is displayed.
+    CHECK(buffer.latest(shown));
+    CHECK(shown.rpos.x == orbitState(2.0).rpos.x);
 
     // Before the first packet - the first packet as is.
     CHECK(buffer.sample(0.5, shown, starved));

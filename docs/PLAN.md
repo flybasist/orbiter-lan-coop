@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6, 3.8 and 3.9 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.10 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
@@ -266,7 +266,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | scenarios and guide are ready (2026-11-18, `tools/scenarios/`, [PILOT-GUIDE.md](PILOT-GUIDE.md)); waiting for people |
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | done (2026-11-18; Windows 11 ARM: a server without graphics and a client with graphics on one machine, `HostAddress = 127.0.0.1`, RTT about 16 ms; described in `QUICKSTART.md`, section 6) |
 | 3.9 | A headless host sometimes does not exit on `-T` (the log stops ~27 s before the limit): find the cause | Proxmox | The cause in the results; fixed if it is in OLC | done (2026-11-18): on the rigs `-T` fires on time, the cause is an outer run timeout, see the 3.9 results |
-| 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | waiting |
+| 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | done (2026-11-18): the outliers come from the rig network (Wi-Fi and NAT), see the 3.10 results |
 | 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | waiting |
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | waiting |
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | waiting |
@@ -325,7 +325,7 @@ the log; the thrust is seen in the exhaust, and the velocity grows after it). Th
 x64 on Proxmox, the client is Windows 11 ARM in Parallels (Wi-Fi and NAT, RTT 14–18 ms), so it is not
 a wired pair. Five presses at 30 Hz and a 100 ms display delay: 131, 136, 150, 135 ms. With the
 default values (60 Hz, 30 ms): 63, 67, 67, 148, 370 ms — about 65 ms in most cases, two outliers;
-their cause was not found out (suspects: a host frame or Wi-Fi). The latency is made of the `INPUT`
+their source is the rig network (Wi-Fi and NAT), see the 3.10 results. The latency is made of the `INPUT`
 path (up to 16 ms until the next send, about RTT/2), the host frame, the state interval (17 ms at
 60 Hz) and the display delay. It was not measured on a wired LAN.
 
@@ -345,6 +345,34 @@ seconds a copy exited by itself, and the job description has a rule for choosing
 along the way: on a loading error (for example, a scenario not found) Orbiter shows an error window and
 waits for a click (`TerminateOnError`); when started from SSH the process hangs until stopped, and the
 log ends with the line `>>> TERMINATING <<<`.
+
+**Results of 3.10 (2026-11-18).** The control latency measurement is now split into steps and runs on
+the wall clock (`plugin/wall_clock.h`): `oapiGetSysTime` counts a frame longer than 0.1 s as 0.1 s. The
+client writes in `control latency` when the first `INPUT` with the key went out after the press, when
+the first state of its own vessel with thrust arrived, and the longest frame; the host writes `input to
+state` — from applying the key to sending the first state with thrust — and the longest frame in the
+statistics line. The same rig as in 3.6: host Windows 11 x64 without graphics (Proxmox), client
+Windows 11 ARM with a picture (Parallels, Wi-Fi and NAT), 60 Hz and a 30 ms display delay, 20 full
+throttle presses in each of two runs.
+
+| Step | Usually | In outliers |
+|---|---|---|
+| Press → `INPUT` went out (a client frame) | 11–19 ms (after the fix below) | 14–17 ms |
+| Host: key applied → state with thrust went out (state interval) | 1–16 ms | 1–16 ms |
+| `INPUT` went out → state with thrust arrived (network both ways and the host) | 13–51 ms | 32–365 ms |
+| State arrived → thrust on screen (display delay and a frame) | 9–51 ms | 30–135 ms |
+| Total | 60–99 ms, median of both runs 81 ms | 113–499 ms |
+
+Host frames are not longer than 27 ms, client frames — 26 ms. The outliers (6 of 20 in the second run,
+none in the first) coincide with jumps of the `PING` round trip time to 49–383 ms: their source is the
+rig network (Wi-Fi on the Mac and Parallels NAT), not the host or client frames. On the wired Proxmox
+pair the measurement was not made: keys cannot be pressed on machines without graphics. Found and
+fixed along the way: the "at most 60 times per second" limit counted the next time from the current
+frame, and at 60 frames per second the client sent `INPUT` every other frame — about 39 times per
+second, the press went out after 31–34 ms in 5 of 20 cases. Now the next time counts from the planned
+one (`nextSendTime` in `core/protocol.h`), `INPUT` goes out 60 times per second, the press — within one
+client frame. The host times `WORLD_STATE` by the same rule: a host with graphics at 60 frames per
+second will not lose half of the states.
 
 **Stage 3 succeeds if:**
 

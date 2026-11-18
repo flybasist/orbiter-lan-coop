@@ -61,6 +61,11 @@ private:
         OBJHANDLE handle = nullptr;  // a deleted vessel is removed from the list at once
         bool landed = false;         // was landed at the last capture
         bool announce = false;       // created during the session: VESSEL_ADDED not sent yet
+        // Latency probe (task 3.10): the full main engine key of a pilot's INPUT was applied at
+        // probeAt (wall clock) and no state with thrust has gone out yet. < 0 - no probe.
+        bool fullMain = false;       // the key was held in the last applied INPUT
+        double probeAt = -1.0;
+        double probeLongestFrame = 0.0;  // the longest host frame since probeAt, seconds
     };
 
     void buildBodies();
@@ -108,6 +113,8 @@ private:
     uint64_t inputFrames_ = 0;     // frames in which a pilot's INPUT was applied (for the log)
     uint64_t inputKeyFrames_ = 0;  // of them with a control key held
     uint64_t keysApplied_ = 0;     // KEY presses passed to vessels (for the log)
+    double lastFrameAt_ = -1.0;    // wall clock of the previous tick
+    double longestFrame_ = 0.0;    // the longest frame of the log interval, seconds (for the log)
 };
 
 }  // namespace olcplugin

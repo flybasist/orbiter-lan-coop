@@ -281,6 +281,9 @@ void testWorldState() {
         CHECK(sampled.refBody == 1);
         CHECK(sampled.thrusters.size() == 20);
         CHECK(!starved);
+        olc::VesselState newest;
+        CHECK(client.latestVessel(vessel.netId, newest));
+        CHECK(newest.rpos.x == vessel.rpos.x);
     }
     double mjd = client.hostMjdAt(100.5);
     CHECK(mjd > 51981.999999 && mjd < 51982.000001);
@@ -289,6 +292,7 @@ void testWorldState() {
     olc::VesselState unknown;
     bool starved = false;
     CHECK(!client.sampleVessel(500, 100.5, unknown, starved));  // no such vessel
+    CHECK(!client.latestVessel(500, unknown));
 
     // Without vessels the host still sends a packet: the client needs the time and pause.
     olc::WorldState empty;
@@ -594,7 +598,9 @@ void testInputDelivery() {
     olc::Input got;
     double receivedAt = -1.0;
     CHECK(!host.link.latestInput(2, got, receivedAt));  // nothing yet
-    client.sendInput(sent, now());
+    const double sentAt = now();
+    CHECK(client.sendInput(sent, sentAt));
+    CHECK(!client.sendInput(sent, sentAt));  // too soon after the previous INPUT
     CHECK(waitFor(host.link, {&client}, [&]() { return host.link.latestInput(2, got, receivedAt); }));
     CHECK(got.netId == 2 && got.keys == sent.keys);
     CHECK(got.rot[0] == 0.5f && got.rot[1] == -0.25f && got.rot[2] == 1.0f);

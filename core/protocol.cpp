@@ -8,4 +8,9 @@ bool isSequenceNewer(uint32_t a, uint32_t b) {
     return ahead != 0 && ahead < 0x80000000u;
 }
 
+double nextSendTime(double planned, double now, double period) {
+    const double next = planned + period;
+    return next > now ? next : now + period;
+}
+
 }  // namespace olc

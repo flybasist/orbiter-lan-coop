@@ -56,6 +56,14 @@ bool InterpolationBuffer::add(double simTime, const VesselState& state) {
     return true;
 }
 
+bool InterpolationBuffer::latest(VesselState& result) const {
+    if (entries_.empty()) {
+        return false;
+    }
+    result = entries_.back().state;
+    return true;
+}
+
 bool InterpolationBuffer::sample(double simTime, VesselState& result, bool& starved) const {
     starved = false;
     if (entries_.empty()) {

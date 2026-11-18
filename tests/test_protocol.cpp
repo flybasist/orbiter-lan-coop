@@ -35,8 +35,34 @@ void testSequenceNewer() {
 
 }  // namespace
 
+// The next send time counts from the planned time, and from now after a long frame.
+void testNextSendTime() {
+    const double period = 1.0 / 60.0;
+    // On time or a little late: the next one is one period after the planned time.
+    CHECK(olc::nextSendTime(1.0, 1.0, period) == 1.0 + period);
+    CHECK(olc::nextSendTime(1.0, 1.001, period) == 1.0 + period);
+    // Late by more than a period: one period after now, not a burst to catch up.
+    CHECK(olc::nextSendTime(1.0, 1.5, period) == 1.5 + period);
+    // Nothing planned yet (0): one period after now.
+    CHECK(olc::nextSendTime(0.0, 100.0, period) == 100.0 + period);
+
+    // Frames at 60.2 per second with a limit of 60 per second: almost every frame sends.
+    double planned = 0.0;
+    double frame = 10.0;
+    int sent = 0;
+    for (int i = 0; i < 60; i++) {
+        if (frame >= planned) {
+            planned = olc::nextSendTime(planned, frame, period);
+            sent++;
+        }
+        frame += 1.0 / 60.2;
+    }
+    CHECK(sent >= 58);
+}
+
 int main() {
     testConstants();
     testSequenceNewer();
+    testNextSendTime();
     return checkResult();
 }

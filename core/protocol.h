@@ -26,4 +26,11 @@ constexpr uint32_t kMaxTcpMessageSize = 1024 * 1024;
 // for example, 2 is newer than 4294967290 (the counter wrapped), but 4294967290 is not newer than 2.
 bool isSequenceNewer(uint32_t a, uint32_t b);
 
+// When the next periodic packet (INPUT, WORLD_STATE) may go out, after one went out at now; planned -
+// the time this one was planned for, period - 1 / rate. The next time counts from planned, not from
+// now: a sender whose frames come at about the limit rate (60 frames and 60 INPUT per second) then
+// sends in every frame instead of every other one. If the sender is late by more than a period (a
+// long frame), it counts from now, so no burst of packets follows.
+double nextSendTime(double planned, double now, double period);
+
 }  // namespace olc

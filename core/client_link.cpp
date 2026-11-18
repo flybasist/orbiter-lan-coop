@@ -469,16 +469,17 @@ void ClientLink::sendPing(double now) {
     nextPing_ = now + kPingInterval;
 }
 
-void ClientLink::sendInput(const Input& input, double now) {
+bool ClientLink::sendInput(const Input& input, double now) {
     if (state_ != State::Ready || now < nextInput_) {
-        return;
+        return false;
     }
     Writer body;
     writeInput(body, input);
     udp_.sendTo(config_.host,
                 makeUdpPacket(UdpType::Input, session_, inputSeq_++, body.bytes()));
-    nextInput_ = now + 1.0 / kMaxInputRate;
+    nextInput_ = nextSendTime(nextInput_, now, 1.0 / kMaxInputRate);
     stats_.inputPackets++;
+    return true;
 }
 
 void ClientLink::sendKey(uint16_t netId, uint8_t key, uint8_t mods) {
@@ -513,6 +514,14 @@ bool ClientLink::sampleVessel(uint16_t netId, double simTime, VesselState& resul
         stats_.starvedSamples++;
     }
     return true;
+}
+
+bool ClientLink::latestVessel(uint16_t netId, VesselState& result) const {
+    auto found = buffers_.find(netId);
+    if (found == buffers_.end()) {
+        return false;
+    }
+    return found->second.latest(result);
 }
 
 std::vector<VesselFuel> ClientLink::takeFuel() {

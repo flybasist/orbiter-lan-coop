@@ -89,6 +89,8 @@ Check at stage 1.
 - The step comes from the real clock (`std::chrono::steady_clock`) — `Orbiter.cpp:1740`.
   The first three frames after loading are a fixed 10 ms, the step is capped at 0.1 s.
   So two computers never compute the same way: deterministic lockstep is impossible.
+- `oapiGetSysTime` is the sum of these steps (`td.SysT0`, `OrbiterAPI.cpp:994`), so a frame longer
+  than 0.1 s counts as 0.1 s there; latency measurements need the real clock.
 - Warp — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1363`) → `TimeData::SetWarp`
   (`TimeData.h:31`). A smooth transition (`TWarpDelay`, `TimeData.cpp:55-63`) happens only with
   a non-zero delay; `oapiSetTimeAcceleration` passes a delay of 0 (`OrbiterAPI.cpp:1034-1037`),

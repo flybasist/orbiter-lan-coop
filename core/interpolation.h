@@ -34,6 +34,10 @@ public:
     // If simTime is earlier than the first packet, the first packet is returned as is.
     bool sample(double simTime, VesselState& result, bool& starved) const;
 
+    // The newest packet as it came, without interpolation. Returns false if the buffer is empty.
+    // For measurements: what the host sent last, before the display delay.
+    bool latest(VesselState& result) const;
+
     // How many packets are in the buffer.
     size_t size() const { return entries_.size(); }
 

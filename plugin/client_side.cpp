@@ -8,6 +8,7 @@
 
 #include "protocol.h"
 #include "scenario_launch.h"
+#include "wall_clock.h"
 
 namespace olcplugin {
 
@@ -40,6 +41,16 @@ constexpr double kNoticeSeconds = 20.0;
 
 VECTOR3 toVector3(const olc::Vec3& v) {
     return _V(v.x, v.y, v.z);
+}
+
+bool hasThrust(const olc::VesselState& state) {
+    return std::any_of(state.thrusters.begin(), state.thrusters.end(),
+                       [](uint8_t level) { return level > 0; });
+}
+
+// Milliseconds from start to end for the latency log; -1 if the step was not reached.
+double stepMs(double start, double end) {
+    return end >= 0.0 ? (end - start) * 1000.0 : -1.0;
 }
 
 std::string objectName(OBJHANDLE object) {
@@ -94,6 +105,11 @@ void ClientSide::stop() {
 }
 
 void ClientSide::tick(double now, bool paused) {
+    const double frameAt = wallClock();
+    if (keyDownAt_ >= 0.0 && lastFrameAt_ >= 0.0) {
+        longestFrame_ = (std::max)(longestFrame_, frameAt - lastFrameAt_);
+    }
+    lastFrameAt_ = frameAt;
     link_.poll(now);
     // Deletions requested in the previous frame are carried out at its end.
     deletesThisFrame_ = 0;
@@ -347,12 +363,19 @@ void ClientSide::applyStates(double displayTime) {
 
         uint16_t own = 0;
         if (ownVessel(own) && own == entry.netId) {
-            const bool thrusting = std::any_of(state.thrusters.begin(), state.thrusters.end(),
-                                               [](uint8_t level) { return level > 0; });
-            const double now = oapiGetSysTime();
+            const bool thrusting = hasThrust(state);
+            const double now = wallClock();
+            olc::VesselState newest;
+            if (keyDownAt_ >= 0.0 && stateAt_ < 0.0 && link_.latestVessel(own, newest) &&
+                hasThrust(newest)) {
+                stateAt_ = now;  // seen in this frame; it may have arrived up to a frame earlier
+            }
             if (keyDownAt_ >= 0.0 && thrusting) {
                 oapiWriteLogV("OLC client: control latency %.0f ms (key press to thrust on the "
-                              "displayed vessel)", (now - keyDownAt_) * 1000.0);
+                              "displayed vessel): INPUT sent at %.0f ms, state with thrust "
+                              "received at %.0f ms, longest frame %.0f ms",
+                              (now - keyDownAt_) * 1000.0, stepMs(keyDownAt_, inputSentAt_),
+                              stepMs(keyDownAt_, stateAt_), longestFrame_ * 1000.0);
                 keyDownAt_ = -1.0;
             } else if (keyDownAt_ >= 0.0 && now - keyDownAt_ > kLatencyGiveUp) {
                 keyDownAt_ = -1.0;  // the key had no effect (vessel not in focus, no fuel)
@@ -533,7 +556,10 @@ void ClientSide::onKeyboard(char kstate[256]) {
     // A new press of the full main engine key starts a latency measurement, if the vessel is quiet.
     if ((heldKeys_ & olc::kInputFullMain) != 0 && (before & olc::kInputFullMain) == 0 &&
         !ownThrusting_) {
-        keyDownAt_ = oapiGetSysTime();
+        keyDownAt_ = wallClock();
+        inputSentAt_ = -1.0;
+        stateAt_ = -1.0;
+        longestFrame_ = 0.0;
     }
     if (heldKeys_ != 0) {
         keyFrames_++;
@@ -591,7 +617,11 @@ void ClientSide::sendInput(double now) {
         input.lin[1] = axis(THGROUP_ATT_LEFT, THGROUP_ATT_RIGHT);
         input.lin[2] = axis(THGROUP_ATT_FORWARD, THGROUP_ATT_BACK);
     }
-    link_.sendInput(input, now);  // at most 60 times per second (ClientLink)
+    // At most 60 times per second (ClientLink).
+    if (link_.sendInput(input, now) && keyDownAt_ >= 0.0 && inputSentAt_ < 0.0 &&
+        (input.keys & olc::kInputFullMain) != 0) {
+        inputSentAt_ = wallClock();
+    }
 }
 
 void ClientSide::releaseOwnVessel() {

@@ -139,6 +139,10 @@ public:
     // false - no packet has arrived for this vessel yet.
     bool sampleVessel(uint16_t netId, double simTime, VesselState& result, bool& starved);
 
+    // The newest received state of vessel netId, without the display delay
+    // (InterpolationBuffer::latest). false - no packet has arrived for this vessel yet.
+    bool latestVessel(uint16_t netId, VesselState& result) const;
+
     // Takes fuel from FUEL messages received since the last call (the latest per vessel).
     std::vector<VesselFuel> takeFuel();
 
@@ -169,8 +173,8 @@ public:
 
     // Sends the current state of the controls to the host in one UDP INPUT packet. Does nothing
     // before the link is Ready, and if the previous INPUT went out less than 1 / kMaxInputRate
-    // seconds ago. now - real time, seconds.
-    void sendInput(const Input& input, double now);
+    // seconds ago. now - real time, seconds. Returns true if the packet went out.
+    bool sendInput(const Input& input, double now);
 
     // Sends KEY: one key press for the client's own vessel netId (TCP, so it is not lost). mods -
     // bits of KeyPress::mods. Does nothing before the handshake is over.
