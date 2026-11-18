@@ -433,7 +433,6 @@ get stuck on a random commit between releases. So the main project is checked re
 | 2026-11-16 | `dabade26..a7a3396e` | 4 commits: `[CORE] Distance display improvement` (#620) — `Astro.cpp`, `Astro.h` (`SciStr` without the `prefix` parameter, scientific notation with `e`), `MenuInfoBar.cpp`; no new tags or releases | None: the distance format in the info panels; the SDK and places from the map are not affected, line references are the same | `a7a3396e` |
 | 2026-11-17 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 | 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
-| 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 
 ## 14. The plugin outside the frame: pause, windows, threads
 

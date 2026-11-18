@@ -121,7 +121,7 @@ the owner approved. Rules:
    chat. Code research and the core map are added to the queue and done by the agent itself
    (decision 21); anything else new goes through a question.
 2. **A fork in the road is a question, not a guess.** A question with options and a recommendation is
-   written to `QUESTIONS.md`, the owner gets a notification, the agent switches to another independent
+   written to `QUESTIONS.md`, the agent reports it to the owner's main session (decision 42) and switches to another independent
    task. The decision made is recorded in `DECISIONS.md`.
 3. **Windows or Linux needed — wait for a test rig.** No workarounds.
 4. **Models.** Opus — architecture, task setting, checking results. Sonnet —
@@ -152,6 +152,7 @@ the owner approved. Rules:
    needed (a costly workaround, a risk of breaking something, a choice of path). Work for the sake of work
    is not done.
 9. **Report.** Every batch ends with a report: what was done, what was checked, what was not,
-   how much limit was used.
+   how much limit was used. A scheduled run sends its report to the owner's main session, and
+   that session decides when to notify the owner (decision 42).
 10. **Git.** The agent commits a finished task and pushes it to `main` (see "Rules for working
    on the project"); unfinished work does not go into a commit.
