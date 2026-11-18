@@ -16,7 +16,7 @@ I — research, S — test rigs.
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6, 3.8 and 3.9 are done, the scenarios and the guide for 3.7 are ready; waits for the docking check by people |
 | 4. Crew | Two in one vessel: pilot and navigator with MFDs | — |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | — |
 
@@ -265,7 +265,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.6 | Measuring control delay: from a key press on the client to motion on the client's screen | Rigs | A number in the results | done (2026-11-18; median 67 ms at 60 Hz and a 30 ms display delay, see the results of 3.6) |
 | 3.7 | A check by people step by step: scenarios (DeltaGlider to a still station; two DeltaGliders 20 m apart; rendezvous from different orbits) and a memo for pilots in two languages | The agent prepares, the owner or the club checks | Results against the criteria below | scenarios and guide are ready (2026-11-18, `tools/scenarios/`, [PILOT-GUIDE.md](PILOT-GUIDE.md)); waiting for people |
 | 3.8 | A server without graphics on the flight director's machine, the flight director as a client (decision 34): a description in `QUICKSTART.md`, a check of two copies on one machine | Rigs | The flight director connects to the server on the same machine | done (2026-11-18; Windows 11 ARM: a server without graphics and a client with graphics on one machine, `HostAddress = 127.0.0.1`, RTT about 16 ms; described in `QUICKSTART.md`, section 6) |
-| 3.9 | A headless host sometimes does not exit on `-T` (the log stops ~27 s before the limit): find the cause | Proxmox | The cause in the results; fixed if it is in OLC | in progress: from the code (2026-11-18) `-T` compares against Orbiter system time `td.SysT0`, not wall-clock time; the frame step in `BeginTimeStep` is capped at 0.1 s (`Orbiter.cpp:1771`), so with frames longer than 0.1 s (or stopped frames) the `-T` limit comes later than by the wall clock. With `-x` the exit after `CloseSession` is normal (`exit(0)`, `Orbiter.cpp:958`). Next — check on a rig: in the host log compare the frame count and `SysT0` with the wall clock before the log "stops" |
+| 3.9 | A headless host sometimes does not exit on `-T` (the log stops ~27 s before the limit): find the cause | Proxmox | The cause in the results; fixed if it is in OLC | done (2026-11-18): on the rigs `-T` fires on time, the cause is an outer run timeout, see the 3.9 results |
 | 3.10 | Control latency outliers (148 and 370 ms in 3.6): timestamps along the path "key press → `INPUT` → host frame → state → display" | Test rigs | The source of the outliers in the results | waiting |
 | 3.11 | Extended input check on a rig: RCS (rotation and translation), throttle, trim, brakes, Ctrl+Alt+U, F3 to another pilot's vessel | Proxmox + Parallels | A result for every key in the stage section | waiting |
 | 3.12 | A detailed plan of stages 4 and 5 for the owner's approval | Mac | A section in `PLAN.md`, a question in `QUESTIONS.md` | waiting |
@@ -328,6 +328,23 @@ default values (60 Hz, 30 ms): 63, 67, 67, 148, 370 ms — about 65 ms in most c
 their cause was not found out (suspects: a host frame or Wi-Fi). The latency is made of the `INPUT`
 path (up to 16 ms until the next send, about RTT/2), the host frame, the state interval (17 ms at
 60 Hz) and the display delay. It was not measured on a wired LAN.
+
+**Results of 3.9 (2026-11-18).** `-T` was checked six times: Windows 11 x64 without graphics — a
+scenario without a recording and with a recorded flight, without the plugin, with a client connected
+from Windows 10 x64; Windows 11 ARM — a host without graphics and a client with a picture on one machine
+(as in 3.8). Each time Orbiter exited by itself, `-T` plus 4–9 s after the process start. From the
+session start to the exit the wall clock showed 1.0–1.2 s more than `-T` (with `-T` of 20, 80 and 90 s),
+the same on x64 and ARM: Orbiter's system time falls behind in the first frames after loading and does
+not fall further behind later. Capping the frame step at 0.1 s (`Orbiter.cpp:1771`) matters only for
+frames longer than 0.1 s, and a host without graphics runs thousands of frames per second. The likely
+cause of the log "stopping" is the `run-orbiter.ps1` timeout: it counts from the start of the copies,
+and with `-T` greater than the timeout minus the loading time it stops the process before its limit,
+and the log ends without `Fast process shutdown`. The run log of the old runs was not kept, so this is
+a conclusion, not a measurement. Fixed in OLC: `run-orbiter.ps1` writes to `run.log` after how many
+seconds a copy exited by itself, and the job description has a rule for choosing the timeout. Found
+along the way: on a loading error (for example, a scenario not found) Orbiter shows an error window and
+waits for a click (`TerminateOnError`); when started from SSH the process hangs until stopped, and the
+log ends with the line `>>> TERMINATING <<<`.
 
 **Stage 3 succeeds if:**
 

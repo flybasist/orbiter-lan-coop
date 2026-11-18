@@ -24,6 +24,9 @@
 #     ],
 #     "timeout": 120             - after how many seconds to close instances that did not exit by themselves
 #   }
+# The timeout counts from the start of the instances. With -T it must be longer than -T plus the
+# scenario load time (up to about 20 s), otherwise the instance is stopped before its limit and its
+# Orbiter.log just ends without "Fast process shutdown".
 # window - where to move the window with the picture (x, y), so that the windows of two Orbiter
 # copies do not cover each other. Coordinates and window size (WindowWidth, WindowHeight in the
 # copy's Orbiter.cfg) are in logical pixels: at 200% screen scaling a 640 pixel window takes 1280 dots.
@@ -168,6 +171,7 @@ try {
     }
 
     $start = Get-Date
+    $exitLogged = @{}   # pid -> true for instances whose exit is already logged
     while ($true) {
         $elapsed = ((Get-Date) - $start).TotalSeconds
         # A window does not appear right after start: move it as soon as it exists.
@@ -197,6 +201,14 @@ try {
                 Write-Log "ui: error: $_"
             }
             $uiSteps = @($uiSteps | Select-Object -Skip 1)
+        }
+        # Log the moment an instance exits by itself (-T, -x, a crash): with the start time it
+        # shows whether a time limit fired on time, which the final summary cannot show.
+        foreach ($process in $processes) {
+            if ($process.HasExited -and -not $exitLogged.ContainsKey($process.Id)) {
+                $exitLogged[$process.Id] = $true
+                Write-Log ('pid {0} exited by itself after {1:N1} s' -f $process.Id, $elapsed)
+            }
         }
         $running = @($processes | Where-Object { -not $_.HasExited })
         if ($running.Count -eq 0 -and $shots.Count -eq 0) { break }

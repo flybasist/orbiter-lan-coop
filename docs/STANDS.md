@@ -104,7 +104,9 @@ invisible service session, not on the desktop. So:
   `C:\olc\run-orbiter.json` (the `window` field places the copies' windows side by side, the `ui` field presses
   buttons and selects items by name, closes the simulation window; the `key` step brings the Orbiter window to the front and holds a key by scan code for the given time, for example `{"at":70,"key":"0x4E","seconds":5}` — this is how the "Connect" button in
   Launchpad and reconnecting are checked); the result is
-  a log and screenshots in `C:\olc\run-orbiter`. The task
+  a log and screenshots in `C:\olc\run-orbiter`. The log notes after how many seconds a copy
+  exited by itself; the `timeout` field counts from the start of the copies, so with `-T` it must be
+  greater than `-T` plus loading (up to 20 s), otherwise the copy is stopped before its limit. The task
   is created once by [`tools/stands/register-run-task.ps1`](../tools/stands/register-run-task.ps1)
   with the machine owner's consent.
 - **Linux:** starting in the user's graphical session (the `DISPLAY` variable).
