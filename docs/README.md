@@ -133,11 +133,9 @@ the owner approved. Rules:
      5 minutes in advance (at the limit the session is cut off, and there is no time left to schedule).
      Waiting for a long process — a one-time check after the needed time. There are no permanent
      periodic runs.
-   - 20:00–00:00 is the owner's time: they answer questions, check work, set up test rigs.
-     During this time the agent works only at their request.
-   - Weekends are discussed separately each time; without an agreement the agent does not
-     work on weekends.
-6. **Limits** (decisions 22 and 40). Before each piece of work the agent checks usage:
+   - There are no other limits by time of day or day of the week: work is limited only by the
+     window and week limits (decision 41).
+6. **Limits** (decisions 22, 40 and 41). Before each piece of work the agent checks usage:
    - the 5-hour window: new work only below 90%; a step already started is brought to a whole state,
      but not above 95%: the owner can always write a message;
    - the week is spent by the reset (Saturday, 18:00): at any moment no more than
