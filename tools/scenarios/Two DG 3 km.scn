@@ -1,0 +1,46 @@
+BEGIN_DESC
+OLC check 3: two DeltaGliders (GL-01 and GL-02) 3 km apart, GL-02 on a slightly different orbit. Close in with RCS and dock. The numbers are an estimate: the distance may drift, fly it on the way.
+END_DESC
+
+BEGIN_ENVIRONMENT
+  System Sol
+  Date MJD 51982.7357482732
+END_ENVIRONMENT
+
+BEGIN_FOCUS
+  Ship GL-01
+END_FOCUS
+
+BEGIN_CAMERA
+  TARGET GL-01
+  MODE Extern
+  POS 5.00 -40.00 12.00
+  TRACKMODE TargetRelative
+  FOV 40.00
+END_CAMERA
+
+BEGIN_HUD
+  TYPE Docking
+  NAV 0
+END_HUD
+
+BEGIN_SHIPS
+GL-01:DeltaGlider
+  STATUS Orbiting Earth
+  RPOS 3221640.692 5494094.585 -2174867.699
+  RVEL 6608.3935 -3946.1959 -166.9174
+  AROT 110.000 -10.000 80.000
+  PRPLEVEL 0:1.000000 1:1.000000
+  NAVFREQ 0 0 0 0
+  XPDR 0
+END
+GL-02:DeltaGlider
+  STATUS Orbiting Earth
+  RPOS 3224640.692 5494094.585 -2174867.699
+  RVEL 6608.8935 -3946.1959 -166.9174
+  AROT 110.000 -10.000 80.000
+  PRPLEVEL 0:1.000000 1:1.000000
+  NAVFREQ 0 0 0 0
+  XPDR 0
+END
+END_SHIPS

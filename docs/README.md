@@ -13,6 +13,7 @@ Testing happens on test rigs.
 | File | What it covers |
 |---|---|
 | [QUICKSTART.md](QUICKSTART.md) | Setting up a developer environment and building Orbiter from source |
+| [PILOT-GUIDE.md](PILOT-GUIDE.md) | Pilot guide: checking the docking of two vessels, scenarios and controls |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the plugin is built and why it is done this way |
 | [PROTOCOL.md](PROTOCOL.md) | Network protocol: channels, messages, fields (draft) |
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
@@ -48,6 +49,7 @@ Do not rescan the whole repository: the map below is enough.
 | `tools/smoothing/` | The `olc-smoothing` smoothing model: simulates host packets with delay and loss and compares ways of reconstructing motion on the client; `run-grid.sh` runs it over a parameter grid. Does not depend on Orbiter. Conclusions — `SMOOTHING.md`. |
 | `tools/netcheck/` | The `olc-netcheck` utility: a network check between two machines on the OLC network core — TCP handshake, UDP `PING`/`PONG`, loss and delay. How to use it — `STANDS.md`, section 10. |
 | `tools/doccheck/` | The `olc-doccheck` check: every document has a version in the other language and the structure of the pair matches (headings, tables, code blocks). Runs in CI. |
+| `tools/scenarios/` | Scenarios for the docking check by people (`Station approach`, `Two DG 20 m`, `Two DG 3 km`); copy them to `Scenarios\OLC-test` on the host. Described in `PILOT-GUIDE.md`. |
 | `tools/rigtest/` | The helper plugin `OlcRigTest.dll` for test rigs, not part of OLC: creates and deletes vessels on a schedule from `Config\OlcRigTest.cfg`. How to use it — `STANDS.md`, section 11. |
 | `tools/stands/` | Scripts for a Windows test rig: `setup-windows.ps1` — preparation for building Orbiter and OLC (Git, Visual Studio, DirectX SDK, firewall); `setup-autologon.ps1` — automatic sign-in of the user (the owner types the password); `register-run-task.ps1` and `run-orbiter.ps1` — starting Orbiter on the visible desktop on a command from SSH, with screenshots and presses in windows (Launchpad, the OLC dialog); `console-send.ps1` — console commands for Orbiter without graphics (pause, time acceleration). Test rig layout — `STANDS.md`. |
 
