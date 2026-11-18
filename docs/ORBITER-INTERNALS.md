@@ -838,3 +838,69 @@ Question Q12 in `QUESTIONS.md`: how to review a flight — write recorder files 
 (recommended), an OLC log of our own with its own viewer, or rely on the stock Ctrl+C recording on
 the flight director's client with graphics (other vessels there are driven by the received state;
 whether such a recording is usable is not verified).
+
+## 21. Vessel mechanisms and frequencies for another participant (research 4A)
+
+Task 3.21 (2026-11-19), base commit `a7a3396e`. The question: what must be transferred so that another
+participant sees the deployed gear, an open hatch, a radiator, etc., and can it be done for any vessel class.
+
+### General animation transfer (no knowledge of the class)
+
+- A plugin reads all animations of a vessel: `VESSEL::GetAnimPtr` returns the `ANIMATION` array and
+  the number of animations (`Vessel.cpp:10222`), each with a current state 0…1 (`OrbiterAPI.h:1542`).
+  The state is set by `SetAnimation(index, value)` (`Vessel.cpp:8055`); the value is just stored, and the
+  appearance and the collision hull update themselves.
+- Animation indices are defined by the order of `CreateAnimation` in the vessel module. An identical vessel
+  (the same class and add-ons, which are in one package for us) gets the same indices on the host and the
+  client. The plugin does not know what an index means — a pair "index → value" is transferred.
+- Control surface animations are set by the core itself every step from the levels (`Vessel.cpp:2032`);
+  transferring them is pointless, the client overwrites the value.
+- A module sets its animations itself only while a mechanism is moving: for the DeltaGlider gear
+  `SetAnimation` is called only when `gear_state.Process` returned `true`, i.e. the speed is not zero
+  (`GearSubsys.cpp:172-178`, `AnimState2::Process`, `Instrument.cpp:221`). If the mechanism stands still on
+  the vessel copy, the value set by the plugin stays.
+- **What general transfer does not do:** the internal module state does not change. In the DeltaGlider
+  `SetGearParameters` (touchdown points and nose wheel steering, `DeltaGlider.cpp:645-660`) is called only
+  from the mechanism's own steps, so on a copy whose gear was lowered by animation the touchdown points
+  stay "gear up". For a client where vessel physics is not its own and the state is imposed this is
+  acceptable (the vessel on the ground keeps the host's state), but the wheels on screen may hang above or sink
+  into the surface — not verified on a stand.
+- The numbers of gear and other mechanisms must be told apart from noise: most DeltaGlider animations are
+  virtual cockpit needles and levers (`GearSubsys.cpp:125`, `AerodynSubsys.cpp:298`, `HudCtrl.cpp:145`,
+  etc.), a vessel has dozens. Transfer only the changed ones (with a threshold) — over TCP as an event,
+  not every frame.
+
+### DeltaGlider Lua commands (this class only)
+
+- `Gear`, `Nosecone`, `Hatch`, `OLock`, `ILock`, `Retro`, `Radiator`, `ABrake` are "set state" commands,
+  not toggles: `dgGear` takes 1 or 0 and calls `LowerGear` or `RaiseGear` (`DGLua.cpp:118-125`),
+  `dgNosecone` — `OpenNcone`/`CloseNcone` (`DGLua.cpp:132-141`). Repeating a command is safe.
+- Called on a vessel copy, a command starts the **real mechanism of the module**: the animation runs at
+  its own speed, touchdown points and the nose wheel update themselves. There is no way to read the state
+  through Lua — it has to be read from the animation (the index is known only from the creation order) or
+  the fact of the command is transferred from the host.
+- Condition: `LowerGear` does not deploy the gear if the vessel already sits on the ground
+  (`GearSubsys.cpp:133-137`). On a copy with an imposed state this is possible.
+
+### NAV and transponder frequencies
+
+- NAV receiver frequencies: `GetNavChannel(n)` and `SetNavChannel(n, channel)` (`VesselAPI.h:3300,
+  3309`), the number of receivers is `GetNavCount` (`VesselAPI.h:3288`). A channel is a step 0…639.
+- Transponder: `SetTransponderChannel` (`VesselAPI.h:3343`); the current step is read through
+  `GetTransponder` and `oapiGetNavChannel` (`VesselAPI.h:3385`, `OrbiterAPI.h:4387`). The transponder step is
+  part of `VESSELSTATUS2` (`Vesselstatus.cpp:599, 713`), so it is already there when the vessel state is
+  transferred, if we fill that field.
+- The NAV frequency is not part of `VESSELSTATUS2` (section 17); it is sent as a separate small message on
+  an event (changed).
+
+### What is not verified
+
+Everything above is reading the sources. Not verified on a stand: whether a value set by the plugin
+stays on a DeltaGlider copy, how the wheels look with general transfer, and whether animation indices match
+on the host and the client. This is checked on the Windows stand in a short time during implementation.
+
+### The fork
+
+Question Q13 in `QUESTIONS.md`: how to transfer mechanisms — general animation transfer (any class,
+simple, but the internal vessel state does not change), DeltaGlider Lua commands (a real mechanism, but one
+class) or a combination (recommended).

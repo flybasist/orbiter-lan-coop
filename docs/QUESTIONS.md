@@ -12,6 +12,10 @@ and the question to the "Closed" section.
 
 ## Open
 
+- **Q13. How to transfer vessel mechanisms (stage 4A)** — research 3.21, `ORBITER-INTERNALS.md`, section 21. Options:
+  - **A (recommended).** A combination: general animation transfer (any class, as a TCP event) plus DeltaGlider Lua commands so that the gear and touchdown points change for real; NAV frequencies as a separate message.
+  - **B.** General animation transfer only: simple and for any class, but the internal vessel state (gear touchdown points) does not change.
+  - **C.** DeltaGlider Lua commands only: real mechanisms, but one vessel class works.
 - **Q12. How to review a session flight (stage 5, item 6)** — research 3.19, `ORBITER-INTERNALS.md`, section 20. The stock recording cannot be started from a plugin; options:
   - **A (recommended).** The host writes Orbiter recorder files itself (`.pos`, `.att`, `system.dat`, a `Playback` scenario): review is the stock playback, the format is text and simple. Cons: vessels created during the session do not get into playback; the format is undocumented.
   - **B.** An OLC log and viewer of our own: independent of the Orbiter format, but a separate program or window.
