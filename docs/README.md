@@ -50,7 +50,7 @@ Do not rescan the whole repository: the map below is enough.
 | `tools/netcheck/` | The `olc-netcheck` utility: a network check between two machines on the OLC network core — TCP handshake, UDP `PING`/`PONG`, loss and delay. How to use it — `STANDS.md`, section 10. |
 | `tools/doccheck/` | The `olc-doccheck` check: every document has a version in the other language and the structure of the pair matches (headings, tables, code blocks). Runs in CI. |
 | `tools/scenarios/` | Scenarios for the docking check by people (`Station approach`, `Two DG 20 m`, `Two DG 3 km`); copy them to `Scenarios\OLC-test` on the host. Described in `PILOT-GUIDE.md`. |
-| `tools/rigtest/` | The helper plugin `OlcRigTest.dll` for test rigs, not part of OLC: creates and deletes vessels on a schedule from `Config\OlcRigTest.cfg`. How to use it — `STANDS.md`, section 11. |
+| `tools/rigtest/` | The helper plugin `OlcRigTest.dll` for test rigs, not part of OLC: creates, deletes and docks vessels and moves the focus on a schedule from `Config\OlcRigTest.cfg`. How to use it — `STANDS.md`, section 11. |
 | `tools/stands/` | Scripts for a Windows test rig: `setup-windows.ps1` — preparation for building Orbiter and OLC (Git, Visual Studio, DirectX SDK, firewall); `setup-autologon.ps1` — automatic sign-in of the user (the owner types the password); `register-run-task.ps1` and `run-orbiter.ps1` — starting Orbiter on the visible desktop on a command from SSH, with screenshots and presses in windows (Launchpad, the OLC dialog); `console-send.ps1` — console commands for Orbiter without graphics (pause, time acceleration). Test rig layout — `STANDS.md`. |
 
 The Orbiter source code is not part of this repository. A separate clone of
@@ -128,14 +128,18 @@ the owner approved. Rules:
    implementation and code analysis from a ready task description. Haiku — code search. Opus always
    checks a subagent's result itself.
 5. **Schedule (UTC+5).**
-   - The agent works in a row while there is work and limit. It does not wake up by itself after a
-     stop, so on reaching 90% of the window it schedules a one-time run for the window reset plus
-     5 minutes in advance (at the limit the session is cut off, and there is no time left to schedule).
-     Waiting for a long process — a one-time check after the needed time. There are no permanent
-     periodic runs.
+   - The scheduled run fires every hour at :07 (decision 45). It cheaply checks the lock, the
+     limits and the queue and goes back to sleep at once if there is no work; if there is, it works
+     in a row while there is work and limit. A run that broke off is picked up by the next one.
+   - The lock `orbiter-lan-coop.out/.agent-lock` is shared by everyone: a line "time who"
+     (`scheduled` or `main`). The main session sets it too when it edits project files. Whoever
+     works updates the time before each step; a lock older than 40 minutes counts as abandoned.
+   - A task taken gets the "in progress" status at once in a separate commit. A stop in the middle
+     of a task gets a "stopped at: …" note in its `PLAN.md` row, also in a commit. This way the
+     next run continues the task instead of taking one that is already done.
    - There are no other limits by time of day or day of the week: work is limited only by the
      window and week limits (decision 41).
-6. **Limits** (decisions 22, 40 and 41). Before each piece of work the agent checks usage:
+6. **Limits** (decisions 22, 40, 41 and 45). Before each piece of work the agent checks usage:
    - the 5-hour window: new work only below 90%; a step already started is brought to a whole state,
      but not above 95%: the owner can always write a message;
    - the week is spent by the reset (Saturday, 18:00): at any moment no more than
@@ -143,8 +147,8 @@ the owner approved. Rules:
      a day before is not;
    - the limit is not spent for the sake of spending: if there is no useful work (everything waits for test rigs or
      the owner's answer), the agent stops;
-   - if the threshold is crossed in the middle of work, the agent schedules the next run, brings the step to a
-     whole state and writes down where it stopped.
+   - if the threshold is crossed in the middle of work, the agent brings the step to a whole state and
+     writes down where it stopped; the check repeats by itself an hour later.
 7. **Check against Orbiter.** If the check log (`ORBITER-INTERNALS.md`, section 13) has no
    entry for today, the first thing is an upstream check following the procedure described there.
 8. **No needless stops** (decision 37). The agent works through the queue in a row and does not wait
@@ -152,7 +156,8 @@ the owner approved. Rules:
    needed (a costly workaround, a risk of breaking something, a choice of path). Work for the sake of work
    is not done.
 9. **Report.** Every batch ends with a report: what was done, what was checked, what was not,
-   how much limit was used. A scheduled run sends its report to the owner's main session, and
-   that session decides when to notify the owner (decision 42).
+   how much limit was used. A scheduled run that did work sends its report to the owner's main
+   session, and that session decides when to notify the owner (decision 42); empty checks are not
+   reported.
 10. **Git.** The agent commits a finished task and pushes it to `main` (see "Rules for working
    on the project"); unfinished work does not go into a commit.
