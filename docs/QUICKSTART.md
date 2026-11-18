@@ -115,8 +115,8 @@ Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x
    (delay, received packets, sim time error).
 
 On the client it is better to turn off vessel collisions (`VesselCollision = FALSE` in
-`Orbiter.cfg`): otherwise the local calculation argues with the host's states. A vessel cannot be
-controlled on the client yet: the client only shows the host's world.
+`Orbiter.cfg`): otherwise the local calculation argues with the host's states. The client flies its own
+vessel and only shows the others (stage 3, [PILOT-GUIDE.md](PILOT-GUIDE.md)).
 
 To measure the position error, set `TraceVessel` (the name of a flying vessel) on both: each
 copy's `olc-trace.csv` gets the positions, and they can be compared by MJD.
@@ -131,6 +131,14 @@ Two copies with graphics on one screen:
   name;
 - on the host the recording drives the camera during playback; the client has its own camera from
   the scenario.
+
+A server without graphics and a client on one machine (the flight director, decision 34): the
+server is a copy of Orbiter without D3D9Client (`Role = host`, started as
+`Orbiter.exe -s "<scenario>" -p OrbiterLanCoop`), the client is a copy with graphics
+(`Role = client`, `HostAddress = 127.0.0.1`), one port. The client connects with the "Connect"
+button as usual. Checked on 2026-11-18 on Windows 11 ARM: the client entered the server's world,
+RTT about 16 ms, no losses. The log of the server without graphics has `ERROR:` lines about
+missing planet atmosphere modules — they do no harm, the simulation runs.
 
 ## 7. Updating
 
