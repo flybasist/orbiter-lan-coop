@@ -51,6 +51,11 @@ std::vector<uint8_t> makeTcpFrame(uint8_t type, const std::vector<uint8_t>& body
 }
 
 void TcpFrameReader::append(const uint8_t* data, size_t size) {
+    // Returned messages are removed here, once per received chunk, and not in next():
+    // erasing the buffer start after every message is slow when many small messages
+    // arrive together.
+    pending_.erase(pending_.begin(), pending_.begin() + start_);
+    start_ = 0;
     pending_.insert(pending_.end(), data, data + size);
 }
 
@@ -60,7 +65,7 @@ TcpFrameReader::Result TcpFrameReader::next(uint8_t& type, std::vector<uint8_t>&
     }
 
     // First the length is needed: 4 bytes.
-    Reader reader(pending_.data(), pending_.size());
+    Reader reader(pending_.data() + start_, pending_.size() - start_);
     uint32_t length = 0;
     if (!reader.readU32(length)) {
         return Result::NeedMore;
@@ -74,12 +79,12 @@ TcpFrameReader::Result TcpFrameReader::next(uint8_t& type, std::vector<uint8_t>&
         return Result::NeedMore;
     }
 
-    // The message arrived whole: return it and remove it from the buffer.
+    // The message arrived whole: return it and move start_ past it.
     reader.readU8(type);
-    auto bodyStart = pending_.begin() + 4 + 1;
-    auto bodyEnd = pending_.begin() + 4 + length;
+    auto bodyStart = pending_.begin() + start_ + 4 + 1;
+    auto bodyEnd = pending_.begin() + start_ + 4 + length;
     body.assign(bodyStart, bodyEnd);
-    pending_.erase(pending_.begin(), bodyEnd);
+    start_ += 4 + length;
     return Result::Ready;
 }
 

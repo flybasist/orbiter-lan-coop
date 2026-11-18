@@ -98,7 +98,6 @@ struct ServerClient {
     uint8_t id = 0;      // client number for WELCOME
     olc::TcpConnection connection;
     olc::TcpFrameReader frames;
-    std::string player;  // name from HELLO; empty until HELLO arrives
 };
 
 // Parses TCP messages received from the client. false - the connection must be closed.
@@ -115,7 +114,6 @@ bool handleClientFrames(ServerClient& client) {
                             olc::endpointToString(client.connection.remote()).c_str());
                 return false;
             }
-            client.player = hello.player;
             olc::Welcome welcome;
             welcome.clientId = client.id;
             welcome.session = kSession;

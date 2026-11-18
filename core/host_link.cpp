@@ -340,16 +340,20 @@ void HostLink::broadcastOwnership() {
 }
 
 bool HostLink::handleHello(Client& client, Reader& reader) {
+    // The protocol version is checked before the rest of HELLO: another version may have
+    // other fields, and its client must get REJECT 1, not a dropped connection.
+    Reader versionReader = reader;
+    uint16_t protocol = 0;
+    if (versionReader.readU16(protocol) && protocol != kProtocolVersion) {
+        return reject(client, RejectReason::ProtocolVersion,
+                      "protocol version mismatch: host " + std::to_string(kProtocolVersion) +
+                          ", client " + std::to_string(protocol));
+    }
+
     Hello hello;
     if (!readHello(reader, hello)) {
         client.leaveReason = "broken HELLO";
         return false;
-    }
-
-    if (hello.protocol != kProtocolVersion) {
-        return reject(client, RejectReason::ProtocolVersion,
-                      "protocol version mismatch: host " + std::to_string(kProtocolVersion) +
-                          ", client " + std::to_string(hello.protocol));
     }
     if (hello.orbiterVersion != config_.orbiterVersion) {
         return reject(client, RejectReason::OrbiterVersion,

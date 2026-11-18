@@ -110,6 +110,16 @@ void testTcpFrame() {
     CHECK(together.next(type, body) == Frame::Ready && type == 3);
     CHECK(together.next(type, body) == Frame::Ready && type == 9);
     CHECK(together.next(type, body) == Frame::NeedMore);
+
+    // One chunk holds a whole message and the start of the next; the rest comes later.
+    olc::TcpFrameReader split;
+    size_t cut = frame.size() + 2;
+    split.append(stream.data(), cut);
+    CHECK(split.next(type, body) == Frame::Ready && type == 3);
+    CHECK(split.next(type, body) == Frame::NeedMore);
+    split.append(stream.data() + cut, stream.size() - cut);
+    CHECK(split.next(type, body) == Frame::Ready && type == 9 && body.empty());
+    CHECK(split.next(type, body) == Frame::NeedMore);
 }
 
 void testBrokenTcp() {

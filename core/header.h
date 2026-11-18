@@ -59,7 +59,8 @@ public:
     Result next(uint8_t& type, std::vector<uint8_t>& body);
 
 private:
-    std::vector<uint8_t> pending_;  // received but not yet returned bytes
+    std::vector<uint8_t> pending_;  // received bytes; those before start_ are already returned
+    size_t start_ = 0;              // first byte of pending_ not yet returned
     bool broken_ = false;
 };
 

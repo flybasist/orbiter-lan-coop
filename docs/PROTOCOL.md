@@ -262,6 +262,7 @@ differ from the host.
 
 - `version` in every UDP packet and `protocol` in `HELLO`. Different versions do not work together:
   the host answers `REJECT` with reason 1.
+- Version 4 (2026-11-18): vessel ownership — `OWNERSHIP`, `OWNER_REQUEST`, `OWNER_DENIED` (task 3.1).
 - Version 3 (2026-11-17): `scenario_id` added to `HELLO` and `SCENARIO` (decision 31).
 - Version 2 (2026-11-17): `client_id` added to `PING`. Version 1 is without it.
 - The Orbiter version must be the same on the host and the client (`REJECT`, reason 2): different builds
