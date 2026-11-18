@@ -18,6 +18,7 @@ and flies their own vessel, while the host computes the physics. Testing happens
 | [PROTOCOL.md](PROTOCOL.md) | Network protocol: channels, messages, fields (draft) |
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
 | [TEXTURES.md](TEXTURES.md) | Where textures and kernels come from, sizes, licenses and the contents of the test archive |
+| [PACKAGE.md](PACKAGE.md) | The test package: archive contents, installation, how to build |
 | [SMOOTHING.md](SMOOTHING.md) | Motion smoothing: state rate, buffer delay and interpolation method based on the model results |
 | [RESEARCH.md](RESEARCH.md) | Research: Orbiter, past attempts, Linux and macOS, licenses, releases |
 | [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md) | Map of the Orbiter core: what the plugin relies on, with references to the code |
@@ -53,6 +54,7 @@ Do not rescan the whole repository: the map below is enough.
 | `tools/scenarios/` | Scenarios for the docking check by people (`Station approach`, `Two DG 20 m`, `Two DG 3 km`); copy them to `Scenarios\OLC-test` on the host. Described in `PILOT-GUIDE.md`. |
 | `tools/rigtest/` | The helper plugin `OlcRigTest.dll` for test rigs, not part of OLC: creates, deletes and docks vessels and moves the focus on a schedule from `Config\OlcRigTest.cfg`. How to use it — `STANDS.md`, section 11. |
 | `tools/stands/` | Scripts for a Windows test rig: `setup-windows.ps1` — preparation for building Orbiter and OLC (Git, Visual Studio, DirectX SDK, firewall); `setup-autologon.ps1` — automatic sign-in of the user (the owner types the password); `register-run-task.ps1` and `run-orbiter.ps1` — starting Orbiter on the visible desktop on a command from SSH, with screenshots and presses in windows (Launchpad, the OLC dialog); `console-send.ps1` — console commands for Orbiter without graphics (pause, time acceleration). Test rig layout — `STANDS.md`. |
+| `tools/package/` | The `make-package.ps1` script builds the test package archives from a ready Orbiter installation ([PACKAGE.md](PACKAGE.md)). |
 
 The Orbiter source code is not part of this repository. A separate clone of
 `orbitersim/orbiter` is used for reading (the owner's is `~/Documents/github/orbiter`), see "Conditions" below.

@@ -273,7 +273,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.13 | Code audit (core, plugin, tools): bugs, bounds, dead code; every finding checked and fixed | Mac + Windows | Builds without warnings, tests pass, results in the stage section | done (2026-11-18): the bugs found are fixed, 4 findings are not bugs, see the results of 3.13 |
 | 3.14 | Audit of the documentation (both language versions) and code comments: everything matches the code and is clear to people and agents | Mac | No mismatches, `olc-doccheck` passes | done (2026-11-18): documents and comments checked against the code, see the results of 3.14 |
 | 3.15 | Research of textures and add-ons: where people get them, size, licenses, what may go into the archive | Mac | A section in the documentation; the download list goes to the owner for approval (decision 43) | done (2026-11-18): `TEXTURES.md`; the download list waits for the answer to Q10 |
-| 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | in progress |
+| 3.16 | Test package (decision 43): archives — Orbiter of the base commit with D3D9Client, the plugin, settings, scenarios, textures (if the license allows); install instructions in two languages: what to unpack in which order and where | Windows x64 (Proxmox) | The archives unpacked by the instructions and started on a clean machine | done (2026-11-18): a start without graphics on a clean machine; with the picture not checked, see results of 3.16 |
 | 3.17 | Test procedure in two languages (decision 44): roles, who presses what, what is checked, the expected result, a report form for the agent; a PDF of the procedure; the overview PDF — if there is something to update | Mac | A document in `docs/`, PDF | waiting (main session) |
 | 3.18 | Research 4.1 of stage 4 (decision 47): what the standard MFDs and the DeltaGlider change in the vessel, how it is read and set through the SDK; panel and cockpit clicks on the host for a vessel not in focus | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
 | 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | waiting |
@@ -477,6 +477,14 @@ textures, the base textures come from an Orbiter 2016 installation; the high-res
 pages are closed to the agent (403), so they must not go into the archive until the owner confirms.
 The download list is question Q10 (I recommend option A: only our files and Orbiter with D3D9Client
 in the archive, the rest by links).
+
+**Results of 3.16 (2026-11-18).** The `tools/package/make-package.ps1` script builds three archives from
+a ready installation: Orbiter with D3D9Client (about 160 MB), the SPICE kernels (about 1.3 GB), the plugin
+with a settings template and the scenarios. Earth textures come from a link, decision 50. The
+instructions are in `PACKAGE.md`. Check: the archives were built on Windows 11 x64 and unpacked by the
+instructions into an empty folder on Windows 10 x64; a start without graphics worked
+(`OLC host: listening`, exit 0). The Proxmox rigs cannot check a start with the picture on a clean
+machine (no 3D) - that is left to people in task 3.7.
 
 **Stage 3 succeeds if:**
 

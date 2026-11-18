@@ -18,6 +18,7 @@ OLC — плагин для космосимулятора Orbiter, которы
 | [PROTOCOL.md](PROTOCOL.md) | Сетевой протокол: каналы, сообщения, поля (черновик) |
 | [PLAN.md](PLAN.md) | Этапы работ, критерии прототипа, стенды |
 | [TEXTURES.md](TEXTURES.md) | Откуда берут текстуры и ядра, размеры, лицензии и состав архива испытаний |
+| [PACKAGE.md](PACKAGE.md) | Пакет испытаний: состав архивов, установка, сборка |
 | [SMOOTHING.md](SMOOTHING.md) | Сглаживание движения: частота состояний, задержка буфера и способ интерполяции по результатам модели |
 | [RESEARCH.md](RESEARCH.md) | Исследование: Orbiter, прошлые попытки, Linux и macOS, лицензии, релизы |
 | [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md) | Карта ядра Orbiter: то, на что опирается плагин, со ссылками на код |
@@ -53,6 +54,7 @@ OLC — плагин для космосимулятора Orbiter, которы
 | `tools/scenarios/` | Сценарии для проверки стыковки людьми (`Station approach`, `Two DG 20 m`, `Two DG 3 km`); копируются в `Scenarios\OLC-test` хоста. Описание — `PILOT-GUIDE.md`. |
 | `tools/rigtest/` | Вспомогательный плагин `OlcRigTest.dll` для стендов, не часть OLC: создаёт, удаляет и стыкует корабли и переводит фокус по расписанию из `Config\OlcRigTest.cfg`. Как пользоваться — `STANDS.md`, раздел 11. |
 | `tools/stands/` | Скрипты для Windows-стенда: `setup-windows.ps1` — подготовка к сборке Orbiter и OLC (Git, Visual Studio, DirectX SDK, брандмауэр); `setup-autologon.ps1` — автовход пользователя (пароль вводит владелец); `register-run-task.ps1` и `run-orbiter.ps1` — запуск Orbiter на видимом рабочем столе по команде из SSH, снимки экрана и нажатия в окнах (Launchpad, диалог OLC); `console-send.ps1` — команды консоли Orbiter без графики (пауза, ускорение). Схема стендов — `STANDS.md`. |
+| `tools/package/` | Скрипт `make-package.ps1` собирает архивы пакета испытаний из готовой установки Orbiter ([PACKAGE.md](PACKAGE.md)). |
 
 Исходный код Orbiter в этот репозиторий не входит. Для чтения используется отдельный клон
 `orbitersim/orbiter` (у владельца — `~/Documents/github/orbiter`), см. «Условия» ниже.
