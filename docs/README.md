@@ -124,9 +124,11 @@ the owner approved. Rules:
    written to `QUESTIONS.md`, the agent reports it to the owner's main session (decision 42) and switches to another independent
    task. The decision made is recorded in `DECISIONS.md`.
 3. **Windows or Linux needed — wait for a test rig.** No workarounds.
-4. **Models.** Opus — architecture, task setting, checking results. Sonnet —
-   implementation and code analysis from a ready task description. Haiku — code search. Opus always
-   checks a subagent's result itself.
+4. **Models** (decision 48). The owner's main session runs on Opus: architecture, task setting,
+   checking results and tasks with the "(main session)" status — it does them itself. A scheduled
+   run works on Sonnet: implementation and code analysis from a ready task description. Haiku — code
+   search. An Opus subagent — only when a second parallel piece of Opus-level work is needed. Whoever
+   called a subagent always checks its result.
 5. **Schedule (UTC+5).**
    - The scheduled run fires every hour at :00 (decision 45). It cheaply checks the lock, the
      limits and the queue and goes back to sleep at once if there is no work; if there is, it works
