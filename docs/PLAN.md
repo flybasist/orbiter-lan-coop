@@ -589,7 +589,7 @@ a free vessel takes it.
 | 5.5 | Server without graphics: pause and warp from the server console in the description (`console-send.ps1`) as a fallback | Mac | Description in `QUICKSTART.md` | done (2026-11-19): description in `QUICKSTART.md`, section 6; commands checked against the script, not run on a rig |
 | 5.6 | Research: Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): task 3.19, `ORBITER-INTERNALS.md`, section 20 |
 | 5.7 | Recording a lesson and debriefing by the results of 5.6 | Mac + Windows | The flight can be watched again after the lesson | stop: question Q12 |
-| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below | in progress |
+| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below | done (2026-11-19): a server without graphics (.163), the FD with graphics (olc-win-arm), a pilot without graphics (.162, takes `GL-01S`); Ctrl+P at the FD: pause and its release reach the pilot within 0.3 s, the player summary on the FD screen shows the pilot and the FD with latency; the FD has `input sent 0` (flies no vessel); autosave once a minute (`AutosaveMinutes = 1`) written. Not checked: the FD on the same machine as the host (checked 2026-11-18, task 3.8), the pilot's pause being refused (core tests), flight replay (5.7, Q12) |
 
 **Stage 5 succeeds if:**
 
