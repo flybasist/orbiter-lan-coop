@@ -17,10 +17,10 @@ I — research, S — test rigs.
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.17 are done, the package, the procedure and the scenarios for 3.7 are ready; waits for the docking check by people |
-| 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — in progress (decision 52, tasks 3.21–3.22); 4B — postponed |
-| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | plan approved on 2026-11-18 (decision 46); research 5.6 — task 3.19, the work queue — task 3.23 (decision 53) |
+| 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — in progress: research and protocol are done (decisions 57, 58), queue 4A.1–4A.4; 4B — postponed |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | in progress: 5.1–5.6 and 5.8 are done (protocol version 6, rig check), 5.7 (decision 56) and 5.9 are waiting |
 
-Order: 4A, then stage 5, 4B — later (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
+Order: stage 5 (5.7 and 5.9 remain), then 4A, 4B — later (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
 error), documentation.
 
@@ -279,7 +279,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.20 | Decision 52: stage 4 splits into 4A "everyone sees the vessel state" (not postponed) and 4B "crew" (postponed), Q11 postponed; the "mechanisms of someone else's vessel" limitation — into the procedure; rebuild the procedure PDFs | Mac | `DECISIONS.md`, `PLAN.md`, `TEST-PROCEDURE.md`, PDF | done (2026-11-19): decisions 52–53, the limitation in the procedure, the procedure PDFs and the overview report rebuilt |
 | 3.19 | Research 5.6 of stage 5 (decision 47): Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): section 20 of `ORBITER-INTERNALS.md`; fork Q12 |
 | 3.21 | 4A, research: general animation transfer (`GetAnimPtr`, `GetAnimation`, `SetAnimation`) versus DeltaGlider Lua commands — what another participant will see, for which classes it works; NAV and transponder frequencies | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): section 21 of `ORBITER-INTERNALS.md`; fork Q13 |
-| 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | waiting (Q13 answered, decision 57) |
+| 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | done (2026-11-19): decision 58 (protocol version 7), the 4A task queue in the stage 4 section |
 | 3.23 | Stage 5: the work queue — tasks 5.1–5.7, what the rigs can check now and what waits for people | Mac | Tasks in `PLAN.md` | done (2026-11-19): the stage 5 tasks got a "Status" column — the queue continues there |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
@@ -606,6 +606,22 @@ a free vessel takes it.
 **Split (decision 52):** 4A "Everyone sees the vessel state" is in progress (tasks 3.21–3.22); of the
 tasks below it includes 4.4 (NAV frequencies) and the general transfer of vessel mechanisms; 4B "Crew"
 (4.2, 4.3, 4.5, 4.6) is postponed.
+
+**4A task queue** (decisions 57 and 58; tasks 4.1 and 4.4 below are covered by it):
+
+| No. | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| 4A.1 | Protocol version 7 in the core: `ANIM_STATE` and `NAV_STATE` (decision 58) — reading and writing, queues in `HostLink` and `ClientLink`, `NAV_STATE` accepted only from the vessel owner, the host keeps the latest values and sends a snapshot to a new client after `VESSELS`; `PROTOCOL.md` | Mac, core | Core tests: message parsing, someone else's vessel rejected, a new client gets the snapshot; a build without warnings | waiting |
+| 4A.2 | Plugin, animations: the host reads the animations of all vessels (`GetAnimPtr`), threshold 0.01, at most 5 times a second per vessel; the client applies `SetAnimation`. Measure on the rig how many DeltaGlider animations change by themselves every frame and how many bytes a second go out; if many, a filter (decision 58) | Windows | On the rig the pilot on a client presses `G` and `K` — on another client the gear and the cone move; the traffic is in the results | waiting |
+| 4A.3 | Plugin, frequencies: the owner reads the NAV and transponder steps every 0.5 s and sends `NAV_STATE` on change; the host applies them (`SetNavChannel`, `SetTransponderChannel`) and sends them on; the client applies them | Windows | On the rig a frequency the pilot set in an MFD is seen in the observer's MFD | waiting |
+| 4A.4 | Rig check of 4A (host without graphics, two clients with graphics) and documents: remove the "mechanisms of someone else's vessel" limitation from `TEST-PROCEDURE.md` for the next round, `PILOT-GUIDE.md`, `ARCHITECTURE.md`, CHANGELOG | Rigs, Mac | The 4A criteria below are met on the rig | waiting |
+
+DeltaGlider Lua commands (option A of question Q13) — only if the rig or people show that the general
+transfer is not enough (decision 57); they are not queued.
+
+**4A succeeded if:** the gear, the cone, the airlock and other mechanisms of the pilot's vessel are in
+the same position for all participants as for the pilot, within 0.5 s; the pilot's NAV frequencies are
+seen in the observer's MFD; a new participant sees the mechanisms and frequencies right after connecting.
 
 **What is known from the sources:**
 
