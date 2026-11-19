@@ -30,7 +30,7 @@ Orbiter is a Windows x64 program. Everything else runs it through emulation or W
 |---|---|---|
 | Windows 10/11 x64 | Everything: build, host, client, host without graphics | The reference. At least one is needed |
 | Windows 11 ARM (a virtual machine on a Mac) | Everything, but Orbiter x64 runs through emulation | Convenient for development; FPS and smoothness are not meaningful |
-| Linux x64 + Wine or Proton (including Steam Deck) | Client and host; not the plugin build | Checking clients on Linux |
+| Linux x64 + Wine or Proton (including Steam Deck) | Not checked; by the Orbiter Wiki Orbiter runs, so client and host; not the plugin build | Checking clients on Linux |
 | Linux x64 or ARM without Wine | Building and testing the `olc-core` network core | A second machine for network tests; Orbiter does not run |
 | macOS | Building and testing `olc-core`, the agent's session | Orbiter does not run natively; the project does not check Wine on Mac |
 | FreeBSD, other systems, 32-bit Windows | — | Supported by neither Orbiter nor OLC. Makes no sense |
@@ -90,8 +90,8 @@ invisible service session, not on the desktop. So:
 
 - **The main thing is to manage without a screen.** The plugin writes the delay, loss and position error
   to the log; the agent reads the log over SSH. A screen is needed only for the final smoothness check.
-- **A virtual machine on a Mac** (`screen: mac-window`): its window is a window on the Mac screen;
-  the agent looks and clicks in it through computer use.
+- **A virtual machine on a Mac** (`screen: mac-window`): its window is a window on the Mac screen. The
+  agent looks at the picture through screenshots taken by `run-orbiter.ps1` (below).
 - **A server hypervisor** (`screen: console`): a console in the browser, the owner logs into the hypervisor.
 - **Without a graphics client Orbiter runs right over SSH** (checked): the
   "Orbiter Server Console" opens, the simulation runs, the plugin loads. For network tests without
@@ -187,6 +187,9 @@ Schools often still have Windows 10 — it is worth checking on a par with Windo
 
 ### 8.3. Linux, client via Wine (`client`, `host`)
 
+Not checked: an outline from the Orbiter Wiki.
+
+
 1. A graphics card with a Vulkan driver (Mesa for AMD and Intel, the proprietary one for NVIDIA).
 2. Wine from the WineHQ repository (stable), `winetricks`; into the Wine prefix — `vcrun2022` and
    `d3dx9`; DXVK to translate DirectX 9 into Vulkan. The exact set — per
@@ -195,6 +198,9 @@ Schools often still have Windows 10 — it is worth checking on a par with Windo
 4. `openssh-server`, the key, the firewall — as for any machine.
 
 ### 8.4. Steam Deck (`client`)
+
+Not checked.
+
 
 1. Desktop mode, a password for the `deck` user, `sshd` is enabled with
    `sudo systemctl enable --now sshd`.
@@ -212,8 +218,9 @@ network. Orbiter is not run here.
 ## 9. Orbiter on test rigs
 
 - Orbiter is built **once** — on the machine with the `build` role — per [QUICKSTART.md](QUICKSTART.md).
-- The finished `install` folder is copied to the other machines together with the planet textures; its path
-  on each machine is the `orbiter` field in `stands.yaml`.
+- The finished `install` folder is copied to the other machines together with the SPICE kernels (or the
+  test package is installed on them, [PACKAGE.md](PACKAGE.md)); planet textures are optional. Its path on
+  each machine is the `orbiter` field in `stands.yaml`.
 - All machines have the same Orbiter build and the same set of add-ons: this is an OLC
   requirement (decision 17 in [DECISIONS.md](DECISIONS.md)).
 - The plugin need not be built on a test rig: the finished `OrbiterLanCoop.dll` is an artifact of the
