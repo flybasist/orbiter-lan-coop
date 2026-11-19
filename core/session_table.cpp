@@ -164,7 +164,7 @@ OwnerResult SessionTable::takeVessel(uint16_t netId, uint8_t clientId, const std
         return OwnerResult::NoSuchVessel;
     }
     if (target->owner == clientId) {
-        return OwnerResult::Ok;  // already his: a repeated request changes nothing
+        return OwnerResult::Ok;  // already theirs: a repeated request changes nothing
     }
     if (target->owner != kNoOwner) {
         return OwnerResult::Busy;

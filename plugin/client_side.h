@@ -19,7 +19,7 @@
 // Animations follow the host (ANIM_STATE): SetAnimation on every vessel, the pilot's own one too -
 // the host moves the mechanisms (the pilot's keys reach it in KEY); values for a vessel that does
 // not exist here yet wait until it is created.
-// Radio frequencies (NAV_STATE, task 4A.3): the pilot sets them on his own copy, so the owner is the
+// Radio frequencies (NAV_STATE, task 4A.3): the pilot sets them on their own copy, so the owner is the
 // source - every kNavScan seconds the client sends the frequencies of its own vessel when they
 // changed; the frequencies of the other vessels come from the host and are set on the copies.
 // Docking follows the host (DOCK): Dock in mode 0 and Undock after the display delay; vessels that are

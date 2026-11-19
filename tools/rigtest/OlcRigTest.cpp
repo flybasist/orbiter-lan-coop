@@ -17,7 +17,7 @@
 //   <sim time, s> nav <vessel> <NAV receiver> <channel>
 //   <sim time, s> xpdr <vessel> <channel>
 //   <sim time, s> shownav <vessel>
-// "nav" and "xpdr" tune a NAV receiver (from 0) and the transponder, as the pilot does in his MFD;
+// "nav" and "xpdr" tune a NAV receiver (from 0) and the transponder, as the pilot does in their MFD;
 // "shownav" writes the channels of the vessel to the log (frequencies are shared in NAV_STATE).
 // "dock" brings the other vessel to the first one and docks them (mode 1), so the vessels may start
 // far apart; port numbers start from 0.

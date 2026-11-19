@@ -8,7 +8,7 @@
 //   WORLD_STATE; while paused - at most kPausedStateRate times per second;
 // - send FUEL once per second;
 // - NAV_STATE (task 4A.3): the frequencies of the vessel the host flies go to clients when they
-//   change (checked every kNavScan seconds); NAV_STATE from a pilot is put on the host's copy of his
+//   change (checked every kNavScan seconds); NAV_STATE from a pilot is put on the host's copy of their
 //   vessel (the core has already sent it on to the other clients);
 // - send ANIM_STATE: the animations of every vessel (gear, hatches, ...) that changed by more than
 //   kAnimThreshold, at most kAnimRate times per second per vessel (task 4A.2, decision 58);

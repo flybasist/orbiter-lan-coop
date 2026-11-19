@@ -377,7 +377,7 @@ bool HostLink::handleNavState(Client& client, Reader& reader) {
         client.leaveReason = "broken NAV_STATE";
         return false;
     }
-    // Frequencies are set by the pilot on his own copy of the vessel: only the owner is the source.
+    // Frequencies are set by the pilot on their own copy of the vessel: only the owner is the source.
     if (!table_.isControlledBy(state.netId, client.clientId)) {
         stats_.navStatesRejected++;
         return true;
@@ -519,7 +519,7 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     client.player = hello.player;
     client.director = !config_.director.empty() && hello.player == config_.director;
     client.observer = client.director || (hello.flags & kHelloObserver) != 0;
-    // A pilot who dropped out and came back under the same name gets his vessel back. An observer
+    // A pilot who dropped out and came back under the same name gets their vessel back. An observer
     // (or the director) never takes a vessel, even under the name of a pilot who left.
     bool restored = !client.observer && table_.restoreHeldVessels(clientId, hello.player, now_) > 0;
 
@@ -547,7 +547,7 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId) +
         " (" + scenario + ")");
     if (restored) {
-        log("OLC host: player '" + hello.player + "' got his vessel back");
+        log("OLC host: player '" + hello.player + "' got their vessel back");
         broadcastOwnership();  // includes PLAYERS
     } else {
         broadcastPlayers();

@@ -21,11 +21,12 @@
 // - handles OWNER_REQUEST: a client takes a free vessel or releases its own one (the rules are in
 //   SessionTable); every change goes to all clients in OWNERSHIP, a refusal - to the sender
 //   in OWNER_DENIED. A pilot who dropped out keeps the vessel for kOwnerHoldSeconds and gets it
-//   back when a player with the same name joins;
+//   back when a player with the same name joins (not as an observer);
 // - handles TIME_REQUEST (pause and warp) only from the flight director, whose name is
 //   HostConfig::director; the plugin applies the requests (takeTimeRequests). Other senders are
 //   logged and ignored. The director and clients that said so in HELLO are observers: they get
 //   OWNER_DENIED, reason Observer, when they ask for a vessel;
+// - handles SAVE_REQUEST only from the flight director; the plugin saves the world (takeSaveRequests);
 // - sends ANIM_STATE (animations of every vessel, read by the plugin on the host) and NAV_STATE
 //   (radio frequencies) over TCP; keeps the latest values of each vessel and sends them to a client
 //   that joins later, after OWNERSHIP and DOCK. NAV_STATE from a client is accepted only for the

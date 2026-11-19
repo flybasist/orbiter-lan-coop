@@ -505,7 +505,7 @@ void testOwnership() {
     }));
     CHECK(bob.table().findById(2)->owner == ann.clientId());
 
-    // Bob cannot take Ann's vessel or the host's one; both refusals reach him, nothing changes.
+    // Bob cannot take Ann's vessel or the host's one; both refusals reach Bob, nothing changes.
     bob.requestTake(2);
     bob.requestTake(0);
     std::vector<olc::OwnerDenied> denials;
@@ -574,7 +574,7 @@ void testOwnership() {
 
     std::vector<std::string> hostLog = host.link.takeLog();
     CHECK(hasLine(hostLog, "client " + std::to_string(ann.clientId()) + " ('Ann') takes vessel 'ISS'"));
-    CHECK(hasLine(hostLog, "player 'Bob' got his vessel back"));
+    CHECK(hasLine(hostLog, "player 'Bob' got their vessel back"));
 }
 
 // Input with recognisable values; keys makes packets distinguishable.
