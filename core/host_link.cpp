@@ -484,8 +484,9 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     client.player = hello.player;
     client.director = !config_.director.empty() && hello.player == config_.director;
     client.observer = client.director || (hello.flags & kHelloObserver) != 0;
-    // A pilot who dropped out and came back under the same name gets his vessel back.
-    bool restored = table_.restoreHeldVessels(clientId, hello.player, now_) > 0;
+    // A pilot who dropped out and came back under the same name gets his vessel back. An observer
+    // (or the director) never takes a vessel, even under the name of a pilot who left.
+    bool restored = !client.observer && table_.restoreHeldVessels(clientId, hello.player, now_) > 0;
 
     Welcome welcome;
     welcome.clientId = clientId;

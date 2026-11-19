@@ -49,7 +49,25 @@ If the connection is lost, the vessel stays with the pilot for 60 seconds and th
 - How many seconds after a key press the vessel responded (by eye).
 - Any messages on the screen and failures. The log is `Orbiter.log` in the Orbiter folder, lines with `OLC`.
 
-## 5. For the flight director: recording the lesson
+## 5. For the flight director
+
+**Preparation.** On the host machine `Config\OrbiterLanCoop.cfg` has the line `Director = <FD name>`;
+the FD connects as a client with graphics under this name. The FD has no vessel: F3 selects any vessel
+for viewing only (the "observer - view only" message), the control keys go nowhere. Vessel collisions
+must be off everywhere (`VesselCollision = FALSE` in `Orbiter.cfg`, the package has it so): otherwise
+Orbiter itself sets the time acceleration back to x1 while vessels are close.
+
+| FD key | What it does |
+|---|---|
+| `Ctrl+P` | Pause for everybody / resume |
+| `T` / `R` | Time acceleration for everybody: x10 up / down |
+| `Ctrl+Alt+S` | Save the world on the host: `Scenarios\OLC\Saves\save-YYYYMMDD-HHMMSS.scn` |
+| `Ctrl+C` | Flight recording (below) |
+
+The host itself saves the world to `Scenarios\OLC\Saves\autosave.scn` every 10 minutes (`AutosaveMinutes`).
+On the left of the FD screen is a summary: who is connected, in which vessel, the delay to the host.
+
+**Recording the lesson.**
 
 Ctrl+C on the director's client (with graphics) starts the recording, pressing it again stops it.
 All ships of the world are recorded, other players' ships too. The files are `Flights\<scenario name>\`

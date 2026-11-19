@@ -550,6 +550,18 @@ void testOwnership() {
     }));
     CHECK(denials.size() == 1 && denials[0].reason == static_cast<uint8_t>(olc::OwnerResult::Busy));
 
+    // An observer under Bob's name does not get Bob's vessel: it stays held.
+    olc::ClientConfig watcherConfig = bobConfig;
+    watcherConfig.observer = true;
+    olc::ClientLink watcher;
+    CHECK(watcher.start(watcherConfig, now()));
+    CHECK(waitFor(host.link, {&ann, &watcher}, [&]() {
+        return watcher.state() == olc::ClientLink::State::Ready;
+    }));
+    CHECK(host.table.findById(2)->owner == olc::kNoOwner);
+    watcher.stop("test");
+    CHECK(waitFor(host.link, {&ann}, [&]() { return host.link.readyClientCount() == 1; }));
+
     // Bob returns under the same name and gets the vessel back at once, Ann sees it.
     olc::ClientLink bobAgain;
     CHECK(bobAgain.start(bobConfig, now()));
