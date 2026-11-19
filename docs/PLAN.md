@@ -17,10 +17,10 @@ I — research, S — test rigs.
 | 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
 | 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
 | 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.17 are done, the package, the procedure and the scenarios for 3.7 are ready; waits for the docking check by people |
-| 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — in progress: research and protocol are done (decisions 57, 58), queue 4A.1–4A.4; 4B — postponed |
-| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | done except the check by people: 5.1–5.9 (protocol version 6, rig check) |
+| 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — done except the check by people: 4A.1–4A.4 (protocol version 7, decisions 57, 58); 4B — postponed |
+| 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | done except the check by people: 5.1–5.9 (protocol version 6, rig check); the round 1 test package built on 2026-11-19 |
 
-Order: 4A (stage 5 is done), 4B — later (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
+Order: tests by people with the round 1 package and the big audit (3.24); 4B — later (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
 error), documentation.
 
