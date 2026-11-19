@@ -48,3 +48,11 @@ If the connection is lost, the vessel stays with the pilot for 60 seconds and th
 - Whether docking worked for both: whether both pilots see the vessels docked, and whether there are jerks or jitter.
 - How many seconds after a key press the vessel responded (by eye).
 - Any messages on the screen and failures. The log is `Orbiter.log` in the Orbiter folder, lines with `OLC`.
+
+## 5. For the flight director: recording the lesson
+
+Ctrl+C on the director's client (with graphics) starts the recording, pressing it again stops it.
+All ships of the world are recorded, other players' ships too. The files are `Flights\<scenario name>\`
+and `Scenarios\Playback\<scenario name>.scn` on the director's machine. To review, start that
+scenario in Orbiter without the OLC plugin. Ships created during the lesson are not recorded.
+Details: [QUICKSTART.md](QUICKSTART.md), section 6.

@@ -163,6 +163,16 @@ every `AutosaveMinutes` minutes (default 10, `0` - off), and the flight director
 makes a separate file `save-YYYYMMDD-HHMMSS.scn`. A save is an ordinary Orbiter scenario: start the
 next session from it (`Orbiter.exe -s "OLC\Saves\autosave" -p OrbiterLanCoop` or in Launchpad).
 
+Recording a lesson for the debriefing (task 5.7, decision 56): the flight director presses Ctrl+C
+on their client with graphics, and presses it again to stop. The client records every ship of
+the world, including other players' ships. The recording stays on the director's machine:
+`Flights\<scenario name>\<ship>.pos` and `Scenarios\Playback\<scenario name>.scn`. To review
+it, start that scenario in Orbiter without the OLC plugin (Launchpad, `Playback` folder): playback
+is the standard one and the recording drives the ships. Limits: ships created during the lesson
+are not recorded; a server without graphics cannot record (it has no window and no key), so the
+director must work on a client with graphics. Checked on the rig on 2026-11-19 (section 20 of
+`ORBITER-INTERNALS.md`).
+
 ## 7. Updating
 
 The Orbiter base commit changes only deliberately (see [README.md](README.md), condition 3):
