@@ -11,6 +11,8 @@
 // - elevator trim: 0.25 per second; wheel brakes: for one step.
 // - single key presses (KEY): VESSEL::SendBufferedKey with a key state that holds the modifiers of
 //   the press (applyKey). The keys are looked up in the host's own keymap.cfg.
+// - NAV and transponder frequencies (readNav, applyNav, task 4A.3): the owner's values are read
+//   and put on the other copies of the vessel.
 // Called every frame in clbkPreStep, so the "one step" actions last while the key is held.
 #pragma once
 
@@ -25,5 +27,16 @@ void applyInput(VESSEL* vessel, const olc::Input& input, double simdt);
 
 // Sends one key press of the pilot to the vessel as if the key were pressed with the vessel in focus.
 void applyKey(VESSEL* vessel, const olc::KeyPress& press);
+
+// Reads the radio steps of the vessel: the transponder (0 if it has none) and every NAV receiver.
+// netId is left as it is.
+void readNav(VESSEL* vessel, olc::NavState& state);
+
+// Sets the radio steps from state on this copy of the vessel. Only what differs is set; a
+// receiver the vessel does not have and a transponder that is off are skipped.
+void applyNav(VESSEL* vessel, const olc::NavState& state);
+
+// Whether two NavState hold the same steps (net_id is not compared).
+bool sameNav(const olc::NavState& a, const olc::NavState& b);
 
 }  // namespace olcplugin

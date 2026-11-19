@@ -283,6 +283,9 @@ At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
 ; <sim time, s> dock <vessel> <its port> <other vessel> <its port>
 ; <sim time, s> undock <vessel> <its port>
 ; <sim time, s> focus <vessel>
+; <sim time, s> nav <vessel> <NAV receiver> <channel>
+; <sim time, s> xpdr <vessel> <channel>
+; <sim time, s> shownav <vessel>
 60 create GL-NEW DeltaGlider Ref
 60 delete Ref
 90 delete GL-NEW
@@ -291,6 +294,8 @@ At session start the plugin reads `Config\OlcRigTest.cfg`, one action per line:
 A new vessel takes the state of the existing one shifted by 200 m, so that they do not collide.
 `focus` moves the focus to the vessel, as F3 does; this is needed on a client: the F3 window is drawn
 by ImGui, and the rig scripts cannot click in it.
+`nav` and `xpdr` tune a NAV receiver (from 0) and the transponder, `shownav` writes the vessel's
+channels to the log: this checks that frequencies reach the other machines.
 The class must be installed, otherwise Orbiter terminates abnormally.
 
 Test scenarios need a `PRPLEVEL` line, otherwise vessels start with empty tanks.

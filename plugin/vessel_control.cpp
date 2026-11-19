@@ -179,4 +179,31 @@ void applyKey(VESSEL* vessel, const olc::KeyPress& press) {
                   modes.empty() ? " none" : modes.c_str());
 }
 
+void readNav(VESSEL* vessel, olc::NavState& state) {
+    NAVHANDLE transponder = vessel->GetTransponder();
+    state.transponder = transponder ? static_cast<uint16_t>(oapiGetNavChannel(transponder)) : 0;
+    state.channels.clear();
+    const DWORD count = (std::min)(vessel->GetNavCount(), static_cast<DWORD>(olc::kMaxNavChannels));
+    for (DWORD n = 0; n < count; n++) {
+        state.channels.push_back(static_cast<uint16_t>(vessel->GetNavChannel(n)));
+    }
+}
+
+void applyNav(VESSEL* vessel, const olc::NavState& state) {
+    NAVHANDLE transponder = vessel->GetTransponder();
+    if (transponder && oapiGetNavChannel(transponder) != state.transponder) {
+        vessel->SetTransponderChannel(state.transponder);
+    }
+    const DWORD count = (std::min)(vessel->GetNavCount(), static_cast<DWORD>(state.channels.size()));
+    for (DWORD n = 0; n < count; n++) {
+        if (vessel->GetNavChannel(n) != state.channels[n]) {
+            vessel->SetNavChannel(n, state.channels[n]);
+        }
+    }
+}
+
+bool sameNav(const olc::NavState& a, const olc::NavState& b) {
+    return a.transponder == b.transponder && a.channels == b.channels;
+}
+
 }  // namespace olcplugin

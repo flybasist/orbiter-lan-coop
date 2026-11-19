@@ -7,6 +7,9 @@
 // - at StateRate capture the states of all vessels (GetStatusEx) and send
 //   WORLD_STATE; while paused - at most kPausedStateRate times per second;
 // - send FUEL once per second;
+// - NAV_STATE (task 4A.3): the frequencies of the vessel the host flies go to clients when they
+//   change (checked every kNavScan seconds); NAV_STATE from a pilot is put on the host's copy of his
+//   vessel (the core has already sent it on to the other clients);
 // - send ANIM_STATE: the animations of every vessel (gear, hatches, ...) that changed by more than
 //   kAnimThreshold, at most kAnimRate times per second per vessel (task 4A.2, decision 58);
 // - a vessel came to rest on a surface - LANDED at once; landed vessels are repeated in LANDED
@@ -20,6 +23,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -99,6 +103,8 @@ private:
     void sendFuel();
     // Finds animations that changed since the last scan and sends them in ANIM_STATE.
     void sendAnimations(double now);
+    // Sends NAV_STATE of the host's own vessel if its frequencies changed; applies the pilots' ones.
+    void syncNav(double now);
     void repeatLanded();
     void logStats();
     void flushLog();
@@ -125,6 +131,8 @@ private:
     uint64_t worldStatesSent_ = 0;
     uint64_t inputFrames_ = 0;     // frames in which a pilot's INPUT was applied (for the log)
     uint64_t inputKeyFrames_ = 0;  // of them with a control key held
+    std::map<uint16_t, olc::NavState> sentNav_;  // net_id -> NAV_STATE of the host's vessel sent last
+    double nextNav_ = 0.0;         // time (oapiGetSysTime) of the next frequency check
     uint64_t animMessages_ = 0;    // ANIM_STATE sent (for the log)
     uint64_t animValues_ = 0;      // animation values in them
     uint64_t keysApplied_ = 0;     // KEY presses passed to vessels (for the log)

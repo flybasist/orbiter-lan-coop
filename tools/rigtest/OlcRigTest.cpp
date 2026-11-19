@@ -14,6 +14,11 @@
 //   <sim time, s> dock <vessel> <its port> <other vessel> <its port>
 //   <sim time, s> undock <vessel> <its port>
 //   <sim time, s> focus <vessel>
+//   <sim time, s> nav <vessel> <NAV receiver> <channel>
+//   <sim time, s> xpdr <vessel> <channel>
+//   <sim time, s> shownav <vessel>
+// "nav" and "xpdr" tune a NAV receiver (from 0) and the transponder, as the pilot does in his MFD;
+// "shownav" writes the channels of the vessel to the log (frequencies are shared in NAV_STATE).
 // "dock" brings the other vessel to the first one and docks them (mode 1), so the vessels may start
 // far apart; port numbers start from 0.
 // A created vessel takes the state of the existing vessel, shifted 200 m along x so that the
@@ -36,12 +41,12 @@ constexpr double kCreateOffset = 200.0;
 
 struct Action {
     double simTime = 0.0;
-    std::string command;  // create, delete, dock, undock or focus
+    std::string command;  // create, delete, dock, undock, focus, nav, xpdr or shownav
     std::string name;
     std::string className;  // create only
     std::string nearVessel;  // create: vessel to copy; dock: the other vessel
     int port = 0;            // dock, undock: port of the vessel `name`
-    int otherPort = 0;       // dock: port of the other vessel
+    int otherPort = 0;       // dock: port of the other vessel; nav, xpdr: the channel
     bool done = false;
 };
 
@@ -68,10 +73,15 @@ public:
                 words >> action.port >> action.nearVessel >> action.otherPort;
             } else if (action.command == "undock") {
                 words >> action.port;
+            } else if (action.command == "nav") {
+                words >> action.port >> action.otherPort;
+            } else if (action.command == "xpdr") {
+                words >> action.otherPort;
             }
             const bool known = action.command == "create" || action.command == "delete" ||
                                action.command == "dock" || action.command == "undock" ||
-                               action.command == "focus";
+                               action.command == "focus" || action.command == "nav" ||
+                               action.command == "xpdr" || action.command == "shownav";
             if (words.fail() || !known) {
                 oapiWriteLogV("OLC rig test: bad line '%s'", line.c_str());
                 continue;
@@ -97,8 +107,10 @@ public:
                 dock(action);
             } else if (action.command == "undock") {
                 undock(action);
-            } else {
+            } else if (action.command == "focus") {
                 focus(action);
+            } else {
+                radio(action);
             }
         }
     }
@@ -145,6 +157,35 @@ private:
         OBJHANDLE handle = oapiGetVesselByName(const_cast<char*>(action.name.c_str()));
         const bool done = handle && oapiSetFocusObject(handle) != nullptr;
         oapiWriteLogV("OLC rig test: focus '%s': %s", action.name.c_str(), done ? "done" : "failed");
+    }
+
+    // nav, xpdr and shownav.
+    void radio(const Action& action) {
+        OBJHANDLE handle = oapiGetVesselByName(const_cast<char*>(action.name.c_str()));
+        if (!handle) {
+            oapiWriteLogV("OLC rig test: %s: no vessel '%s'", action.command.c_str(),
+                          action.name.c_str());
+            return;
+        }
+        VESSEL* vessel = oapiGetVesselInterface(handle);
+        if (action.command == "nav") {
+            const bool done = vessel->SetNavChannel(action.port, action.otherPort);
+            oapiWriteLogV("OLC rig test: nav '%s' receiver %d channel %d: %s", action.name.c_str(),
+                          action.port, action.otherPort, done ? "done" : "failed");
+        } else if (action.command == "xpdr") {
+            const bool done = vessel->SetTransponderChannel(action.otherPort);
+            oapiWriteLogV("OLC rig test: xpdr '%s' channel %d: %s", action.name.c_str(),
+                          action.otherPort, done ? "done" : "failed");
+        } else {
+            NAVHANDLE transponder = vessel->GetTransponder();
+            std::string text;
+            for (DWORD n = 0; n < vessel->GetNavCount(); n++) {
+                text += " " + std::to_string(vessel->GetNavChannel(n));
+            }
+            oapiWriteLogV("OLC rig test: '%s' transponder %d, NAV receivers:%s", action.name.c_str(),
+                          transponder ? static_cast<int>(oapiGetNavChannel(transponder)) : -1,
+                          text.c_str());
+        }
     }
 
     void remove(const Action& action) {

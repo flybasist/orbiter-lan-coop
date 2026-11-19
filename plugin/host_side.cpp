@@ -27,6 +27,9 @@ constexpr double kLandedRepeat = 2.0;
 constexpr float kAnimThreshold = 0.01f;
 constexpr double kAnimRate = 5.0;
 
+// NAV_STATE (decision 58): how often the host checks the frequencies of its own vessel, seconds.
+constexpr double kNavScan = 0.5;
+
 // How often to write statistics to the log, seconds.
 constexpr double kStatsInterval = 10.0;
 
@@ -283,6 +286,7 @@ void HostSide::tick(double now, bool paused) {
         nextState_ = olc::nextSendTime(nextState_, now, 1.0 / rate);
     }
     sendAnimations(now);
+    syncNav(now);
     if (now >= nextFuel_) {
         sendFuel();
         nextFuel_ = now + 1.0;
@@ -480,6 +484,40 @@ void HostSide::sendAnimations(double now) {
             }
             animMessages_++;
             animValues_ += state.anims.size();
+        }
+    }
+}
+
+void HostSide::syncNav(double now) {
+    // Frequencies set by the pilots go to the host's copy of their vessels.
+    for (const olc::NavState& state : link_.takeNavStates()) {
+        for (const Ship& ship : ships_) {
+            if (ship.netId == state.netId) {
+                applyNav(oapiGetVesselInterface(ship.handle), state);
+            }
+        }
+    }
+    if (now < nextNav_) {
+        return;
+    }
+    nextNav_ = now + kNavScan;
+    // The host is the source for the vessel it flies; nobody else sets the others' frequencies.
+    const uint16_t own = hostVessel();
+    for (auto sent = sentNav_.begin(); sent != sentNav_.end();) {
+        sent = sent->first == own ? std::next(sent) : sentNav_.erase(sent);  // released: forget
+    }
+    for (const Ship& ship : ships_) {
+        if (ship.netId != own || ship.announce) {
+            continue;
+        }
+        olc::NavState state;
+        state.netId = ship.netId;
+        readNav(oapiGetVesselInterface(ship.handle), state);
+        auto last = sentNav_.find(ship.netId);
+        if (last == sentNav_.end() || !sameNav(last->second, state)) {
+            if (link_.sendNavState(state)) {
+                sentNav_[ship.netId] = state;
+            }
         }
     }
 }

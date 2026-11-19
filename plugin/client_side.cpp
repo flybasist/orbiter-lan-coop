@@ -9,6 +9,7 @@
 #include "player_summary.h"
 #include "protocol.h"
 #include "scenario_launch.h"
+#include "vessel_control.h"
 #include "wall_clock.h"
 
 namespace olcplugin {
@@ -32,6 +33,9 @@ constexpr double kPauseRequestPause = 0.5;
 constexpr double kDirectorAnswerWait = 1.0;
 
 constexpr double kStatsInterval = 10.0;
+
+// NAV_STATE (decision 58): how often the client checks the frequencies of its own vessel, seconds.
+constexpr double kNavScan = 0.5;
 
 // A latency measurement is dropped after this many seconds without thrust.
 constexpr double kLatencyGiveUp = 2.0;
@@ -131,6 +135,7 @@ void ClientSide::tick(double now, bool paused) {
             collectLanded();
             applyStates(displayTime);
             applyAnimations();
+            syncNav(now);
             // After applyStates: host vessels are created first, so a client vessel the host
             // does not have is not kept just because it was the last one.
             if (!extrasRemoved_) {
@@ -848,6 +853,54 @@ void ClientSide::applyAnimations() {
             }
         }
         entry = pendingAnims_.erase(entry);
+    }
+}
+
+void ClientSide::syncNav(double now) {
+    uint16_t own = 0;
+    const bool haveOwn = ownVessel(own);
+    // Frequencies of the other vessels. The pilot's own ones are not set from the host: he is the source.
+    for (const olc::NavState& state : link_.takeNavStates()) {
+        pendingNav_[state.netId] = state;
+    }
+    for (auto entry = pendingNav_.begin(); entry != pendingNav_.end();) {
+        if (!link_.table().findById(entry->first)) {
+            entry = pendingNav_.erase(entry);  // the vessel is gone
+            continue;
+        }
+        if (haveOwn && entry->first == own) {
+            entry = pendingNav_.erase(entry);
+            continue;
+        }
+        OBJHANDLE handle = vesselHandle(entry->first);
+        if (!handle) {
+            ++entry;  // not created yet: try again at the next frame
+            continue;
+        }
+        applyNav(oapiGetVesselInterface(handle), entry->second);
+        entry = pendingNav_.erase(entry);
+    }
+
+    if (now < nextNav_) {
+        return;
+    }
+    nextNav_ = now + kNavScan;
+    if (!haveOwn) {
+        navSent_ = false;  // a vessel taken later is sent in full
+        return;
+    }
+    OBJHANDLE handle = vesselHandle(own);
+    if (!handle) {
+        return;
+    }
+    olc::NavState state;
+    state.netId = own;
+    readNav(oapiGetVesselInterface(handle), state);
+    if (!navSent_ || navSentFor_ != own || !sameNav(sentNav_, state)) {
+        link_.sendNavState(state);
+        sentNav_ = state;
+        navSentFor_ = own;
+        navSent_ = true;
     }
 }
 

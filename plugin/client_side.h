@@ -19,6 +19,9 @@
 // Animations follow the host (ANIM_STATE): SetAnimation on every vessel, the pilot's own one too -
 // the host moves the mechanisms (the pilot's keys reach it in KEY); values for a vessel that does
 // not exist here yet wait until it is created.
+// Radio frequencies (NAV_STATE, task 4A.3): the pilot sets them on his own copy, so the owner is the
+// source - every kNavScan seconds the client sends the frequencies of its own vessel when they
+// changed; the frequencies of the other vessels come from the host and are set on the copies.
 // Docking follows the host (DOCK): Dock in mode 0 and Undock after the display delay; vessels that are
 // docked are flown through the one with the smallest net_id.
 // The last vessel is never deleted: Orbiter would end the session.
@@ -97,6 +100,8 @@ private:
     void applyFuel();
     // Sets the animations from ANIM_STATE on the client vessels.
     void applyAnimations();
+    // Sends the frequencies of the pilot's own vessel when they changed; sets the other vessels'.
+    void syncNav(double now);
     void collectLanded();
     void putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place);
     void applyStates(double displayTime);
@@ -166,6 +171,11 @@ private:
     // Animation values received for vessels that are not here yet (or not applied yet):
     // net_id -> animation number -> state.
     std::map<uint16_t, std::map<uint16_t, float>> pendingAnims_;
+    std::map<uint16_t, olc::NavState> pendingNav_;  // received for vessels not here yet
+    bool navSent_ = false;       // sentNav_ holds what the host knows about the own vessel
+    uint16_t navSentFor_ = 0;    // the own vessel sentNav_ belongs to
+    olc::NavState sentNav_;      // NAV_STATE of the own vessel sent last
+    double nextNav_ = 0.0;       // time (oapiGetSysTime) of the next frequency check
     uint64_t animApplied_ = 0;   // animation values set on vessels (for the log)
     uint64_t animRejected_ = 0;  // values for an animation number the client vessel does not have
     uint64_t keyPresses_ = 0;               // KEY messages sent (for the log)
