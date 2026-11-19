@@ -2,8 +2,9 @@
 
 # Pilot guide: docking check
 
-For people who check stage 3: two pilots on two computers in one network, each flying their own
-DeltaGlider, then both dock. This is a prototype check: if something is wrong, write down what you
+For people who check OLC (round 2, plugin `0.2`): two pilots on two computers in one network, each
+flying their own DeltaGlider, then both dock; the flight director sets a shared pause and time
+acceleration and records the flight (section 5). This is a prototype check: if something is wrong, write down what you
 did and what you saw.
 
 ## 1. Preparation
@@ -40,6 +41,7 @@ same on the host and the client). What to know about OLC:
 | Open the DeltaGlider's nose docking port | K (without it no docking happens) |
 | Undock | Ctrl+D |
 | Camera | Works as usual |
+| Mechanisms (gear `G`, cone `K`) and NAV frequencies | All participants see them: the pilot's vessel is in the same state for them |
 
 If the connection is lost, the vessel stays with the pilot for 60 seconds and the controls are released.
 
