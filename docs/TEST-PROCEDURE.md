@@ -86,10 +86,7 @@ are closed by doors, and the doors open from the cockpit panel, whose clicks the
 yet (stage 4). Pilot 1 can check it: `Ctrl+Space` → the DeltaGlider window → open the doors (Retro
 Doors → Open), then `Num −`.
 
-**Known limitation:** the gear (`G`), the nose port (`K`) and other mechanisms of a vessel are seen by
-its pilot and by computer 1 (the server); for the other participants they may stay in the old
-position — for example, for pilot 2 the cone of `GL-01` looks closed although pilot 1 opened it. It
-does not affect docking: the server computes it. The fix is the next part of the work (4A).
+**Mechanisms:** the gear (`G`), the nose cone (`K`) and other mechanisms of a vessel are shown to everyone (stage 4A): when pilot 1 opens the cone of `GL-01`, pilot 2 sees it open within a second. Write down if a mechanism stays in the old position.
 
 ### T3. Smoothness
 
