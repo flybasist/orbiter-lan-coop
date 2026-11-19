@@ -20,6 +20,7 @@ and what is next — `PLAN.md` and `CHANGELOG.md`.
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
 | [TEXTURES.md](TEXTURES.md) | Where textures and kernels come from, sizes, licenses and the contents of the test archive |
 | [PACKAGE.md](PACKAGE.md) | The test package: archive contents, installation, how to build |
+| [ORBITER-VERSIONS.md](ORBITER-VERSIONS.md) | Orbiter 2016, 2024 and the OLC build: what changed, what OLC is and its history — for testers |
 | [TEST-PROCEDURE.md](TEST-PROCEDURE.md) | The procedure of tests by people: roles, what to press, what is expected, the report form |
 | [SMOOTHING.md](SMOOTHING.md) | Motion smoothing: state rate, buffer delay and interpolation method based on the model results |
 | [RESEARCH.md](RESEARCH.md) | Research: Orbiter, past attempts, Linux and macOS, licenses, releases |

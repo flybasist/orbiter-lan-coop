@@ -4,7 +4,8 @@
 
 For those who check OLC on real computers: who does what, which keys to press, what is checked,
 what result is expected and how to record the outcome so that the developers understand it.
-Installation — [PACKAGE.md](PACKAGE.md), controls — [PILOT-GUIDE.md](PILOT-GUIDE.md).
+Installation — [PACKAGE.md](PACKAGE.md), controls — [PILOT-GUIDE.md](PILOT-GUIDE.md), how our build differs
+from Orbiter 2016 and what OLC is — [ORBITER-VERSIONS.md](ORBITER-VERSIONS.md).
 
 **Round 1 — stages 3, 4A and 5** (decisions 43, 44, 56–58). Package of 2026-11-19: Orbiter of the base
 commit `a7a3396e`, plugin `0.1`. All computers must have the same package: the host does not accept
