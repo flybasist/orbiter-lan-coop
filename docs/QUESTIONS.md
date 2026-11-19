@@ -12,14 +12,7 @@ and the question to the "Closed" section.
 
 ## Open
 
-- **Q13. How to transfer vessel mechanisms (stage 4A)** — research 3.21, `ORBITER-INTERNALS.md`, section 21. Options:
-  - **A (recommended).** A combination: general animation transfer (any class, as a TCP event) plus DeltaGlider Lua commands so that the gear and touchdown points change for real; NAV frequencies as a separate message.
-  - **B.** General animation transfer only: simple and for any class, but the internal vessel state (gear touchdown points) does not change.
-  - **C.** DeltaGlider Lua commands only: real mechanisms, but one vessel class works.
-- **Q12. How to review a session flight (stage 5, item 6)** — research 3.19 and a rig check, `ORBITER-INTERNALS.md`, section 20. The stock recording cannot be started from a plugin; options:
-  - **C (recommended, checked on the rig).** The flight director records with the stock Ctrl+C key on their client with graphics: all vessels are recorded, the review is the stock playback. No code needed. Cons: a flight director with graphics is needed (by decision 34 there is one anyway), vessels created during the session are not recorded.
-  - **A.** The host writes the recorder files itself: recording also on a server without graphics, but it is code and it is not checked that playback accepts such files. Can be added later if C is not enough.
-  - **B.** An OLC log and viewer of our own: a separate program or window — expensive.
+No open questions.
 
 ## Closed
 
@@ -34,3 +27,5 @@ and the question to the "Closed" section.
 - **Q9. What to do after 3.17 before the tests by people** — only research 4.1 and 5.6, the code of stages 4 and 5 — after the tests; decision 47 (2026-11-18).
 - **Q10. What textures and kernels go into the test archive** — option B: the SPICE kernels in the archive, Earth textures — by a link to Orbiter 2016 in the instructions; decision 50 (2026-11-18).
 - **Q11. What the navigator changes in the pilot's vessel** — postponed together with the crew (part 4B); what to send to everyone is decided in 4A; decision 52 (2026-11-18).
+- **Q12. How to review a session flight** — option C, the FD records with Ctrl+C on their client; decision 56 (2026-11-19).
+- **Q13. How to transfer vessel mechanisms** — option B first (general animation transfer, NAV frequencies separately), DeltaGlider Lua later if needed; decision 57 (2026-11-19).
