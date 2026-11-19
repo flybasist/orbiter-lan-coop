@@ -87,7 +87,7 @@ not in focus. Add-ons' own held keys will not work on the host.
 | Task | Call | Catch |
 |---|---|---|
 | Time, step | `oapiGetSimTime`, `oapiGetSimStep`, `oapiGetSimMJD` | `oapiGetSimTime` is the start of the current step |
-| Warp | `oapiGetTimeAcceleration`, `oapiSetTimeAcceleration` | Through the SDK it changes at once (transition delay 0); a smooth transition exists only inside the core |
+| Warp | `oapiGetTimeAcceleration`, `oapiSetTimeAcceleration` | Through the SDK it changes at once (transition delay 0); a smooth transition exists only inside the core. With collisions on, the core itself drops the acceleration to x1 while vessels are close (`Vessel.cpp:6227`) |
 | Pause | `oapiGetPause`, `oapiSetPause` | Applied at the start of the next frame |
 | A large time difference | `oapiSetSimMJD (mjd, pmode)` | A heavy operation, only for large differences |
 
