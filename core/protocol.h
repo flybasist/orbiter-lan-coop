@@ -6,7 +6,7 @@
 namespace olc {
 
 // Protocol version: written into every UDP packet and into HELLO (PROTOCOL.md, sections 4 and 9).
-constexpr uint16_t kProtocolVersion = 5;
+constexpr uint16_t kProtocolVersion = 6;
 
 // Default port: the host listens for TCP and UDP on the same number (section 3).
 constexpr uint16_t kDefaultPort = 47800;

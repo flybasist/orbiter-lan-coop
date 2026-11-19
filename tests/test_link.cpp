@@ -889,6 +889,16 @@ void testDirectorAndTimeRequests() {
     }
     CHECK(host.table.findById(2)->owner == olc::kNoOwner);
 
+    // SAVE_REQUEST: the pilot's is ignored, the director's is counted once.
+    pilot.sendSaveRequest();
+    boss.sendSaveRequest();
+    CHECK(waitFor(host.link, {&boss, &pilot}, [&]() {
+        return host.link.stats().saveRequestsAccepted == 1 &&
+               host.link.stats().saveRequestsRejected == 1;
+    }));
+    CHECK(host.link.takeSaveRequests() == 1);
+    CHECK(host.link.takeSaveRequests() == 0);
+
     // A broken request (warp 0) drops the sender.
     pilot.sendTimeRequest(false, 0.0);
     CHECK(waitFor(host.link, {&boss, &pilot}, [&]() {

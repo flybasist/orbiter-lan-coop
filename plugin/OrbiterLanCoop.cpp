@@ -129,9 +129,14 @@ public:
         return false;
     }
 
-    // Ctrl+Alt+U releases the player's vessel (decision 35). Other keys go on to Orbiter.
+    // Ctrl+Alt+U releases the player's vessel (decision 35); Ctrl+Alt+S - the flight director asks
+    // the host to save the world (task 5.4). Other keys go on to Orbiter.
     bool clbkProcessKeyboardBuffered(DWORD key, char kstate[256], bool simRunning) override {
         (void)simRunning;
+        if (client_ && key == OAPI_KEY_S && KEYMOD_CONTROL(kstate) && KEYMOD_ALT(kstate)) {
+            client_->requestSave();
+            return true;
+        }
         if (key != OAPI_KEY_U || !KEYMOD_CONTROL(kstate) || !KEYMOD_ALT(kstate)) {
             if (client_) {
                 client_->onKeyPressed(key, kstate);  // Orbiter handles the key here as well

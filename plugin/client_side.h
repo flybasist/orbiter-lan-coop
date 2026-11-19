@@ -74,6 +74,10 @@ public:
     // Orbiter is not told to skip it). The modifier keys themselves are not sent.
     void onKeyPressed(DWORD key, const char kstate[256]);
 
+    // Ctrl+Alt+S: asks the host to save the world. Only the flight director's request counts on the
+    // host; other clients do not send it.
+    void requestSave();
+
 private:
     void followTime(double now, double displayTime);
     // The flight director's pause and time acceleration: a change made in this Orbiter goes to the

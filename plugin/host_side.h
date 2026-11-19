@@ -2,6 +2,7 @@
 //
 // tick is called every frame (clbkPreStep) and by a timer while paused:
 // - accept client connections and messages (HostLink::poll);
+// - save the world on the flight director's request and by timer (SAVE_REQUEST, AutosaveMinutes);
 // - apply the flight director's pause and time acceleration (TIME_REQUEST);
 // - at StateRate capture the states of all vessels (GetStatusEx) and send
 //   WORLD_STATE; while paused - at most kPausedStateRate times per second;
@@ -89,6 +90,8 @@ private:
     void applyKeys();
     // TIME_REQUEST from the flight director: pause and time acceleration of the host world.
     void applyTimeRequests();
+    // SAVE_REQUEST from the flight director and the autosave timer (task 5.4); wallNow - wall clock.
+    void applySaves(double wallNow);
     void sendFuel();
     void repeatLanded();
     void logStats();
@@ -112,6 +115,7 @@ private:
     double nextFuel_ = 0.0;
     double nextLanded_ = 0.0;
     double nextStats_ = 0.0;
+    double nextAutosave_ = -1.0;  // wall clock of the next autosave; < 0 - not planned yet
     uint64_t worldStatesSent_ = 0;
     uint64_t inputFrames_ = 0;     // frames in which a pilot's INPUT was applied (for the log)
     uint64_t inputKeyFrames_ = 0;  // of them with a control key held

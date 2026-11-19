@@ -75,6 +75,7 @@ Config loadConfig() {
     readInt(file, "MaxPlayers", 2, 8, config.maxPlayers);
     readInt(file, "StateRate", 1, 60, config.stateRateHz);
     readString(file, "Director", config.director);
+    readInt(file, "AutosaveMinutes", 0, 1440, config.autosaveMinutes);
     readDouble(file, "DisplayDelay", 0.0, 2.0, config.displayDelay);
     readDouble(file, "TimeSyncThreshold", 0.01, 60.0, config.timeSyncThreshold);
     readString(file, "TraceVessel", config.traceVessel);
@@ -105,6 +106,8 @@ bool saveConfig(const Config& config) {
          << "StateRate = " << config.stateRateHz << "\n\n"
          << "; Host: player name of the flight director (empty - none)\n"
          << "Director = " << config.director << "\n\n"
+         << "; Host: save the world every this many minutes (0 - never); the director saves by Ctrl+Alt+S\n"
+         << "AutosaveMinutes = " << config.autosaveMinutes << "\n\n"
          << "; Client: display delay, seconds, and the sim time error threshold against the host\n"
          << "DisplayDelay = " << config.displayDelay << "\n"
          << "TimeSyncThreshold = " << config.timeSyncThreshold << "\n";

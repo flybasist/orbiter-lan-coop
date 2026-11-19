@@ -7,7 +7,7 @@ namespace {
 
 void testConstants() {
     // The values must match docs/PROTOCOL.md.
-    CHECK(olc::kProtocolVersion == 5);
+    CHECK(olc::kProtocolVersion == 6);
     CHECK(olc::kDefaultPort == 47800);
     CHECK(olc::kUdpMagic[0] == 'O' && olc::kUdpMagic[1] == 'L' && olc::kUdpMagic[2] == 'C' &&
           olc::kUdpMagic[3] == '0');

@@ -28,6 +28,9 @@ struct Config {
     // Host: name of the flight director (decision 46). A client with this player name may pause and
     // warp time for everybody and never takes a vessel. Empty - there is no director.
     std::string director;
+    // Host: the world is saved to Scenarios\OLC\Saves\autosave.scn every this many minutes of real
+    // time (task 5.4). 0 - no autosave. The director's key (Ctrl+Alt+S) saves a separate file.
+    int autosaveMinutes = 10;
     double displayDelay = 0.03;             // client: display delay, seconds (decision 36)
     // Client: sim time error against the host (seconds × warp) after which
     // the client time catches up with a jump.

@@ -182,6 +182,8 @@ public:
     // only for the flight director. Does nothing before the handshake is done. The result is seen
     // in hostPaused and hostWarp.
     void sendTimeRequest(bool paused, double warp);
+    // Asks the host to save the world (the host does it only for the flight director).
+    void sendSaveRequest();
 
     // The latest PLAYERS list from the host (empty before the first one).
     const std::vector<PlayerEntry>& players() const { return players_; }

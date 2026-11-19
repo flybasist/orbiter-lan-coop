@@ -269,6 +269,11 @@ bool HostLink::handleFrames(Client& client) {
                     return false;
                 }
                 break;
+            case TcpType::SaveRequest:
+                if (!handleSaveRequest(client, reader)) {
+                    return false;
+                }
+                break;
             case TcpType::OwnerRequest:
                 if (!handleOwnerRequest(client, reader)) {
                     return false;
@@ -336,6 +341,28 @@ bool HostLink::handleTimeRequest(Client& client, Reader& reader) {
 std::vector<TimeRequest> HostLink::takeTimeRequests() {
     std::vector<TimeRequest> result;
     result.swap(timeRequests_);
+    return result;
+}
+
+bool HostLink::handleSaveRequest(Client& client, Reader& reader) {
+    if (reader.remaining() != 0) {
+        client.leaveReason = "broken SAVE_REQUEST";
+        return false;
+    }
+    if (!client.director) {
+        stats_.saveRequestsRejected++;
+        log("OLC host: client " + std::to_string(client.clientId) + " ('" + client.player +
+            "') asked for a save but is not the flight director");
+        return true;
+    }
+    stats_.saveRequestsAccepted++;
+    saveRequests_++;
+    return true;
+}
+
+int HostLink::takeSaveRequests() {
+    const int result = saveRequests_;
+    saveRequests_ = 0;
     return result;
 }
 

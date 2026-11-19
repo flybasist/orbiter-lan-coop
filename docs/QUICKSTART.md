@@ -140,6 +140,11 @@ button as usual. Checked on 2026-11-18 on Windows 11 ARM: the client entered the
 RTT about 16 ms, no losses. The log of the server without graphics has `ERROR:` lines about
 missing planet atmosphere modules — they do no harm, the simulation runs.
 
+Saves (task 5.4, decision 55): the host writes the world to `Scenarios\OLC\Saves\autosave.scn`
+every `AutosaveMinutes` minutes (default 10, `0` - off), and the flight director's Ctrl+Alt+S
+makes a separate file `save-YYYYMMDD-HHMMSS.scn`. A save is an ordinary Orbiter scenario: start the
+next session from it (`Orbiter.exe -s "OLC\Saves\autosave" -p OrbiterLanCoop` or in Launchpad).
+
 ## 7. Updating
 
 The Orbiter base commit changes only deliberately (see [README.md](README.md), condition 3):

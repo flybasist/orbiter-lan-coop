@@ -37,6 +37,7 @@ enum class TcpType : uint8_t {
     OwnerDenied = 17,
     TimeRequest = 18,
     Players = 19,
+    SaveRequest = 20,
 };
 
 // UDP message type numbers (section 6).

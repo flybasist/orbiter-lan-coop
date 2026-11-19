@@ -112,7 +112,7 @@ with the same `sim_time`.
 
 | Channel | Numbers |
 |---|---|
-| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED`, 18 `TIME_REQUEST`, 19 `PLAYERS` |
+| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED`, 18 `TIME_REQUEST`, 19 `PLAYERS`, 20 `SAVE_REQUEST` |
 | UDP | 1 `WORLD_STATE`, 2 `INPUT`, 3 `PING`, 4 `PONG`, 5 `FUEL` |
 
 A message with extra bytes after the last field is treated as broken, the same as a truncated one.
@@ -139,6 +139,7 @@ A message with extra bytes after the last field is treated as broken, the same a
 | `OWNER_DENIED` | host → client | `net_id: u16`, `reason: u8` (1 — no such vessel, 2 — the vessel is busy: it belongs to the host, to another client or is kept for a pilot who dropped out, 3 — the client already has another vessel, 4 — not the client's vessel, cannot release, 5 — an observer does not take a vessel). Only to the one who asked |
 | `TIME_REQUEST` | client → host | `paused: u8` (0 — running, 1 — paused), `warp: f64` (time acceleration, finite and above 0). The host applies the request only from the flight director; from anyone else it writes to the log and skips it. Everyone sees the result in `WORLD_STATE`. Another value of `paused` or `warp` makes the message broken |
 | `PLAYERS` | host → client | `count: u8`, then `client_id: u8` (0 — the host), `player: str`, `flags: u8` (bit 0 — director, bit 1 — observer), `net_id: u16` (the player's vessel, 65535 — none), `rtt_ms: u16` (the player's round trip time to the host, ms; 65535 — unknown, 0 for the host). The host sends it on every join, leave and ownership change and every 2 s |
+| `SAVE_REQUEST` | client → host | Empty body. A request to save the world now; the host saves it to `Scenarios\OLC\Saves\` only for the flight director's request, and logs and skips anyone else's. Any body makes the message broken |
 | `BYE` | any | `reason: str` |
 
 Ownership (decision 35): one client — one vessel, a vessel without an owner is free. If a client
@@ -273,6 +274,7 @@ differ from the host.
 
 - `version` in every UDP packet and `protocol` in `HELLO`. Different versions do not work together:
   the host answers `REJECT` with reason 1.
+- Version 6 (2026-11-19): `SAVE_REQUEST` (decision 55, task 5.4).
 - Version 5 (2026-11-19): stage 5 — `flags` in `HELLO` and `WELCOME`, `TIME_REQUEST`, `PLAYERS`, `rtt_ms` in `PING`, reason 5 in `OWNER_DENIED` (decision 54, task 5.1).
 - Version 4 (2026-11-18): vessel ownership — `OWNERSHIP`, `OWNER_REQUEST`, `OWNER_DENIED` (task 3.1).
 - Version 3 (2026-11-17): `scenario_id` added to `HELLO` and `SCENARIO` (decision 31).

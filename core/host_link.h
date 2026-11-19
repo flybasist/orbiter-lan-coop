@@ -93,6 +93,8 @@ struct HostStats {
     uint64_t keysRejected = 0;    // KEY for a vessel the client does not own
     uint64_t timeRequestsAccepted = 0;  // TIME_REQUEST from the director, queued for the plugin
     uint64_t timeRequestsRejected = 0;  // TIME_REQUEST from anyone else
+    uint64_t saveRequestsAccepted = 0;  // SAVE_REQUEST from the director, queued for the plugin
+    uint64_t saveRequestsRejected = 0;  // SAVE_REQUEST from anyone else
 };
 
 class HostLink {
@@ -160,6 +162,10 @@ public:
     // first. The plugin applies the last one (oapiSetPause, oapiSetTimeAcceleration).
     std::vector<TimeRequest> takeTimeRequests();
 
+    // Takes the number of SAVE_REQUEST messages from the director that came since the last call.
+    // The plugin saves the world once if it is not zero.
+    int takeSaveRequests();
+
     // Sends PLAYERS to all clients that finished the handshake. HostLink calls it itself; the
     // plugin calls it after it changes the host's own vessel (together with broadcastOwnership,
     // which already includes it).
@@ -214,6 +220,8 @@ private:
     bool handleKey(Client& client, Reader& reader);
     // Handles TIME_REQUEST of a welcomed client. false - the message is broken.
     bool handleTimeRequest(Client& client, Reader& reader);
+    // Handles SAVE_REQUEST of a welcomed client (the body is empty). false - the message is broken.
+    bool handleSaveRequest(Client& client, Reader& reader);
     // Handles OWNER_REQUEST of a welcomed client. false - the message is broken.
     bool handleOwnerRequest(Client& client, Reader& reader);
     // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
@@ -243,6 +251,7 @@ private:
     std::vector<BodyEntry> bodies_;
     std::vector<Dock> docks_;     // links that are docked now (see sendDock)
     std::vector<KeyPress> keys_;  // accepted KEY presses, not yet taken by the plugin
+    int saveRequests_ = 0;  // accepted SAVE_REQUEST, not yet taken by the plugin
     std::vector<TimeRequest> timeRequests_;  // accepted TIME_REQUEST, not yet taken by the plugin
     double nextPlayers_ = 0.0;    // real time of the next periodic PLAYERS
     double now_ = 0.0;  // real time of the last poll

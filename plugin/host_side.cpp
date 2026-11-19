@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -47,6 +48,24 @@ bool saveWorld(olc::Scenario& scenario) {
     scenario.name = "OLC host world";
     scenario.data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     return true;
+}
+
+// Saves the current world under Scenarios\OLC\Saves\<name>.scn; name has no extension.
+bool saveToSaves(const std::string& name) {
+    CreateDirectoryA("Scenarios\\OLC", nullptr);  // an existing folder is not an error here
+    CreateDirectoryA("Scenarios\\OLC\\Saves", nullptr);
+    const std::string path = "OLC\\Saves\\" + name;
+    return oapiSaveScenario(path.c_str(), "OLC session save.");
+}
+
+// A name like "save-20261119-093015" for a save made by the director.
+std::string timestampedSaveName() {
+    SYSTEMTIME time;
+    GetLocalTime(&time);
+    char name[48];
+    std::snprintf(name, sizeof(name), "save-%04d%02d%02d-%02d%02d%02d", time.wYear, time.wMonth,
+                  time.wDay, time.wHour, time.wMinute, time.wSecond);
+    return name;
 }
 
 std::string objectName(OBJHANDLE object) {
@@ -242,6 +261,7 @@ void HostSide::tick(double now, bool paused) {
     lastFrameAt_ = frameAt;
     link_.poll(now);
     applyTimeRequests();
+    applySaves(frameAt);
     if (!paused) {
         applyInputs(now);
         applyKeys();
@@ -283,6 +303,31 @@ void HostSide::applyTimeRequests() {
     oapiSetTimeAcceleration(request.warp);
     oapiWriteLogV("OLC host: flight director sets pause %s, time acceleration x%g",
                   request.paused != 0 ? "on" : "off", request.warp);
+}
+
+void HostSide::applySaves(double wallNow) {
+    // The first autosave comes one full interval after the start.
+    const double interval = config_.autosaveMinutes * 60.0;
+    if (nextAutosave_ < 0.0) {
+        nextAutosave_ = wallNow + interval;
+    }
+    if (link_.takeSaveRequests() > 0) {
+        const std::string name = timestampedSaveName();
+        if (saveToSaves(name)) {
+            oapiWriteLogV("OLC host: flight director saved the world to Scenarios\\OLC\\Saves\\%s.scn",
+                          name.c_str());
+        } else {
+            oapiWriteLogV("OLC host: cannot save the world for the flight director");
+        }
+    }
+    if (config_.autosaveMinutes > 0 && wallNow >= nextAutosave_) {
+        if (saveToSaves("autosave")) {
+            oapiWriteLogV("OLC host: autosave written to Scenarios\\OLC\\Saves\\autosave.scn");
+        } else {
+            oapiWriteLogV("OLC host: autosave failed");
+        }
+        nextAutosave_ = wallNow + interval;
+    }
 }
 
 void HostSide::sendWorld(bool paused) {

@@ -595,6 +595,14 @@ void ClientLink::sendTimeRequest(bool paused, double warp) {
     sendMessage(TcpType::TimeRequest, body);
 }
 
+void ClientLink::sendSaveRequest() {
+    if (state_ != State::Ready) {
+        return;
+    }
+    Writer body;
+    sendMessage(TcpType::SaveRequest, body);
+}
+
 std::vector<OwnerDenied> ClientLink::takeOwnerDenials() {
     std::vector<OwnerDenied> result;
     result.swap(ownerDenials_);

@@ -675,6 +675,14 @@ void ClientSide::onKeyPressed(DWORD key, const char kstate[256]) {
     keyPresses_++;
 }
 
+void ClientSide::requestSave() {
+    if (!link_.isDirector()) {
+        return;
+    }
+    link_.sendSaveRequest();
+    oapiWriteLogV("OLC client: asking the host to save the world");
+}
+
 void ClientSide::sendInput(double now) {
     uint16_t own = 0;
     if (!ownVessel(own)) {
