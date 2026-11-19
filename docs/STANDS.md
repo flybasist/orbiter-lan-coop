@@ -310,3 +310,23 @@ Test scenarios need a `PRPLEVEL` line, otherwise vessels start with empty tanks.
 A Lua script in the scenario (`Script` in `BEGIN_ENVIRONMENT`) does not do for this: in a session
 without graphics started over SSH, Orbiter hangs when the script gets to creating and deleting
 vessels (`oapi.create_vessel`, `oapi.del_vessel`; checked 2026-11-17, without OLC too).
+
+## 12. The author's rig
+
+For history: what the first version was made on (November 2026). Everyone has their own machines and
+describes them in `stands.yaml`.
+
+| Machine | System | What for |
+|---|---|---|
+| Mac | macOS | The AI agent session, the network core and tests, documents and PDFs |
+| A Parallels virtual machine on the Mac | Windows 11 ARM, 3D | Orbiter with graphics: clients, the flight director, two copies side by side; screenshots |
+| A Parallels virtual machine on the Mac | Ubuntu ARM | Network core tests on ARM |
+| A Proxmox virtual machine (a home server) | Windows 11 x64 | Building Orbiter and the plugin, the server without graphics, building the test package |
+| A Proxmox virtual machine | Windows 10 x64 | A pilot without graphics, a clean installation of the package |
+| Proxmox virtual machines | Ubuntu x86, Debian x86 | Network core tests with GCC, network checks |
+
+No graphics cards were passed through on Proxmox, so everything with graphics was checked on Windows 11
+ARM, where Orbiter x64 runs through emulation. The agent worked with the machines only over SSH and saw
+the picture through `run-orbiter.ps1` screenshots. Network: the Mac on Wi-Fi, the Proxmox machines wired
+in one network, the Parallels machines behind NAT. The first version had no hardware Windows machine
+with a real graphics card: the next one will be an ordinary computer with integrated graphics.
