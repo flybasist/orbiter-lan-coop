@@ -2,10 +2,9 @@
 
 # OLC network protocol
 
-> **Status: agreed working draft** (decision 13 in [DECISIONS.md](DECISIONS.md)).
-> Protocol constants are in `core/protocol.h`, field types in `core/serialize.h`, headers
-> in `core/header.h`, all messages of sections 5 and 6 in `core/messages.h`. The document is refined
-> using stage 1 measurements.
+> Protocol version 7 as it is made in the code: constants — `core/protocol.h`, field types —
+> `core/serialize.h`, headers — `core/header.h`, all messages of sections 5 and 6 — `core/messages.h`.
+> If the document and the code differ, the code is right and the document must be fixed.
 
 How the plugin is built as a whole — [ARCHITECTURE.md](ARCHITECTURE.md). Which SDK functions stand behind
 the fields — [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md).
@@ -39,7 +38,7 @@ the fields — [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md).
 | `str` | 1 + N bytes | Length (`u8`, up to 255) and a UTF-8 string without a terminating zero |
 
 Coordinates and velocities are `f64` only: the orbit radius is about 7·10⁶ m, and millimetre
-precision is needed. This does not load the traffic: 30 packets of ~1 KB is about 30 KB/s.
+precision is needed. This does not load the traffic: even 60 full packets a second of 1200 bytes is about 70 KB/s.
 
 ## 3. Ports and connecting
 
@@ -261,7 +260,8 @@ differ from the host.
 ## 8. Time on the client
 
 - Pause and warp come from every `WORLD_STATE`. If the player on the client pauses
-  or changes warp, the plugin restores the host's value.
+  or changes warp, the plugin restores the host's value. The exception is the flight director: their
+  pause and warp go to the host in `TIME_REQUEST`, and the plugin leaves them alone until the host answers.
 - While paused the host keeps sending `WORLD_STATE` (less often, on the hidden window's timer): otherwise
   the client would not learn that the pause was released. The paused client also receives packets on a timer —
   `clbkPreStep` is not called while paused ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 14).

@@ -4,10 +4,8 @@
 
 What is where and which conditions must not be broken — see [README.md](README.md) in this folder.
 
-> Below is the architecture of the prototype ([PLAN.md](PLAN.md)). Stage 3 code exists (section 6):
-> the host sends the world state, the client shows it and controls its own vessel, dockings are
-> repeated for everyone. Where it says "planned", it is not in the code yet.
-> References to the Orbiter core are in [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md).
+> Below is how the plugin is made now (stages 0–3, 4A and 5, protocol version 7; code — section 6). The
+> crew (4B) is not done. References to the Orbiter core are in [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md).
 
 ## 1. The big picture
 
@@ -25,12 +23,14 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
   └──────────────────────────────────┘    input     └──────────────────────────────────┘
 ```
 
-- **Host** — an ordinary Orbiter in which the flight director also flies. Its simulation is the "truth".
+- **Host** — Orbiter with the host role: a host-player with graphics who flies too, or a server without
+  graphics (decision 34). Its simulation is the "truth".
 - **Client** — an ordinary Orbiter with the same scenario. Its own vessel physics is
   replaced by the states it receives, and the player's input goes to the host.
 - **Vessel ownership.** Every vessel has a "controller": the host, a specific client or
-  nobody. A client's input is applied only to the vessel it controls. The "crew" mode
-  (two people in one vessel) is two participants with input rights for one vessel.
+  nobody. A client's input is applied only to the vessel it controls.
+- **The flight director** — a client with graphics under the name from the host setting `Director`:
+  flies no vessel, their pause, time acceleration and save go to the host.
 
 ## 2. What happens at run time
 
@@ -45,9 +45,10 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
      ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 18; the fallback is restarting
      Orbiter with the `-s` switch) and connects by itself (more — [PLAN.md](PLAN.md), stage 2).
    Add-ons are not sent over the network: only a check and a list of what is missing.
-3. The client checks the set of add-ons and receives the "vessel → controller" mapping.
-   Vessels are matched by name: a handle in the core is a pointer inside the process and
-   cannot be sent over the network. The host makes sure names are unique.
+3. The client receives the "number → name and class" and "vessel → controller" mappings. Vessels
+   are matched by name: a handle in the core is a pointer inside the process and cannot be sent over
+   the network. A vessel of a class the client lacks is not created (the class name goes to the host
+   in `CLASSES_MISSING`).
 
 ### Every frame on the host
 
@@ -66,7 +67,8 @@ One and the same plugin (a DLL in `Modules/Plugin`) works in one of two roles.
    imposed attitude (see [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 3).
 3. A vessel that is landed on the host is switched to the "landed" status once, not
    every frame.
-4. Time: pause and warp come from the host (`oapiSetPause`, `oapiSetTimeAcceleration`).
+4. Time: pause and warp come from the host (`oapiSetPause`, `oapiSetTimeAcceleration`); for the
+   flight director it is the other way round, their pause and warp go to the host (`TIME_REQUEST`).
    If the client sim time drifts from the host by more than a threshold (`TimeSyncThreshold`,
    0.1 s by default, × warp when accelerated), it is reset with a jump (`oapiSetSimMJD`); a smaller
    drift is only counted in the log.
@@ -111,7 +113,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 
 | Channel | Protocol | What it carries | Rate |
 |---|---|---|---|
-| Session | TCP | connection, scenario, add-on check, vessel names and classes, ownership | on events |
+| Session | TCP | connection, scenario, vessel names and classes, ownership, single key presses, dockings, animations and frequencies, players, pause and save from the FD | on events; `PLAYERS` also every 2 s |
 | World state | UDP | positions, velocities, attitudes, rotation, sim time, warp, pause | 60 Hz by default (decision 36), 5 Hz while paused |
 | Input | UDP | control positions, key presses | every client frame |
 
@@ -121,7 +123,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 |---|---|
 | **Authoritative host** (all physics on one computer) | Everyone computes their own vessel (like OMP) — worlds drift apart, player docking and time acceleration break. Deterministic lockstep is impossible: Orbiter's simulation step comes from the real clock. |
 | **A network, not two seats at one PC** | The core knows one focus, one camera, one window (`g_focusobj` — about 190 uses). Two sets of keyboard and mouse would mean rewriting the core. |
-| **The host is a computer with a player**, no separate server | For 2–4 people on a LAN a separate server is extra complexity. A host without graphics is possible later: Orbiter can run without a graphics client (the "Orbiter Server Console"). |
+| **The host is the same Orbiter with the plugin**: a host-player or a server without graphics | No separate server program is needed: Orbiter can run without a graphics client (the "Orbiter Server Console"), and the physics is computed by the same code as everyone's (decision 34). |
 | **A plugin, not a fork** | A fork has to be maintained after the main project. The SDK is enough for the prototype; missing hooks go as PRs to the main project. |
 | **The base is `main` at a fixed commit**, the target is the nearest official release | The 2024 release is almost two years older; it has no vessel collisions, no ImGui dialogs, no `oapiGetKeyState`. |
 | **LAN only** | The internet needs NAT handling, security and latency compensation — not needed for a classroom. |
@@ -131,19 +133,20 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 - Orbiter built from `orbitersim/orbiter` at the base commit (see [README.md](README.md),
   condition 3), the same on all computers, with the same add-ons.
 - Windows 10/11 x64. Linux — via Wine/Proton, as a client.
-- Vessel collisions are off on the client (`VesselCollision = FALSE` in `Orbiter.cfg`):
-  otherwise the local collision calculation argues with the host's states. Checked at stage 1.
+- Vessel collisions are off on all machines (`VesselCollision = FALSE` in `Orbiter.cfg`, the package
+  has it so): on a client the local calculation would argue with the host's states, and near vessels
+  the core itself drops time acceleration to x1 ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 22).
 
 ## 5. Main risks
 
-| Risk | What is known | How we check |
+| Risk | What is known | What came out |
 |---|---|---|
-| `DefSetStateEx` every client frame (about 60 times per second) | Inside: orbit re-initialization, gravity recalculation, iteration over bodies and bases, a check of neighbouring vessels' hulls. No accumulating side effects were found in the code | Stage 1: smoothness and load |
-| A vessel on the surface | The "landed" status is set once; the core may "land" a motionless vessel by itself after 5 s | Stage 1: a vessel on the runway does not jump or fall through |
-| Smoothing between packets | The core already has a similar mechanism — flight recording playback, but it is not available from the SDK. Smoothing model: our own buffer with Hermite interpolation copes ([SMOOTHING.md](SMOOTHING.md)) | Stage 1; if needed, propose a hook in the core |
-| Auto-docking on the client | The client's core may dock vessels that end up close by itself; the SDK has no switch for it | Stage 3 |
-| Internal state of add-on vessels | Hidden inside the add-on DLL; it cannot be passed to a new vessel except through a scenario | Stage 4; standard vessels only at first |
-| A vessel of an unknown class | `oapiCreateVesselEx` with a missing class terminates Orbiter | The client checks the class file before creating |
+| `DefSetStateEx` every client frame (about 60 times per second) | Inside: orbit re-initialization, gravity recalculation, iteration over bodies and bases, a check of neighbouring vessels' hulls | About 60 frames a second on the rigs, the drift is millimetres; smoothness by eye — a test by people |
+| A vessel on the surface | The "landed" status is set once; the core may "land" a motionless vessel by itself after 5 s | A recorded DeltaGlider takeoff and landing are repeated on the client (up to 0.4 m at the runway) |
+| Smoothing between packets | Recording playback in the core is not available from the SDK; our own buffer with Hermite interpolation ([SMOOTHING.md](SMOOTHING.md)) | Done in `core/interpolation.h`, checked on the rigs |
+| Auto-docking on the client | The client's core may dock vessels that end up close by itself; the SDK has no switch for it | The client repeats the host's dockings (`DOCK`); docking by hand — a test by people |
+| Internal state of add-on vessels | Hidden inside the add-on DLL | Visible mechanisms go as animations (4A); the internal module state does not change (decision 57) |
+| A vessel of an unknown class | `oapiCreateVesselEx` with a missing class terminates Orbiter | The client checks the class before creating, the host's scenario is cleaned in advance |
 
 ## 6. Code
 
@@ -178,8 +181,8 @@ Currently in `olc-core`:
 | `core/session_table.h` | `SessionTable` — the table of one session. On the host: accepting clients with a player limit (the host is a player too; 4 by default, from 2 to 8 — decision 14), handing out `net_id` in order without reuse, vessel ownership and checking whose input to apply; take and release a vessel (one client — one vessel), a client that leaves leaves its vessel without an owner and closes it to others for 60 s. On the client: the same table from `VESSELS`, `VESSEL_ADDED`, `VESSEL_REMOVED` and `OWNERSHIP` |
 | `core/socket.h` | A socket wrapper: `UdpSocket`, `TcpConnection` (non-blocking connect, a send queue that finishes partial writes, receiving into `TcpFrameReader`), `TcpListener`; IPv4 addresses in digits only (`parseIpv4`). All sockets are non-blocking and never wait, there are no threads inside: the network runs in Orbiter's main thread (decision 23). Winsock and POSIX are in one `socket.cpp`; the network is started by `startNetwork` from `clbkSimulationStart`, not from `InitModule`. The Windows part is checked on a test rig (stage 0) |
 | `core/attitude.h` | Conversion of the `arot` Euler angles into a quaternion and back with the same formula as in the Orbiter core (`Vessel.cpp:914`), and slerp between quaternions |
-| `core/host_link.h` | `HostLink` — the host network side: listens for TCP and UDP, runs the handshake (`HELLO` → `WELCOME`/`REJECT` → `BODIES`, `VESSELS`, `OWNERSHIP`, then `CLASSES_MISSING` and `UDP_READY`), answers `PONG`, receives `INPUT` from the vessel owner (the latest one per vessel, `latestInput`), handles `OWNER_REQUEST` (take, release; a refusal is `OWNER_DENIED`, changes go to everyone in `OWNERSHIP`), sends `WORLD_STATE` and `FUEL` split into packets of up to 1200 bytes, `LANDED`, `VESSEL_ADDED` and `VESSEL_REMOVED` over TCP, `DOCK` (`sendDock`; the current links also to those who join later), `ANIM_STATE` (`sendAnimState`) and `NAV_STATE` (`sendNavState`; the latest values also to those who join later); accepts `NAV_STATE` only from the owner of the vessel (`takeNavStates`) and sends it on to the others; accepts `KEY` for the client's own vessel (`takeKeys`); accepts `TIME_REQUEST` only from the flight director (`HostConfig::director`, `takeTimeRequests`) and sends `PLAYERS` (on join, leave and ownership change and every 2 s); an observer cannot take a vessel; answers a `HELLO` without a scenario number with `SCENARIO` (the plugin gives the file through `makeScenario`) and closes the connection; removes clients that left (including those silent for `kSilenceTimeout` = 15 s) from `SessionTable`. It does not know Orbiter: the plugin provides vessels and states |
-| `core/client_link.h` | `ClientLink` — the client network side: connecting and the handshake, the host's vessel and body table, receiving `WORLD_STATE` (session and order check) into per-vessel interpolation buffers, `FUEL`, `LANDED`, new and deleted vessels (`takeVesselChanges`), requests to take and release a vessel (`requestTake`, `requestRelease`) and refusals (`takeOwnerDenials`), single key presses `KEY` (`sendKey`), pause and warp requests of the flight director `TIME_REQUEST` (`sendTimeRequest`), the player list `PLAYERS` (`players`), dockings `DOCK` (`takeDocks`), receiving `SCENARIO` on request, `INPUT` at most 60 times per second (`sendInput`), `PING` once per second and the round trip time, closing if the host is silent for 15 s. The plugin asks for a vessel state at display time (`sampleVessel`), for measurements — the latest received one (`latestVessel`) |
+| `core/host_link.h` | `HostLink` — the host network side: listens for TCP and UDP, runs the handshake (`HELLO` → `WELCOME`/`REJECT` → `BODIES`, `VESSELS`, `OWNERSHIP`, then `CLASSES_MISSING` and `UDP_READY`), answers `PONG`, receives `INPUT` from the vessel owner (the latest one per vessel, `latestInput`), handles `OWNER_REQUEST` (take, release; a refusal is `OWNER_DENIED`, changes go to everyone in `OWNERSHIP`), `SAVE_REQUEST` from the director (`takeSaveRequests`), sends `WORLD_STATE` and `FUEL` split into packets of up to 1200 bytes, `LANDED`, `VESSEL_ADDED` and `VESSEL_REMOVED` over TCP, `DOCK` (`sendDock`; the current links also to those who join later), `ANIM_STATE` (`sendAnimState`) and `NAV_STATE` (`sendNavState`; the latest values also to those who join later); accepts `NAV_STATE` only from the owner of the vessel (`takeNavStates`) and sends it on to the others; accepts `KEY` for the client's own vessel (`takeKeys`); accepts `TIME_REQUEST` only from the flight director (`HostConfig::director`, `takeTimeRequests`) and sends `PLAYERS` (on join, leave and ownership change and every 2 s); an observer cannot take a vessel; answers a `HELLO` without a scenario number with `SCENARIO` (the plugin gives the file through `makeScenario`) and closes the connection; removes clients that left (including those silent for `kSilenceTimeout` = 15 s) from `SessionTable`. It does not know Orbiter: the plugin provides vessels and states |
+| `core/client_link.h` | `ClientLink` — the client network side: connecting and the handshake, the host's vessel and body table, receiving `WORLD_STATE` (session and order check) into per-vessel interpolation buffers, `FUEL`, `LANDED`, new and deleted vessels (`takeVesselChanges`), requests to take and release a vessel (`requestTake`, `requestRelease`) and refusals (`takeOwnerDenials`), single key presses `KEY` (`sendKey`), pause and warp requests of the flight director `TIME_REQUEST` (`sendTimeRequest`) and save requests `SAVE_REQUEST` (`sendSaveRequest`), animations and frequencies (`takeAnimStates`, `takeNavStates`, `sendNavState`), the player list `PLAYERS` (`players`), dockings `DOCK` (`takeDocks`), receiving `SCENARIO` on request, `INPUT` at most 60 times per second (`sendInput`), `PING` once per second and the round trip time, closing if the host is silent for 15 s. The plugin asks for a vessel state at display time (`sampleVessel`), for measurements — the latest received one (`latestVessel`) |
 | `core/player_summary.h` | Player summary text for the flight director's screen: players, roles, vessels, latency (from `PLAYERS`); no Orbiter calls, covered by a test |
 | `core/keymap.h` | Key layout: reads Orbiter's `keymap.cfg`, turns held vessel-control keys into `INPUT.keys` bits and clears them in the key state so that Orbiter does not fly the local copy. RCS rotation and translation share keys, so both bits are sent and the host picks by the vessel's RCS mode |
 | `core/client_clock.h` | `ClientClock` — the client display clock: which moment of host sim time to show (the display delay behind the host). Between packets it runs by itself at the host warp rate, corrects a small error smoothly and a large one with a jump |
@@ -190,9 +193,9 @@ In `plugin/`:
 | File | What is in it |
 |---|---|
 | `plugin/OrbiterLanCoop.cpp` | The Orbiter module: the role from the settings, session and frame callbacks, a hidden window with a timer for working while paused (decision 23) |
-| `plugin/config.h` | Settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`): role, host address, port, rate, display delay, trace; writing the file from Launchpad (`saveConfig`) |
-| `plugin/host_side.h` | The "host" role: captures vessel states (`GetStatusEx`) in `clbkPreStep`, sends `WORLD_STATE` at `StateRate`, `FUEL` once per second, `NAV_STATE` of the vessel the host flies (and applies the pilots' ones to its copies), `ANIM_STATE` (animations of every vessel read with `GetAnimPtr`: changes above 0.01, at most 5 scans per second per vessel), `LANDED` on landing and repeated for landed vessels; vessels created and deleted during the session — `VESSEL_ADDED` and `VESSEL_REMOVED`; the host-player owns the vessel in its focus, a server without graphics owns none; every frame outside pause it applies the pilots' `INPUT` (`vessel_control.h`), `INPUT` older than 0.5 s is not applied; when the set of a pilot's keys changes it logs what they did (RCS mode and levels, engines, trim, brakes, rotation) |
-| `plugin/client_side.h` | The "client" role: pause and warp as on the host, sim time near display time (a jump when the error exceeds `TimeSyncThreshold`), fuel, animations from `ANIM_STATE` (`SetAnimation`), frequencies (`NAV_STATE`: the owner's NAV and transponder steps are checked every 0.5 s and sent on change; the others' are set on the copies), landing once, vessel states via `DefSetStateEx` in `clbkPreStep`, thruster levels; the list of vessels as on the host: creates missing ones if the class is installed, deletes extra ones and those the host deleted (except the last vessel); the own vessel — by focusing a free one, Ctrl+Alt+U releases it, notices on screen and in the log; sends `INPUT` for the own vessel every frame (keys while it is in focus, plus the joystick) and clears control keys locally |
+| `plugin/config.h` | Settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`): role, host address, port, name, player limit, rate, the flight director (`Director`), autosave (`AutosaveMinutes`), display delay, trace; writing the file from Launchpad (`saveConfig`) |
+| `plugin/host_side.h` | The "host" role: captures vessel states (`GetStatusEx`) in `clbkPreStep`, sends `WORLD_STATE` at `StateRate`, `FUEL` once per second, `NAV_STATE` of the vessel the host flies (and applies the pilots' ones to its copies), `ANIM_STATE` (animations of every vessel read with `GetAnimPtr`: changes above 0.01, at most 5 scans per second per vessel), `LANDED` on landing and repeated for landed vessels; vessels created and deleted during the session — `VESSEL_ADDED` and `VESSEL_REMOVED`; the host-player owns the vessel in its focus, a server without graphics owns none; every frame outside pause it applies the pilots' `INPUT` (`vessel_control.h`), `INPUT` older than 0.5 s is not applied; when the set of a pilot's keys changes it logs what they did (RCS mode and levels, engines, trim, brakes, rotation); carries out the flight director's pause and time acceleration, saves the world on their request and every `AutosaveMinutes` |
+| `plugin/client_side.h` | The "client" role: pause and warp as on the host, sim time near display time (a jump when the error exceeds `TimeSyncThreshold`), fuel, animations from `ANIM_STATE` (`SetAnimation`), frequencies (`NAV_STATE`: the owner's NAV and transponder steps are checked every 0.5 s and sent on change; the others' are set on the copies), landing once, vessel states via `DefSetStateEx` in `clbkPreStep`, thruster levels; the list of vessels as on the host: creates missing ones if the class is installed, deletes extra ones and those the host deleted (except the last vessel); the own vessel — by focusing a free one, Ctrl+Alt+U releases it, notices on screen and in the log; sends `INPUT` for the own vessel every frame (keys while it is in focus, plus the joystick) and clears control keys locally; for the flight director — pause, acceleration and save requests (Ctrl+Alt+S) and the player summary on the screen |
 | `plugin/vessel_control.h` | Applies a pilot's `INPUT` to the vessel on the host as Orbiter's core does for the focus vessel: RCS single-step by RCS mode, full main and retro, kill rotation, throttle and hover 0.2 per second, trim 0.25 per second, wheel brakes |
 | `plugin/launchpad_item.h` | The "OLC - LAN co-op" item in Launchpad (the "Extra" tab): role, address, port, name; the "Connect" button gets the host's scenario (`HELLO` without a number) and starts it |
 | `plugin/scenario_launch.h` | Starting the received scenario: vessels without an installed class are removed (`scenario_filter.h`), writing it to `Scenarios\OLC\Host world.scn`, selecting it in the Launchpad list and pressing "Launch" (`ORBITER-INTERNALS.md`, section 18) |
