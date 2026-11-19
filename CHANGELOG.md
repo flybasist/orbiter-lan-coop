@@ -2,6 +2,13 @@
 
 # CHANGELOG
 
+## v0.2 — Test package, round 2 (2026-11-19)
+
+Plugin `0.2`, protocol version 7. Added to round 1 (stage 3, plugin `0.1-stage3`): the flight
+director mode — shared pause and time acceleration, the player summary, saves, flight recording
+(stage 5); all participants see the vessel mechanisms and NAV frequencies (stage 4A). Plugins of
+different versions do not connect to each other. Details — the task entries below.
+
 ## v0.0.1 — Research and documentation (2026-11-05)
 
 ### What is there

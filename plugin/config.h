@@ -10,7 +10,7 @@
 namespace olcplugin {
 
 // Plugin version: goes into HELLO and is shown in the host's log.
-constexpr char kPluginVersion[] = "0.1-stage3";
+constexpr char kPluginVersion[] = "0.2";
 
 enum class Role {
     Off,     // the plugin is loaded but does nothing
