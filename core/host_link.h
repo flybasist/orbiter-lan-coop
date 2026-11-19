@@ -73,7 +73,9 @@ struct HostConfig {
     uint32_t orbiterVersion = 0;  // oapiGetOrbiterVersion; a different client version gets REJECT
     std::string system;           // planetary system name, goes into WELCOME
     uint8_t stateRateHz = 60;     // WORLD_STATE rate, goes into WELCOME (decision 36)
-    std::string hostPlayer = "Host";  // the host's own player name in PLAYERS
+    // The host's own player name in PLAYERS. Empty - the host does not play (a host without
+    // graphics) and is left out of PLAYERS.
+    std::string hostPlayer = "Host";
     // Name of the flight director (decision 46); a client with this name in HELLO is the director.
     // Empty - there is no director, nobody may pause or warp from a client.
     std::string director;

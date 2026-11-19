@@ -153,6 +153,8 @@ bool HostSide::start() {
     hostConfig.system = bodies_.empty() ? std::string() : objectName(bodies_[0]);
     hostConfig.stateRateHz = static_cast<uint8_t>(config_.stateRateHz);
     hostConfig.director = config_.director;
+    // A host without graphics has no player at the keyboard: it is not shown in PLAYERS.
+    hostConfig.hostPlayer = headless_ ? std::string() : config_.player;
     hostConfig.makeScenario = saveWorld;
 
     const bool started = link_.start(hostConfig);

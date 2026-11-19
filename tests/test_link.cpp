@@ -49,10 +49,14 @@ struct TestHost {
         config.stateRateHz = 30;
         config.makeScenario = makeScenario;
         config.director = director;
+        if (headless) {
+            config.hostPlayer.clear();
+        }
         return link.start(config);
     }
 
     std::string director;  // flight director name, set before start if needed
+    bool headless = false;  // true - the host does not play and is not in PLAYERS
     std::function<bool(olc::Scenario&)> makeScenario;  // set before start if needed
     olc::SessionTable table;
     olc::HostLink link;
@@ -967,6 +971,17 @@ void testPlayersList() {
         CHECK(annEntry->clientId == ann.clientId() && annEntry->flags == 0 &&
               annEntry->netId == olc::kNoVessel);
     }
+
+    // A host without graphics does not play: only the clients are listed.
+    TestHost headlessHost;
+    headlessHost.headless = true;
+    CHECK(headlessHost.start());
+    olc::ClientConfig soloConfig = makeClientConfig(headlessHost);
+    soloConfig.player = "Solo";
+    olc::ClientLink solo;
+    CHECK(solo.start(soloConfig, now()));
+    CHECK(waitFor(headlessHost.link, {&solo}, [&]() { return solo.players().size() == 1; }));
+    CHECK(findPlayer(solo.players(), "Host") == nullptr && findPlayer(solo.players(), "Solo") != nullptr);
 
     // Ann takes a vessel: the list changes for everybody.
     ann.requestTake(2);

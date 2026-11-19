@@ -22,7 +22,7 @@ struct Config {
     Role role = Role::Off;
     std::string hostAddress = "127.0.0.1";  // client: host address
     int port = 47800;                       // host and client
-    std::string player = "player";          // client: player name
+    std::string player = "player";          // player name (the host's one goes into PLAYERS)
     int maxPlayers = 4;                     // host: player limit, the host is a player too
     int stateRateHz = 60;                   // host: WORLD_STATE rate (decision 36)
     // Host: name of the flight director (decision 46). A client with this player name may pause and

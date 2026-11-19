@@ -417,12 +417,14 @@ void HostLink::broadcastOwnership() {
 
 void HostLink::broadcastPlayers() {
     std::vector<PlayerEntry> players;
-    PlayerEntry self;
-    self.clientId = kHostOwner;
-    self.player = config_.hostPlayer;
-    self.netId = table_.vesselOwnedBy(kHostOwner);
-    self.rttMs = 0;  // the host is the reference point
-    players.push_back(self);
+    if (!config_.hostPlayer.empty()) {
+        PlayerEntry self;
+        self.clientId = kHostOwner;
+        self.player = config_.hostPlayer;
+        self.netId = table_.vesselOwnedBy(kHostOwner);
+        self.rttMs = 0;  // the host is the reference point
+        players.push_back(self);
+    }
     for (const Client& client : clients_) {
         if (!client.welcomed) {
             continue;
