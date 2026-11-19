@@ -55,9 +55,12 @@ Copy-Item $PluginDll (Join-Path $plug 'Modules\Plugin\OrbiterLanCoop.dll')
 Copy-Item (Join-Path $repo 'plugin\OrbiterLanCoop.cfg') (Join-Path $plug 'Config\OrbiterLanCoop.cfg')
 Copy-Item (Join-Path $repo 'tools\scenarios\*.scn') (Join-Path $plug 'Scenarios\OLC-test') -Exclude '._*'   # skip macOS leftovers
 Copy-Item (Join-Path $repo 'LICENSE') (Join-Path $plug 'OLC-LICENSE.txt')
+# The plugin links Orbitersdk.lib, which contains Orbiter, Dear ImGui and ImPlot code (MIT): their
+# notices must go with the DLL (docs/CREDITS.md).
+Copy-Item (Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.txt') (Join-Path $plug 'OLC-THIRD-PARTY-NOTICES.txt')
 # A starting Orbiter.cfg: the tester does not have to switch modules on by hand. Vessel collisions are
-# off: on a client they would argue with the host's states (docs/QUICKSTART.md, section 6), and the
-# host gets the same so that both see the same thing. Orbiter adds the rest of its settings on exit.
+# off: on a client they would argue with the host's states, and near vessels the core drops time
+# acceleration to x1 (docs/QUICKSTART.md, section 6; docs/ORBITER-INTERNALS.md, section 22). Orbiter adds the rest of its settings on exit.
 $orbiterCfg = @(
     '; Starting settings of the OLC test package (tools/package/make-package.ps1).',
     'VesselCollision = FALSE',

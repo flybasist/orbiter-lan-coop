@@ -40,7 +40,7 @@ Orbiter directory, layers are installed independently (keep the original file).
 
 ## 3. Licenses
 
-- Orbiter itself is MIT (the repository `LICENSE` file), D3D9Client is LGPL. They may go into the
+- Orbiter itself is MIT (the repository `LICENSE` file), D3D9Client is GPLv3 or LGPLv3 at one's choice. They may go into the
   archive with the license texts kept.
 - The `orbiter-mods.com` downloads page names MIT only for the Orbiter core; **it states no
   license for the texture packs**. The agent could not read the pack pages on the Orbiter forum (403).
@@ -51,7 +51,7 @@ Orbiter directory, layers are installed independently (keep the original file).
 
 ## 4. Proposed package contents
 
-1. Into the archive: Orbiter of the base commit with D3D9Client (MIT, LGPL), the OLC plugin,
+1. Into the archive: Orbiter of the base commit with D3D9Client (MIT; GPLv3 or LGPLv3), the OLC plugin,
    settings, scenarios, instructions.
 2. SPICE kernels - downloaded from `cdn.openorbiter.space`; they may go into the archive if the owner
    approves (the NASA/JPL kernel license is free, but the Orbiter site does not state it).

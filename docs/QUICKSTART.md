@@ -61,7 +61,7 @@ What we found on the test rig:
 
 1. Planet textures are not part of the repository. Give their folder with the
    `ORBITER_PLANET_TEXTURE_INSTALL_DIR` variable before building or with the `PlanetTexDir` parameter in `Orbiter.cfg`
-   afterwards (for example, from an installed Orbiter 2016 or 2024).
+   afterwards (for example, the `Textures` folder of an installed Orbiter 2016; the 2024 release has no Earth textures).
 2. **SPICE kernels are required.** Without `Kernels\orbiter.bsp` (1.6 GB) Orbiter closes the session
    right after starting (`SUN - Couldn't load kernel`). The archives are at the links in Orbiter's
    `COMPILE.md`, SPICE section: `Kernels.7z` (1.2 GB) is unpacked into `Kernels`, `Textures.7z` into
@@ -114,8 +114,9 @@ Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x
 5. Both `Orbiter.log` files contain `OLC ...` lines: the connection, and every 10 s statistics
    (delay, received packets, sim time error).
 
-On the client it is better to turn off vessel collisions (`VesselCollision = FALSE` in
-`Orbiter.cfg`): otherwise the local calculation argues with the host's states. The client flies its own
+Turn vessel collisions off in all copies (`VesselCollision = FALSE` in `Orbiter.cfg`, the package has it
+so): on a client the local calculation argues with the host's states, and near vessels the core itself
+drops time acceleration to x1. The client flies its own
 vessel and only shows the others (stage 3, [PILOT-GUIDE.md](PILOT-GUIDE.md)).
 
 To measure the position error, set `TraceVessel` (the name of a flying vessel) on both: each
@@ -141,7 +142,7 @@ RTT about 16 ms, no losses. The log of the server without graphics has `ERROR:` 
 missing planet atmosphere modules — they do no harm, the simulation runs.
 
 Pause and time acceleration on a server without graphics (a fallback, task 5.5): the main way is
-the flight director's keys on their client (Ctrl+P and acceleration, task 5.2). If there is no
+the flight director's keys on their client (Ctrl+P — pause, T and R — acceleration, task 5.2). If there is no
 director client, the commands of the "Orbiter Server Console" are sent by the script
 [`tools/stands/console-send.ps1`](../tools/stands/console-send.ps1) (Windows, from PowerShell,
 including over SSH, as the same user that started the server):
