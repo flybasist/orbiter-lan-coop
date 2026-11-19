@@ -105,6 +105,8 @@ private:
     // Shows text on screen for kNoticeSeconds (replaces the previous notice).
     void showNotice(const std::string& text);
     void updateNotice(double now);
+    // The flight director only: shows the player summary (who, which vessel, latency) on the screen.
+    void updateSummary();
     // The number of the pilot's own vessel; false - the pilot has none.
     bool ownVessel(uint16_t& netId) const;
     // Shows ownership news: a vessel taken or lost, refusals from the host.
@@ -128,6 +130,8 @@ private:
     std::vector<std::string> missingClasses_;  // already named in a notice
     std::string noticeText_;                // the notice to show; empty - nothing
     NOTEHANDLE notice_ = nullptr;           // on-screen text, nullptr - not shown
+    std::string summaryText_;               // the player summary on the screen (flight director only)
+    NOTEHANDLE summary_ = nullptr;          // its on-screen text, nullptr - not shown yet
     double noticeShownAt_ = -1.0;           // < 0 - the notice is to be shown at the next tick
     bool focusChecked_ = false;             // the start focus was checked (onFocusChanged)
     bool hadOwnVessel_ = false;             // the pilot had a vessel at the last check

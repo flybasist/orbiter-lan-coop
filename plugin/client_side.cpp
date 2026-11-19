@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "player_summary.h"
 #include "protocol.h"
 #include "scenario_launch.h"
 #include "wall_clock.h"
@@ -103,6 +104,7 @@ bool ClientSide::start() {
 void ClientSide::stop() {
     // The world is already deleted: the notice went with it, it is only forgotten here.
     notice_ = nullptr;
+    summary_ = nullptr;
     link_.stop("client session ended");
     flushLog();
     trace_.close();
@@ -141,6 +143,7 @@ void ClientSide::tick(double now, bool paused) {
             followOwnership();
             sendInput(now);
             updateNotice(now);
+            updateSummary();
         }
         if (now >= nextStats_) {
             if (nextStats_ > 0.0) {
@@ -567,6 +570,23 @@ void ClientSide::updateNotice(double now) {
         }
         noticeText_.clear();
     }
+}
+
+void ClientSide::updateSummary() {
+    if (!link_.isDirector()) {
+        return;  // only the flight director sees the player summary
+    }
+    const std::string text = olc::formatPlayerSummary(link_.players(), link_.table());
+    if (text.empty() || text == summaryText_) {
+        return;  // nothing to show or nothing changed (PLAYERS arrives every 2 s)
+    }
+    if (!summary_) {
+        summary_ = oapiCreateAnnotation(true, 0.9, _V(0.6, 1.0, 0.6));
+        // The left side, below the HUD lines (Tgt, Cam, FoV).
+        oapiAnnotationSetPos(summary_, 0.02, 0.2, 0.45, 0.4);
+    }
+    summaryText_ = text;
+    oapiAnnotationSetText(summary_, &summaryText_[0]);
 }
 
 bool ClientSide::ownVessel(uint16_t& netId) const {

@@ -9,6 +9,7 @@ add_library(olc-core STATIC
     interpolation.cpp
     keymap.cpp
     messages.cpp
+    player_summary.cpp
     protocol.cpp
     scenario_filter.cpp
     serialize.cpp
