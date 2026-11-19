@@ -281,6 +281,7 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.21 | 4A, research: general animation transfer (`GetAnimPtr`, `GetAnimation`, `SetAnimation`) versus DeltaGlider Lua commands — what another participant will see, for which classes it works; NAV and transponder frequencies | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): section 21 of `ORBITER-INTERNALS.md`; fork Q13 |
 | 3.22 | 4A: protocol and implementation plan from the results of 3.21, tasks for the runs | Mac | A decision in `DECISIONS.md`, tasks in `PLAN.md` | done (2026-11-19): decision 58 (protocol version 7), the 4A task queue in the stage 4 section |
 | 3.23 | Stage 5: the work queue — tasks 5.1–5.7, what the rigs can check now and what waits for people | Mac | Tasks in `PLAN.md` | done (2026-11-19): the stage 5 tasks got a "Status" column — the queue continues there |
+| 3.24 | The big audit after handing over the round 2 package: the code, comments and all MD files are checked against the code; fix what is wrong, delete what code or a check cannot confirm; less but true (the owner's instruction of 2026-11-19) | Mac | Every MD file and comment checked against the code; results in `PLAN.md` and CHANGELOG | waiting (main session) |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
