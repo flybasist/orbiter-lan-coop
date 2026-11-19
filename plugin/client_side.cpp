@@ -203,6 +203,8 @@ void ClientSide::directorTime(double now) {
     if (directorSynced_ && now >= directorSettleUntil_ && changed) {
         // The director pressed pause or changed the warp: ask the host, the answer comes back in
         // WORLD_STATE. Until then the host's old values must not overwrite the director's choice.
+        oapiWriteLogV("OLC client: director change seen, pause %d->%d, warp x%g->x%g, host x%g",
+                      directorPaused_ ? 1 : 0, paused ? 1 : 0, directorWarp_, warp, link_.hostWarp());
         link_.sendTimeRequest(paused, warp);
         directorPaused_ = paused;
         directorWarp_ = warp;
