@@ -20,7 +20,7 @@ I — research, S — test rigs.
 | 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — done except the check by people: 4A.1–4A.4 (protocol version 7, decisions 57, 58); 4B — postponed |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | done except the check by people: 5.1–5.9 (protocol version 6, rig check); the round 1 test package built on 2026-11-19 |
 
-Order: version 0.1 is handed over for tests by people (the round 1 package); next — their results; 4B and the rest of the postponed work — after them (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
+Order: version 0.1 is handed over for tests by people (the round 1 package); the work on the next version goes on in the `dev-0.2` branch (decision 60); next — the test results; 4B and the rest of the postponed work — after them (decisions 46, 52). Everything our rigs can check is done without waiting for the tests by people (decision 53).
 Alongside all stages: the plugin log, network statistics (delay, loss, position
 error), documentation.
 
