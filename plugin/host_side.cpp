@@ -22,6 +22,11 @@ constexpr double kPausedStateRate = 5.0;
 // How often to repeat LANDED for landed vessels, seconds.
 constexpr double kLandedRepeat = 2.0;
 
+// ANIM_STATE (decision 58): an animation is sent when it changed by more than this since the last
+// send, and a vessel is scanned at most this many times per second.
+constexpr float kAnimThreshold = 0.01f;
+constexpr double kAnimRate = 5.0;
+
 // How often to write statistics to the log, seconds.
 constexpr double kStatsInterval = 10.0;
 
@@ -277,6 +282,7 @@ void HostSide::tick(double now, bool paused) {
         // per second; after a long frame - from now, without a burst (nextSendTime).
         nextState_ = olc::nextSendTime(nextState_, now, 1.0 / rate);
     }
+    sendAnimations(now);
     if (now >= nextFuel_) {
         sendFuel();
         nextFuel_ = now + 1.0;
@@ -440,6 +446,42 @@ void HostSide::sendFuel() {
         fuel.vessels.push_back(entry);
     }
     link_.sendFuel(fuel);
+}
+
+void HostSide::sendAnimations(double now) {
+    for (Ship& ship : ships_) {
+        // A vessel created during the session is announced first (VESSEL_ADDED), then its animations.
+        if (ship.announce || now < ship.nextAnim) {
+            continue;
+        }
+        ship.nextAnim = now + 1.0 / kAnimRate;
+        VESSEL* vessel = oapiGetVesselInterface(ship.handle);
+        ANIMATION* anims = nullptr;
+        const UINT count = vessel->GetAnimPtr(&anims);
+        if (count > ship.sentAnims.size()) {
+            ship.sentAnims.resize(count, -1.0f);  // never sent: the first scan sends everything
+        }
+        olc::AnimState state;
+        state.netId = ship.netId;
+        for (UINT i = 0; i < count && i <= 0xFFFF; i++) {
+            const float value = static_cast<float>((std::min)((std::max)(anims[i].state, 0.0), 1.0));
+            // A mechanism that stops just short of the threshold still gets its final 0 or 1 sent.
+            const float change = std::fabs(value - ship.sentAnims[i]);
+            if (change > kAnimThreshold || (change > 0.0f && (value == 0.0f || value == 1.0f))) {
+                state.anims.push_back({static_cast<uint16_t>(i), value});
+            }
+        }
+        if (state.anims.empty()) {
+            continue;
+        }
+        if (link_.sendAnimState(state)) {
+            for (const olc::AnimValue& anim : state.anims) {
+                ship.sentAnims[anim.index] = anim.value;
+            }
+            animMessages_++;
+            animValues_ += state.anims.size();
+        }
+    }
 }
 
 void HostSide::repeatLanded() {
@@ -652,7 +694,8 @@ void HostSide::logStats() {
     const olc::HostStats& stats = link_.stats();
     oapiWriteLogV("OLC host: %d client(s), %d ready, world states %llu, UDP packets %llu, "
                   "bad UDP %llu, input accepted %llu rejected %llu, applied %llu (with keys %llu), "
-                  "key presses accepted %llu rejected %llu applied %llu, longest frame %.0f ms",
+                  "key presses accepted %llu rejected %llu applied %llu, "
+                  "ANIM_STATE %llu (%llu values, about %llu bytes), longest frame %.0f ms",
                   link_.clientCount(), link_.readyClientCount(),
                   static_cast<unsigned long long>(worldStatesSent_),
                   static_cast<unsigned long long>(stats.udpPacketsSent),
@@ -663,7 +706,12 @@ void HostSide::logStats() {
                   static_cast<unsigned long long>(inputKeyFrames_),
                   static_cast<unsigned long long>(stats.keysAccepted),
                   static_cast<unsigned long long>(stats.keysRejected),
-                  static_cast<unsigned long long>(keysApplied_), longestFrame_ * 1000.0);
+                  static_cast<unsigned long long>(keysApplied_),
+                  static_cast<unsigned long long>(animMessages_),
+                  static_cast<unsigned long long>(animValues_),
+                  // TCP frame (5 bytes) and net_id with count (4 bytes) per message, 6 bytes per value.
+                  static_cast<unsigned long long>(animMessages_ * 9 + animValues_ * 6),
+                  longestFrame_ * 1000.0);
     longestFrame_ = 0.0;
 }
 

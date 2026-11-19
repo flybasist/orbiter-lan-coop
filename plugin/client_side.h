@@ -16,6 +16,9 @@
 // - once, right after the first states are applied, client vessels the host does not have
 //   are deleted;
 // - VESSEL_REMOVED deletes the vessel here too.
+// Animations follow the host (ANIM_STATE): SetAnimation on every vessel, the pilot's own one too -
+// the host moves the mechanisms (the pilot's keys reach it in KEY); values for a vessel that does
+// not exist here yet wait until it is created.
 // Docking follows the host (DOCK): Dock in mode 0 and Undock after the display delay; vessels that are
 // docked are flown through the one with the smallest net_id.
 // The last vessel is never deleted: Orbiter would end the session.
@@ -92,6 +95,8 @@ private:
     // net_id -> leader of its bundle, for vessels that are docked now.
     std::map<uint16_t, uint16_t> dockLeaders() const;
     void applyFuel();
+    // Sets the animations from ANIM_STATE on the client vessels.
+    void applyAnimations();
     void collectLanded();
     void putOnSurface(VESSEL* vessel, OBJHANDLE body, const olc::Landed& place);
     void applyStates(double displayTime);
@@ -158,6 +163,11 @@ private:
     double longestFrame_ = 0.0;    // the longest client frame while timing, seconds
     double lastFrameAt_ = -1.0;    // wall clock of the previous tick
     bool ownThrusting_ = false;             // the displayed own vessel had thrust at the last frame
+    // Animation values received for vessels that are not here yet (or not applied yet):
+    // net_id -> animation number -> state.
+    std::map<uint16_t, std::map<uint16_t, float>> pendingAnims_;
+    uint64_t animApplied_ = 0;   // animation values set on vessels (for the log)
+    uint64_t animRejected_ = 0;  // values for an animation number the client vessel does not have
     uint64_t keyPresses_ = 0;               // KEY messages sent (for the log)
 
     Trace trace_;

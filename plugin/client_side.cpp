@@ -130,6 +130,7 @@ void ClientSide::tick(double now, bool paused) {
             applyFuel();
             collectLanded();
             applyStates(displayTime);
+            applyAnimations();
             // After applyStates: host vessels are created first, so a client vessel the host
             // does not have is not kept just because it was the last one.
             if (!extrasRemoved_) {
@@ -822,6 +823,34 @@ OBJHANDLE ClientSide::bodyHandle(uint16_t netId) {
     return handle;
 }
 
+void ClientSide::applyAnimations() {
+    for (const olc::AnimState& state : link_.takeAnimStates()) {
+        for (const olc::AnimValue& anim : state.anims) {
+            pendingAnims_[state.netId][anim.index] = anim.value;
+        }
+    }
+    for (auto entry = pendingAnims_.begin(); entry != pendingAnims_.end();) {
+        if (!link_.table().findById(entry->first)) {
+            entry = pendingAnims_.erase(entry);  // the vessel is gone
+            continue;
+        }
+        OBJHANDLE handle = vesselHandle(entry->first);
+        if (!handle) {
+            ++entry;  // not created yet: try again at the next frame
+            continue;
+        }
+        VESSEL* vessel = oapiGetVesselInterface(handle);
+        for (const auto& anim : entry->second) {
+            if (vessel->SetAnimation(anim.first, anim.second)) {
+                animApplied_++;
+            } else {
+                animRejected_++;
+            }
+        }
+        entry = pendingAnims_.erase(entry);
+    }
+}
+
 void ClientSide::onDeleteVessel(OBJHANDLE vessel) {
     for (auto entry = vessels_.begin(); entry != vessels_.end();) {
         if (entry->second == vessel) {
@@ -837,7 +866,7 @@ void ClientSide::logStats() {
     const double average = timeErrorCount_ > 0 ? timeErrorSum_ / static_cast<double>(timeErrorCount_) : 0.0;
     oapiWriteLogV("OLC client: rtt %.1f ms, world states %llu, dropped %llu, unknown vessels %llu, "
                   "starved %llu, sim time error avg %.3f s max %.3f s, time jumps %d, input sent %llu, "
-                  "frames with control keys %llu, key presses sent %llu",
+                  "frames with control keys %llu, key presses sent %llu, animations applied %llu rejected %llu",
                   link_.rtt() * 1000.0,
                   static_cast<unsigned long long>(stats.worldStatePackets),
                   static_cast<unsigned long long>(stats.droppedPackets),
@@ -845,7 +874,9 @@ void ClientSide::logStats() {
                   static_cast<unsigned long long>(stats.starvedSamples), average,
                   timeErrorMax_, timeJumps_, static_cast<unsigned long long>(stats.inputPackets),
                   static_cast<unsigned long long>(keyFrames_),
-                  static_cast<unsigned long long>(keyPresses_));
+                  static_cast<unsigned long long>(keyPresses_),
+                  static_cast<unsigned long long>(animApplied_),
+                  static_cast<unsigned long long>(animRejected_));
     timeErrorMax_ = 0.0;
     timeErrorSum_ = 0.0;
     timeErrorCount_ = 0;

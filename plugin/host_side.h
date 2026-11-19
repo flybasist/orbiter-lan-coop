@@ -7,6 +7,8 @@
 // - at StateRate capture the states of all vessels (GetStatusEx) and send
 //   WORLD_STATE; while paused - at most kPausedStateRate times per second;
 // - send FUEL once per second;
+// - send ANIM_STATE: the animations of every vessel (gear, hatches, ...) that changed by more than
+//   kAnimThreshold, at most kAnimRate times per second per vessel (task 4A.2, decision 58);
 // - a vessel came to rest on a surface - LANDED at once; landed vessels are repeated in LANDED
 //   every kLandedRepeat seconds, so that clients that connect later learn about them too.
 // Vessels and bodies are taken at session start. A vessel created during the session gets a
@@ -63,6 +65,8 @@ private:
         OBJHANDLE handle = nullptr;  // a deleted vessel is removed from the list at once
         bool landed = false;         // was landed at the last capture
         bool announce = false;       // created during the session: VESSEL_ADDED not sent yet
+        std::vector<float> sentAnims;  // animation states already sent; unsent ones are -1
+        double nextAnim = 0.0;         // time (oapiGetSysTime) of the next animation scan
         uint32_t keys = 0;           // INPUT.keys of the last applied pilot's INPUT
         // Latency probe (task 3.10): the full main engine key of a pilot's INPUT was applied at
         // probeAt (wall clock) and no state with thrust has gone out yet. < 0 - no probe.
@@ -93,6 +97,8 @@ private:
     // SAVE_REQUEST from the flight director and the autosave timer (task 5.4); wallNow - wall clock.
     void applySaves(double wallNow);
     void sendFuel();
+    // Finds animations that changed since the last scan and sends them in ANIM_STATE.
+    void sendAnimations(double now);
     void repeatLanded();
     void logStats();
     void flushLog();
@@ -119,6 +125,8 @@ private:
     uint64_t worldStatesSent_ = 0;
     uint64_t inputFrames_ = 0;     // frames in which a pilot's INPUT was applied (for the log)
     uint64_t inputKeyFrames_ = 0;  // of them with a control key held
+    uint64_t animMessages_ = 0;    // ANIM_STATE sent (for the log)
+    uint64_t animValues_ = 0;      // animation values in them
     uint64_t keysApplied_ = 0;     // KEY presses passed to vessels (for the log)
     double lastFrameAt_ = -1.0;    // wall clock of the previous tick
     double longestFrame_ = 0.0;    // the longest frame of the log interval, seconds (for the log)
