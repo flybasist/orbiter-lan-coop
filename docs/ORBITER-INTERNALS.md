@@ -909,3 +909,14 @@ on the host and the client. This is checked on the Windows stand in a short time
 Question Q13 in `QUESTIONS.md`: how to transfer mechanisms — general animation transfer (any class,
 simple, but the internal vessel state does not change), DeltaGlider Lua commands (a real mechanism, but one
 class) or a combination (recommended).
+
+## 22. Vessel collisions reset the time acceleration (task 5.2)
+
+Task 5.2 (2026-11-19), base commit `a7a3396e`. With vessel collisions on (`VesselCollision`,
+on by default) the core in `Vessel::ResolveCollisionWith` (`Vessel.cpp:6227`) resets the time
+acceleration to x1 every frame when two vessels are closer than the sum of their sizes plus
+5 m. So a director request for x10 on a host with two vessels nearby bounced back at once.
+Rig check (host .163, FD on olc-win-arm, scenario `Two DG 20 m`): with `VesselCollision = FALSE`
+in the `Orbiter.cfg` of host and client the x10 and x100 requests arrive and stay, the FD sim
+time error grows with the warp. For sessions that warp near vessels set
+`VesselCollision = FALSE` (the test package already does).
