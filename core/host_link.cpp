@@ -1,6 +1,7 @@
 #include "host_link.h"
 
 #include <algorithm>
+#include <random>
 #include <utility>
 
 #include "protocol.h"
@@ -10,9 +11,13 @@ namespace olc {
 
 namespace {
 
-// How many times we try to get the same UDP port number the system gave for TCP
-// (only with port = 0: TCP and UDP ports are taken independently, the number may be busy).
+// With port = 0 (tests) the host needs one number that is free for both TCP and UDP. Numbers are
+// tried at random from a wide range: the system hands out TCP ports one after another, and Windows
+// reserves whole blocks of ports (often hundreds in a row) for one protocol, so neighbouring numbers
+// tend to fail together.
 constexpr int kPortAttempts = 20;
+constexpr uint16_t kRandomPortFirst = 20000;
+constexpr uint16_t kRandomPortLast = 60000;
 
 // Builds a UDP packet: header and a ready body.
 std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
@@ -41,14 +46,14 @@ bool HostLink::start(const HostConfig& config) {
     }
     config_ = config;
 
-    // With port = 0 the system chooses the TCP port, and UDP is opened on the same number.
-    int attempts = config.port == 0 ? kPortAttempts : 1;
+    // A given port is tried once; port = 0 - random numbers until one is free for TCP and UDP.
+    std::mt19937 random(std::random_device{}());
+    std::uniform_int_distribution<int> anyPort(kRandomPortFirst, kRandomPortLast);
+    const int attempts = config.port == 0 ? kPortAttempts : 1;
     bool opened = false;
     for (int i = 0; i < attempts && !opened; i++) {
-        if (!listener_.open(config.port)) {
-            break;
-        }
-        opened = udp_.open(listener_.localPort());
+        const uint16_t port = config.port != 0 ? config.port : static_cast<uint16_t>(anyPort(random));
+        opened = listener_.open(port) && udp_.open(port);
     }
     if (!opened) {
         listener_.close();
