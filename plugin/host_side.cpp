@@ -133,6 +133,7 @@ bool HostSide::start() {
     // The star's name (the body with number 0) tells one planetary system from another.
     hostConfig.system = bodies_.empty() ? std::string() : objectName(bodies_[0]);
     hostConfig.stateRateHz = static_cast<uint8_t>(config_.stateRateHz);
+    hostConfig.director = config_.director;
     hostConfig.makeScenario = saveWorld;
 
     const bool started = link_.start(hostConfig);
@@ -240,6 +241,7 @@ void HostSide::tick(double now, bool paused) {
     }
     lastFrameAt_ = frameAt;
     link_.poll(now);
+    applyTimeRequests();
     if (!paused) {
         applyInputs(now);
         applyKeys();
@@ -268,6 +270,19 @@ void HostSide::tick(double now, bool paused) {
         nextStats_ = now + kStatsInterval;
     }
     flushLog();
+}
+
+void HostSide::applyTimeRequests() {
+    // HostLink keeps only requests from the flight director; the last one wins.
+    const std::vector<olc::TimeRequest> requests = link_.takeTimeRequests();
+    if (requests.empty()) {
+        return;
+    }
+    const olc::TimeRequest& request = requests.back();
+    oapiSetPause(request.paused != 0);
+    oapiSetTimeAcceleration(request.warp);
+    oapiWriteLogV("OLC host: flight director sets pause %s, time acceleration x%g",
+                  request.paused != 0 ? "on" : "off", request.warp);
 }
 
 void HostSide::sendWorld(bool paused) {

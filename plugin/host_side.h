@@ -2,6 +2,7 @@
 //
 // tick is called every frame (clbkPreStep) and by a timer while paused:
 // - accept client connections and messages (HostLink::poll);
+// - apply the flight director's pause and time acceleration (TIME_REQUEST);
 // - at StateRate capture the states of all vessels (GetStatusEx) and send
 //   WORLD_STATE; while paused - at most kPausedStateRate times per second;
 // - send FUEL once per second;
@@ -86,6 +87,8 @@ private:
     void detectDocking();
     // Passes the pilots' key presses (KEY) to their vessels.
     void applyKeys();
+    // TIME_REQUEST from the flight director: pause and time acceleration of the host world.
+    void applyTimeRequests();
     void sendFuel();
     void repeatLanded();
     void logStats();

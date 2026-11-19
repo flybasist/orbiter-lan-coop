@@ -25,6 +25,9 @@ struct Config {
     std::string player = "player";          // client: player name
     int maxPlayers = 4;                     // host: player limit, the host is a player too
     int stateRateHz = 60;                   // host: WORLD_STATE rate (decision 36)
+    // Host: name of the flight director (decision 46). A client with this player name may pause and
+    // warp time for everybody and never takes a vessel. Empty - there is no director.
+    std::string director;
     double displayDelay = 0.03;             // client: display delay, seconds (decision 36)
     // Client: sim time error against the host (seconds × warp) after which
     // the client time catches up with a jump.

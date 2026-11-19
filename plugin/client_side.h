@@ -2,7 +2,8 @@
 //
 // tick is called every frame (clbkPreStep) and by a timer while paused:
 // - receive the host's messages (ClientLink::poll);
-// - pause and time acceleration follow the host;
+// - pause and time acceleration follow the host; for the flight director they go to the host instead
+//   (TIME_REQUEST), and the director's vessel focus is view only;
 // - the client sim time is kept near display time: if the error exceeds
 //   TimeSyncThreshold - a jump with oapiSetSimMJD (at most once per kTimeJumpPause seconds);
 // - outside pause only: fuel from FUEL and vessel states at display time - via
@@ -75,6 +76,9 @@ public:
 
 private:
     void followTime(double now, double displayTime);
+    // The flight director's pause and time acceleration: a change made in this Orbiter goes to the
+    // host (TIME_REQUEST); changes the host makes itself (its console) are followed.
+    void directorTime(double now);
     // Sends INPUT for the pilot's vessel: keys only while it is in focus, plus the joystick.
     void sendInput(double now);
     // Repeats the host's docking and undocking: a DOCK is carried out after the display delay, so the
@@ -155,6 +159,13 @@ private:
     double requestedWarp_ = 0.0;   // the time acceleration the plugin itself set last
     double nextWarpCheck_ = 0.0;
     double lastPauseRequest_ = -1.0;
+    // The flight director (directorTime): the pause and warp the director has now, the host's answer
+    // is waited for until directorRequestAt_ + kDirectorAnswerWait.
+    bool directorSynced_ = false;          // the first sync with the host values is done
+    bool directorPaused_ = false;
+    double directorWarp_ = 1.0;
+    double directorRequestAt_ = -1.0e9;
+    double directorSettleUntil_ = 0.0;     // oapiSetPause works from the next frame: no checks before
     double lastTimeJump_ = -1.0e9;
     int timeJumps_ = 0;
 

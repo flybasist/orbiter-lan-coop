@@ -26,6 +26,10 @@ constexpr double kWarpCheckInterval = 1.0;
 // Do not repeat a pause request more often: oapiSetPause takes effect only in the next frame.
 constexpr double kPauseRequestPause = 0.5;
 
+// The flight director waits this long for the host to take the time request before it follows the
+// host's values again, seconds.
+constexpr double kDirectorAnswerWait = 1.0;
+
 constexpr double kStatsInterval = 10.0;
 
 // A latency measurement is dropped after this many seconds without thrust.
@@ -149,25 +153,29 @@ void ClientSide::tick(double now, bool paused) {
 }
 
 void ClientSide::followTime(double now, double displayTime) {
-    // Pause follows the host.
-    const bool hostPaused = link_.hostPaused();
-    if (oapiGetPause() != hostPaused && now - lastPauseRequest_ > kPauseRequestPause) {
-        oapiSetPause(hostPaused);
-        lastPauseRequest_ = now;
-        oapiWriteLogV("OLC client: following host pause %s", hostPaused ? "on" : "off");
-    }
-
-    // Time acceleration follows the host. Repeat the request only if the host changed it or
-    // the player changed it (checked once per kWarpCheckInterval).
     const double hostWarp = link_.hostWarp();
-    if (hostWarp != requestedWarp_ ||
-        (now >= nextWarpCheck_ && std::fabs(oapiGetTimeAcceleration() - hostWarp) > 1e-6)) {
-        oapiSetTimeAcceleration(hostWarp);
-        if (hostWarp != requestedWarp_) {
-            oapiWriteLogV("OLC client: following host time acceleration x%g", hostWarp);
+    if (link_.isDirector()) {
+        directorTime(now);
+    } else {
+        // Pause follows the host.
+        const bool hostPaused = link_.hostPaused();
+        if (oapiGetPause() != hostPaused && now - lastPauseRequest_ > kPauseRequestPause) {
+            oapiSetPause(hostPaused);
+            lastPauseRequest_ = now;
+            oapiWriteLogV("OLC client: following host pause %s", hostPaused ? "on" : "off");
         }
-        requestedWarp_ = hostWarp;
-        nextWarpCheck_ = now + kWarpCheckInterval;
+
+        // Time acceleration follows the host. Repeat the request only if the host changed it or
+        // the player changed it (checked once per kWarpCheckInterval).
+        if (hostWarp != requestedWarp_ ||
+            (now >= nextWarpCheck_ && std::fabs(oapiGetTimeAcceleration() - hostWarp) > 1e-6)) {
+            oapiSetTimeAcceleration(hostWarp);
+            if (hostWarp != requestedWarp_) {
+                oapiWriteLogV("OLC client: following host time acceleration x%g", hostWarp);
+            }
+            requestedWarp_ = hostWarp;
+            nextWarpCheck_ = now + kWarpCheckInterval;
+        }
     }
 
     // Sim time: the whole client world lags behind the host by the display delay (PROTOCOL.md,
@@ -184,6 +192,43 @@ void ClientSide::followTime(double now, double displayTime) {
         timeErrorMax_ = (std::max)(timeErrorMax_, std::fabs(error));
         timeErrorSum_ += std::fabs(error);
         timeErrorCount_++;
+    }
+}
+
+void ClientSide::directorTime(double now) {
+    const bool paused = oapiGetPause();
+    const double warp = oapiGetTimeAcceleration();
+    const bool changed = paused != directorPaused_ || std::fabs(warp - directorWarp_) > 1e-6;
+
+    if (directorSynced_ && now >= directorSettleUntil_ && changed) {
+        // The director pressed pause or changed the warp: ask the host, the answer comes back in
+        // WORLD_STATE. Until then the host's old values must not overwrite the director's choice.
+        link_.sendTimeRequest(paused, warp);
+        directorPaused_ = paused;
+        directorWarp_ = warp;
+        directorRequestAt_ = now;
+        oapiWriteLogV("OLC client: asking the host for pause %s, time acceleration x%g",
+                      paused ? "on" : "off", warp);
+        return;
+    }
+
+    const bool hostPaused = link_.hostPaused();
+    const double hostWarp = link_.hostWarp();
+    const bool hostAgrees = hostPaused == directorPaused_ && std::fabs(hostWarp - directorWarp_) <= 1e-6;
+    if (directorSynced_ && !hostAgrees && now - directorRequestAt_ < kDirectorAnswerWait) {
+        return;  // the request is on its way
+    }
+    if (!directorSynced_ || !hostAgrees) {
+        // First sync or the host changed the time itself (console): follow it, and do not take our own
+        // change for the director's - oapiSetPause works from the next frame.
+        oapiSetPause(hostPaused);
+        oapiSetTimeAcceleration(hostWarp);
+        directorPaused_ = hostPaused;
+        directorWarp_ = hostWarp;
+        directorSettleUntil_ = now + kPauseRequestPause;
+        directorSynced_ = true;
+        oapiWriteLogV("OLC client: following host pause %s, time acceleration x%g",
+                      hostPaused ? "on" : "off", hostWarp);
     }
 }
 
@@ -542,6 +587,12 @@ void ClientSide::onFocusChanged(OBJHANDLE vessel) {
     if (!record) {
         return;  // not a host vessel
     }
+    if (link_.isObserver()) {
+        showNotice(link_.isDirector()
+                       ? "OLC: flight director - view only, pause and warp work for everybody."
+                       : "OLC: observer - view only.");
+        return;
+    }
     uint16_t own = 0;
     if (ownVessel(own)) {
         if (own != record->netId) {
@@ -665,6 +716,9 @@ void ClientSide::followOwnership() {
             break;
         case olc::OwnerResult::AlreadyHasVessel:
             reason = "you already fly another vessel";
+            break;
+        case olc::OwnerResult::Observer:
+            reason = "you are an observer";
             break;
         case olc::OwnerResult::NoSuchVessel:
             reason = "the host has no such vessel";
