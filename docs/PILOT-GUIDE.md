@@ -23,6 +23,7 @@ Installation — the ready package as in [PACKAGE.md](PACKAGE.md) (building from
 | `Station approach` | The ISS and a DeltaGlider 150 m from it on the same orbit | Approach the station and dock |
 | `Two DG 20 m` | Two DeltaGliders 20 m apart | Dock nose to nose |
 | `Two DG 3 km` | Two DeltaGliders 3 km apart, the second on a slightly different orbit (the numbers are an estimate) | Close in with RCS and dock |
+| `Two Shuttle-A Moon` | Two Shuttle-A at the Brighton Beach lunar base: SH-03 (host, with payload) and SH-04 (client) | Take off and land on the Moon together; without Moon textures — the textures window, press OK |
 
 By default the host flies the vessel `GL-01` — it is the host's vessel. The client gets its own vessel
 by switching the focus (F3) to a free one: in the scenarios with two DeltaGliders it is `GL-02`.
