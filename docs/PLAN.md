@@ -589,7 +589,7 @@ a free vessel takes it.
 | 5.5 | Server without graphics: pause and warp from the server console in the description (`console-send.ps1`) as a fallback | Mac | Description in `QUICKSTART.md` | done (2026-11-19): description in `QUICKSTART.md`, section 6; commands checked against the script, not run on a rig |
 | 5.6 | Research: Orbiter's recorder format (`FlightRecorder.cpp`) and whether a plugin can write it for all vessels | Mac | A section in `ORBITER-INTERNALS.md`; a fork — a question to the owner | done (2026-11-19): task 3.19, `ORBITER-INTERNALS.md`, section 20 |
 | 5.7 | Recording a lesson and debriefing by the results of 5.6 | Mac + Windows | The flight can be watched again after the lesson | stop: question Q12 |
-| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below | waiting |
+| 5.8 | Check on the rigs: a server without graphics, the FD on the same machine, a pilot on another | Rigs | Results by the criteria below | in progress |
 
 **Stage 5 succeeds if:**
 
