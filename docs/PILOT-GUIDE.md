@@ -2,7 +2,7 @@
 
 # Pilot guide: docking check
 
-For people who check OLC (round 2, plugin `0.2`): two pilots on two computers in one network, each
+For people who check OLC (round 1, plugin `0.2`): two pilots on two computers in one network, each
 flying their own DeltaGlider, then both dock; the flight director sets a shared pause and time
 acceleration and records the flight (section 5). This is a prototype check: if something is wrong, write down what you
 did and what you saw.

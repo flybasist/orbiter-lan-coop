@@ -78,9 +78,9 @@ folder, `Orbiter.exe` started without switches, D3D9Client and the plugin came o
 `Orbiter.cfg`, "Connect" to a host without graphics with the `Two DG 20 m` scenario — the client is
 in the host's world, two DeltaGliders on the screen, "you fly 'GL-01'".
 
-## 5. Check of the round 2 package (2026-11-19)
+## 5. Check of the round 1 package (2026-11-19)
 
-The archives with plugin `0.2` were built the same way (section 3) and unpacked by section 2 into an
+The archives with plugin `0.2` were built by section 3 and unpacked by section 2 into an
 empty folder on Windows 11 ARM (Parallels, 3D): all three archives unpacked without errors, the starting
 `Orbiter.cfg` and the plugin are in place. This installation connected as client `FD` to a server without
 graphics (Windows 11 x64, `Director = FD`): the "flight director - view only" message, the player summary

@@ -6,9 +6,9 @@ For those who check OLC on real computers: who does what, which keys to press, w
 what result is expected and how to record the outcome so that the developers understand it.
 Installation — [PACKAGE.md](PACKAGE.md), controls — [PILOT-GUIDE.md](PILOT-GUIDE.md).
 
-**Round 2 — stages 3, 4A and 5** (decisions 43, 44, 56–58). Package of 2026-11-19: Orbiter of the base
-commit `a7a3396e`, plugin `0.2`. The round 1 package (plugin `0.1-stage3`) does not connect to it: all
-computers must have the same package.
+**Round 1 — stages 3, 4A and 5** (decisions 43, 44, 56–58). Package of 2026-11-19: Orbiter of the base
+commit `a7a3396e`, plugin `0.2`. All computers must have the same package: plugins of different
+versions do not connect to each other.
 
 ## 1. What is checked
 
@@ -210,7 +210,7 @@ Copy and fill in. Mark: **yes** — worked as expected, **no** — did not work,
 with a remark (describe it).
 
 ```text
-OLC TEST, ROUND 2 (stages 3, 4A, 5; plugin 0.2)
+OLC TEST, ROUND 1 (stages 3, 4A, 5; plugin 0.2)
 Date and place:
 FD:                     Pilot 1:                 Pilot 2:
 Computer 1: Windows __, graphics card __________, IP __________
