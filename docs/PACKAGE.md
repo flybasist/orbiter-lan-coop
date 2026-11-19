@@ -12,7 +12,7 @@ The archives are made by `tools/package/make-package.ps1` from a ready Orbiter i
 |---|---|---|
 | `olc-1-orbiter.zip` | about 160 MB | Orbiter of the base commit (x64) with D3D9Client, an empty `Textures\Earth` folder |
 | `olc-2-kernels.zip` | about 1.3 GB | SPICE kernels (the `Kernels` folder) — Orbiter does not start without them |
-| `olc-3-plugin.zip` | about 0.2 MB | The `OrbiterLanCoop.dll` plugin (version `0.2`), the `Config\OrbiterLanCoop.cfg` template, the `Scenarios\OLC-test` scenarios, a starting `Orbiter.cfg` (D3D9Client and the plugin on, vessel collisions off) |
+| `olc-3-plugin.zip` | about 0.2 MB | The `OrbiterLanCoop.dll` plugin (version `0.1`), the `Config\OrbiterLanCoop.cfg` template, the `Scenarios\OLC-test` scenarios, a starting `Orbiter.cfg` (D3D9Client and the plugin on, vessel collisions off) |
 
 Earth textures are not in the archives (decision 50): the licenses of the texture packs are not
 confirmed, so they are installed from a link (section 2, step 5). Without them the Earth is grey,
@@ -80,7 +80,7 @@ in the host's world, two DeltaGliders on the screen, "you fly 'GL-01'".
 
 ## 5. Check of the round 1 package (2026-11-19)
 
-The archives with plugin `0.2` were built by section 3 and unpacked by section 2 into an
+The archives with plugin `0.1` were built by section 3 and unpacked by section 2 into an
 empty folder on Windows 11 ARM (Parallels, 3D): all three archives unpacked without errors, the starting
 `Orbiter.cfg` and the plugin are in place. This installation connected as client `FD` to a server without
 graphics (Windows 11 x64, `Director = FD`): the "flight director - view only" message, the player summary

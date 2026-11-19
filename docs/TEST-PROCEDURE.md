@@ -7,8 +7,8 @@ what result is expected and how to record the outcome so that the developers und
 Installation — [PACKAGE.md](PACKAGE.md), controls — [PILOT-GUIDE.md](PILOT-GUIDE.md).
 
 **Round 1 — stages 3, 4A and 5** (decisions 43, 44, 56–58). Package of 2026-11-19: Orbiter of the base
-commit `a7a3396e`, plugin `0.2`. All computers must have the same package: plugins of different
-versions do not connect to each other.
+commit `a7a3396e`, plugin `0.1`. All computers must have the same package: the host does not accept
+a client with another protocol version (section 7).
 
 ## 1. What is checked
 
@@ -210,7 +210,7 @@ Copy and fill in. Mark: **yes** — worked as expected, **no** — did not work,
 with a remark (describe it).
 
 ```text
-OLC TEST, ROUND 1 (stages 3, 4A, 5; plugin 0.2)
+OLC TEST, ROUND 1 (stages 3, 4A, 5; plugin 0.1)
 Date and place:
 FD:                     Pilot 1:                 Pilot 2:
 Computer 1: Windows __, graphics card __________, IP __________

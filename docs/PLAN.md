@@ -435,7 +435,7 @@ finding against the code and the Orbiter sources. Fixed:
 - **`;` in the player name** — Orbiter reads it in settings as the start of a comment; the character
   is removed on input.
 - **`run-orbiter.ps1`:** the `instance` field sends `key` and `close` steps to the right Orbiter copy.
-- **`kPluginVersion`** — "0.1-stage3"; the dead field `ServerClient::player` in `olc-netcheck` is removed.
+- **`kPluginVersion`** — the plugin version string in `HELLO` (now "0.1"; the owner decides the number); the dead field `ServerClient::player` in `olc-netcheck` is removed.
 
 Not bugs: a stream of `HELLO` with number 0 overwrites the same file (`Scenarios\OLC\Sent to
 clients.scn`), the disk does not grow; the `input.throttle` branch is a protocol field for a throttle
@@ -491,7 +491,7 @@ instructions into an empty folder on Windows 10 x64; a start without graphics wo
 (`OLC host: listening`, exit 0). The Proxmox rigs cannot check a start with the picture on a clean
 machine (no 3D) - that is left to people in task 3.7.
 
-**Results of 3.17 (2026-11-18).** The test procedure — [TEST-PROCEDURE.md](TEST-PROCEDURE.md) (the first version; never handed over, replaced on 2026-11-19 by the round 1 procedure for plugin `0.2`):
+**Results of 3.17 (2026-11-18).** The test procedure — [TEST-PROCEDURE.md](TEST-PROCEDURE.md) (the first version; never handed over, replaced on 2026-11-19 by the round 1 procedure):
 roles (flight director, pilots 1 and 2), preparation, tests T1–T9 with keys and the expected outcome,
 what to save after the lesson, the report form and common problems. The keys are checked against the
 Orbiter key map (`Keymap.cpp`) and the DeltaGlider (`K` — nose port, `G` — gear), the on-screen texts
