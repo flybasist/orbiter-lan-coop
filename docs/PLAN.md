@@ -14,9 +14,9 @@ I — research, S — test rigs.
 | Stage | Result | Status |
 |---|---|---|
 | 0. Test rig | Orbiter built from the base commit, an empty plugin loads, the plugin builds in CI | done (Windows 11 ARM, 2026-11-17) |
-| 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | in progress: checked with graphics and over the network between machines; smoothness by eye in a live window remains |
-| 2. Observer | The client sees the host's world, switches camera and vessels | in progress: detailed plan approved on 2026-11-17; 2.1–2.7 are done, 5 of 6 criteria checked on rigs; F3 remains to be looked at by eye |
-| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | in progress: 3.0–3.6 and 3.8–3.17 are done, the package, the procedure and the scenarios for 3.7 are ready; waits for the docking check by people |
+| 1. Idea check | The host sends vessel states, the client shows them; shared time and pause | done on the rigs (with graphics and over the network between machines); waits for people: smoothness by eye in a live window |
+| 2. Observer | The client sees the host's world, switches camera and vessels | done on the rigs: 2.1–2.7, 5 of 6 criteria; waits for people: F3 by eye |
+| 3. Two vessels (the first working version) | Everyone controls their own vessel; rendezvous and docking of two DeltaGliders in orbit | done on the rigs: 3.0–3.6 and 3.8–3.23; waits for people: docking (3.7) with the round 1 package |
 | 4. Crew | 4A: everyone sees the vessel state (mechanisms, NAV frequencies); 4B: two in one vessel — pilot and navigator | 4A — done except the check by people: 4A.1–4A.4 (protocol version 7, decisions 57, 58); 4B — postponed |
 | 5. For the flight director | Shared pause, watching any vessel, saving and debriefing a flight | done except the check by people: 5.1–5.9 (protocol version 6, rig check); the round 1 test package built on 2026-11-19 |
 
@@ -604,7 +604,7 @@ a free vessel takes it.
 
 ### Stage 4. Crew: pilot and navigator in one vessel
 
-**Split (decision 52):** 4A "Everyone sees the vessel state" is in progress (tasks 3.21–3.22); of the
+**Split (decision 52):** 4A "Everyone sees the vessel state" is done on the rigs (tasks 4A.1–4A.4); of the
 tasks below it includes 4.4 (NAV frequencies) and the general transfer of vessel mechanisms; 4B "Crew"
 (4.2, 4.3, 4.5, 4.6) is postponed.
 
