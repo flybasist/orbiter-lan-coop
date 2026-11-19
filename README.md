@@ -5,7 +5,7 @@
 Shared flights in the [Orbiter](https://github.com/orbitersim/orbiter) space flight simulator
 over a local network: several people in one simulation from different computers.
 
-> Status: the first version for tests by people is being prepared. A pilot connects with a button in
+> Status: version 0.1 — the first version for tests by people. A pilot connects with a button in
 > Launchpad, gets the host's world and flies their own vessel; everyone sees the dockings and vessel
 > mechanisms; the flight director sets a shared pause and time acceleration, saves the world and records
 > the flight. Checked on test rigs over the network between machines; docking of two pilots and a lesson

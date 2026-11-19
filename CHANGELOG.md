@@ -2,10 +2,10 @@
 
 # CHANGELOG
 
-## Unreleased — v0.1 in preparation
+## v0.1 — The first version for tests by people (2026-11-19)
 
-The owner fixes the version number with a GitHub tag when the package is handed to the testers. The
-detailed history of the work is in `docs/PLAN.md` and git; this is what goes into the version.
+The `v0.1` tag on GitHub. This version goes to the space club: the round 1 test package and the
+procedure. The detailed history of the work is in `docs/PLAN.md` and git; this is what goes into the version.
 
 ### What is there
 

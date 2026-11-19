@@ -3,8 +3,8 @@
 # orbiter-lan-coop (OLC) documentation
 
 OLC is a plugin for the Orbiter space flight simulator that lets several people fly in one
-simulation from different computers on a local network. The first version for tests by people is
-being prepared: a pilot connects with a button in Launchpad, gets the host's world and flies their own
+simulation from different computers on a local network. Version 0.1 (the `v0.1` tag) is the first
+version for tests by people: a pilot connects with a button in Launchpad, gets the host's world and flies their own
 vessel, everyone sees the dockings and vessel mechanisms, the flight director sets a shared pause and
 time acceleration, saves the world and records the flight; the host computes the physics. What is done
 and what is next — `PLAN.md` and `CHANGELOG.md`.
@@ -113,9 +113,9 @@ changed in the same commit (decision 29).
   `stands.yaml`; no file — no test rigs (decision 26). The exception is machines with
   `access: full`: the owner has given them to the agent entirely, and there it installs packages and
   reboots itself (decision 27).
-- Git: until the first fixed release (around 0.1) the agent commits finished tasks
-  itself and pushes them straight to `main` — with the owner's permission, in this project only.
-  After the release — work in branches. Commit messages are in English (decision 38). The version
+- Git: until version 0.1 the agent committed finished tasks straight to `main`. Since version 0.1
+  (decision 60) `main` changes only by a merge: the work goes on in a separate branch of the next
+  version, the merge into `main` and the tag (`v0.2` and on) are done by the owner. Commit messages are in English (decision 38). The version
   number, tags, releases and branch merges are decided only by the owner (decision 59): the agent
   does not invent numbers.
 - The check build folder is always the same — `orbiter-lan-coop.out` — and it is
@@ -180,5 +180,6 @@ the owner approved. Rules:
    how much limit was used. A scheduled run that did work sends its report to the owner's main
    session, and that session decides when to notify the owner (decision 42); empty checks are not
    reported.
-10. **Git.** The agent commits a finished task and pushes it to `main` (see "Rules for working
-   on the project"); unfinished work does not go into a commit.
+10. **Git.** The agent commits a finished task to the branch of the next version and pushes it to
+   GitHub (see "Rules for working on the project"); it does not commit to `main`; unfinished work
+   does not go into a commit.
