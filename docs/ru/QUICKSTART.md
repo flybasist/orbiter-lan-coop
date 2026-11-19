@@ -139,6 +139,23 @@ ctest --test-dir orbiter-lan-coop.out
 в мир сервера, RTT около 16 мс, потерь нет. В журнале сервера без графики есть строки `ERROR:`
 о недостающих модулях атмосфер планет — они не мешают, симуляция идёт.
 
+Пауза и ускорение на сервере без графики (запасной путь, задача 5.5): основной путь — клавиши
+руководителя полётов на его клиенте (Ctrl+P и ускорение, задача 5.2). Если клиента РП нет, команды
+консоли «Orbiter Server Console» подаёт скрипт [`tools/stands/console-send.ps1`](../../tools/stands/console-send.ps1)
+(Windows, из PowerShell, в том числе по SSH, под тем же пользователем, что запустил сервер):
+
+```powershell
+$pid_ = (Get-Process Orbiter).Id
+powershell -ExecutionPolicy Bypass -File tools\stands\console-send.ps1 -ProcessId $pid_ -Command "pause on"
+powershell -ExecutionPolicy Bypass -File tools\stands\console-send.ps1 -ProcessId $pid_ -Command "tacc 10"
+```
+
+Команды: `pause on` / `pause off`, `tacc <число>` (ускорение), `tacc 1` — вернуть обычное время.
+Результат («sent N» или ошибка) скрипт дописывает в `C:\olc\console-send.log`, а не в свою консоль.
+Если запущено несколько копий Orbiter, укажите `-ProcessId` сервера. Хост разошлёт клиентам
+новое состояние времени как обычно. Ускорение рядом с кораблями у клиентов работает только при
+`VesselCollision = FALSE` (раздел 22 `ORBITER-INTERNALS.md`).
+
 Сохранения (задача 5.4, решение 55): хост пишет мир в `Scenarios\OLC\Saves\autosave.scn`
 каждые `AutosaveMinutes` минут (по умолчанию 10, `0` — выключено), а Ctrl+Alt+S у руководителя
 полётов делает отдельный файл `save-ГГГГММДД-ЧЧММСС.scn`. Сохранение — обычный сценарий Orbiter:

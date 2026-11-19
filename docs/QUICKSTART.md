@@ -140,6 +140,24 @@ button as usual. Checked on 2026-11-18 on Windows 11 ARM: the client entered the
 RTT about 16 ms, no losses. The log of the server without graphics has `ERROR:` lines about
 missing planet atmosphere modules — they do no harm, the simulation runs.
 
+Pause and time acceleration on a server without graphics (a fallback, task 5.5): the main way is
+the flight director's keys on their client (Ctrl+P and acceleration, task 5.2). If there is no
+director client, the commands of the "Orbiter Server Console" are sent by the script
+[`tools/stands/console-send.ps1`](../tools/stands/console-send.ps1) (Windows, from PowerShell,
+including over SSH, as the same user that started the server):
+
+```powershell
+$pid_ = (Get-Process Orbiter).Id
+powershell -ExecutionPolicy Bypass -File tools\stands\console-send.ps1 -ProcessId $pid_ -Command "pause on"
+powershell -ExecutionPolicy Bypass -File tools\stands\console-send.ps1 -ProcessId $pid_ -Command "tacc 10"
+```
+
+Commands: `pause on` / `pause off`, `tacc <number>` (acceleration), `tacc 1` returns normal time.
+The script appends its result ("sent N" or an error) to `C:\olc\console-send.log`, not to its own
+console. If several copies of Orbiter are running, pass the server's `-ProcessId`. The host sends
+clients the new time state as usual. Acceleration near vessels works for clients only with
+`VesselCollision = FALSE` (section 22 of `ORBITER-INTERNALS.md`).
+
 Saves (task 5.4, decision 55): the host writes the world to `Scenarios\OLC\Saves\autosave.scn`
 every `AutosaveMinutes` minutes (default 10, `0` - off), and the flight director's Ctrl+Alt+S
 makes a separate file `save-YYYYMMDD-HHMMSS.scn`. A save is an ordinary Orbiter scenario: start the
