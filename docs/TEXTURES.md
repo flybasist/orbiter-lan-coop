@@ -22,8 +22,8 @@ The tests (task 3.7) are the approach and docking of two DeltaGlider in orbit. T
 
 | What | Size | Source | Note |
 |---|---|---|---|
-| Orbiter 2024 (release) | 373 MB | GitHub `orbitersim/orbiter`, tag `2024`, `Orbiter-x64.zip` | No Earth textures |
-| Development build | 1.75 GB | GitHub, tag `latest`, `Orbiter-x64.zip` | Texture content not checked |
+| Orbiter 2024 (release) | 373 MB | GitHub `orbitersim/orbiter`, tag `2024`, `Orbiter-x64.zip` | No Earth, Moon or Mars textures; no SPICE kernels — this version does not need them (the archive listing, 2026-11-19) |
+| Development build | 1.75 GB | GitHub, tag `latest`, `Orbiter-x64.zip` | Includes the SPICE kernels (`Kernels`, about 1.6 GB); no Earth, Moon or Mars textures; the same vessels as in 2024 (the archive listing, 2026-11-19) |
 | SPICE kernels and `Textures.7z` | 1.2 GB (`Kernels.7z`) | `cdn.openorbiter.space/spice/` | Links from Orbiter `COMPILE.md` |
 | Base planet textures | not checked | an Orbiter 2016 installation (Orbiter forum) | As Orbiter `COMPILE.md` says |
 | High-res Earth: surface | 15.44 GB | `orbiter-mods.com/files/earth-hires-2016-surf.zip` | Not needed in orbit |
