@@ -6,15 +6,16 @@ For those who check OLC on real computers: who does what, which keys to press, w
 what result is expected and how to record the outcome so that the developers understand it.
 Installation — [PACKAGE.md](PACKAGE.md), controls — [PILOT-GUIDE.md](PILOT-GUIDE.md).
 
-**Round 1 — stage 3 "Two vessels"** (decisions 43 and 44). Package of 2026-11-18: Orbiter of the base
-commit `a7a3396e`, plugin `0.1-stage3`. For the next round the document is updated: the round
-number, the versions and the list of tests change.
+**Round 2 — stages 3, 4A and 5** (decisions 43, 44, 56–58). Package of 2026-11-19: Orbiter of the base
+commit `a7a3396e`, plugin `0.2`. The round 1 package (plugin `0.1-stage3`) does not connect to it: all
+computers must have the same package.
 
 ## 1. What is checked
 
 The main thing — **can two people on two computers meet in orbit and dock**, and does it look the
 same for both. Along the way — what the developers cannot check themselves: smoothness of motion by
-eye, response to keys, work over the real classroom network.
+eye, response to keys, work over the real classroom network. In the second part — the flight
+director mode: shared pause and time acceleration, saving the world and recording the flight for a debrief.
 
 ## 2. Who is needed
 
@@ -40,6 +41,8 @@ pairs, each pair goes through the tests separately, with its own server.
    - Computer 1: role `host`, player name — for example `Pilot1`.
    - Computer 2: role `client`, host address — from item 3, name — for example `Pilot2`.
    - The port is the same on both (47800). **The names must differ.**
+   - Computer 1, for T10 and T11: in `C:\OLC\Config\OrbiterLanCoop.cfg` the line `Director = FD`
+     (the flight director's name; the "Edit" window does not show this setting).
 5. **If Wi-Fi.** On both computers set `StateRate = 30` and `DisplayDelay = 0.1` in
    `C:\OLC\Config\OrbiterLanCoop.cfg` (by cable keep 60 and 0.03). Note in the form which
    network it is.
@@ -77,16 +80,17 @@ Each pilot in turn, the other one watches their vessel from their own screen.
 | `Num 0` / `Num .` | Hover engines: more / less |
 | `[` / `]` | Autopilot: nose prograde / retrograde |
 | `G` | The landing gear goes down / up |
+| `K` | The nose cone (docking port) opens / closes |
 
 **Expected:** the vessel responds at once (by eye — without delay), and for the other pilot it moves
-the same way, without jerks. Write down if something did not work or worked with a noticeable delay.
+the same way, without jerks; the gear and the cone move the same way for the other pilot, within a
+second. Write down if something did not work, worked with a noticeable delay or a mechanism stayed in
+the old position for the other pilot.
 
 **Known limitation:** for pilot 2 the retro engines (`Num −`) do not work: on the DeltaGlider they
 are closed by doors, and the doors open from the cockpit panel, whose clicks the plugin does not pass
-yet (stage 4). Pilot 1 can check it: `Ctrl+Space` → the DeltaGlider window → open the doors (Retro
+yet. Pilot 1 can check it: `Ctrl+Space` → the DeltaGlider window → open the doors (Retro
 Doors → Open), then `Num −`.
-
-**Mechanisms:** the gear (`G`), the nose cone (`K`) and other mechanisms of a vessel are shown to everyone (stage 4A): when pilot 1 opens the cone of `GL-01`, pilot 2 sees it open within a second. Write down if a mechanism stays in the old position.
 
 ### T3. Smoothness
 
@@ -143,7 +147,45 @@ Dock (T5), then pilot 2 closes Orbiter and connects again.
 
 **Expected:** the returning pilot sees the vessels docked right away.
 
-### T9. Extra (if there is time)
+### T9. NAV frequencies
+
+| Who | What they do |
+|---|---|
+| Pilot 1 | In the left MFD of their `GL-01` selects the COM/NAV mode and changes the NAV1 frequency |
+| Pilot 2 | F3 → `GL-01`, the same COM/NAV mode in their MFD |
+
+**Expected:** pilot 2 sees the same NAV1 frequency of `GL-01` that pilot 1 set. Then the other way round.
+
+### T10. Flight director: pause, time acceleration, save
+
+A computer is needed where the FD connects under the name `FD` (section 3, item 4). If there are two
+computers — pilot 2 closes Orbiter, changes the name to `FD` in "Edit" and connects again: now they are the FD.
+
+| Who | What they do |
+|---|---|
+| FD | Connects: the message "flight director - view only", on the left — the player summary |
+| FD | F3 → any vessel, tries `Num 2` |
+| FD | `Ctrl+P` — pause, after 10 seconds `Ctrl+P` again |
+| FD | `T` — time acceleration x10, after 10 seconds `R` — back to x1 |
+| FD | `Ctrl+Alt+S` — save the world |
+
+**Expected:** the FD has no vessel of their own, the control keys move nothing; the summary shows all
+players, their vessels and the delay. Pause and acceleration start for everybody at once (within half
+a second). On computer 1 a file `save-...scn` appears in `C:\OLC\Scenarios\OLC\Saves\`, and 10 minutes
+after the start — `autosave.scn`.
+
+### T11. Recording the flight for a debrief
+
+1. The FD presses `Ctrl+C` — the recording starts.
+2. Pilot 1 manoeuvres for a minute, opens and closes the cone.
+3. The FD presses `Ctrl+C` again — the recording stops.
+4. After the lesson, on the FD computer: in the Launchpad on the Modules tab switch `OrbiterLanCoop`
+   off, start the scenario from the `Playback` folder (`Host world` if the FD connected with the "Connect" button; otherwise the name of the scenario they started from), watch the recording, then switch
+   the module back on.
+
+**Expected:** in the recording the vessels move as they did in the lesson.
+
+### T12. Extra (if there is time)
 
 - `Station approach`: one pilot (on computer 1 or 2) approaches the ISS station and docks.
 - `Two DG 3 km`: the vessels are 3 km apart, close in and dock — long, needs orbital rendezvous
@@ -156,7 +198,9 @@ From **each** computer:
 1. `C:\OLC\Orbiter.log` — the log (Orbiter overwrites it at every start, so copy it right after the
    tests, without starting Orbiter again). Rename it: `Orbiter-PC1.log`, `Orbiter-PC2.log`.
 2. `C:\OLC\Config\OrbiterLanCoop.cfg` — the settings (rename the same way).
-3. Screenshots or a video of the screen if something went wrong (`Win+Shift+S` or a phone).
+3. From computer 1 — the folder `C:\OLC\Scenarios\OLC\Saves`, from the FD computer — the folder
+   `C:\OLC\Flights\Host world` and the file `C:\OLC\Scenarios\Playback\Host world.scn` (the T11 recording).
+4. Screenshots or a video of the screen if something went wrong (`Win+Shift+S` or a phone).
 
 Everything together with the form (section 6) — into one folder or archive, and pass it to the developer.
 
@@ -166,7 +210,7 @@ Copy and fill in. Mark: **yes** — worked as expected, **no** — did not work,
 with a remark (describe it).
 
 ```text
-OLC TEST, ROUND 1 (stage 3)
+OLC TEST, ROUND 2 (stages 3, 4A, 5; plugin 0.2)
 Date and place:
 FD:                     Pilot 1:                 Pilot 2:
 Computer 1: Windows __, graphics card __________, IP __________
@@ -177,13 +221,20 @@ Earth textures: yes / no
 T1 Connecting ............. yes / no / partly  Waited: __ s
 T2 Own vessel, pilot 1 .... yes / no / partly  What did not work:
 T2 Own vessel, pilot 2 .... yes / no / partly  What did not work:
+T2 Gear and cone for other  yes / no / partly
 T3 Smoothness ............. yes / no / partly  How often it twitched:
 T4 Someone else's vessel .. yes / no / partly
 T5 Docking together ....... yes / no / partly  Took: __ min
 T6 Undocking .............. yes / no / partly
 T7 Lost connection ........ yes / no / partly  Closing / cable
 T8 Connecting to a stack .. yes / no / partly / not done
-T9 Extra .................. yes / no / partly / not done
+T9 NAV frequencies ........ yes / no / partly
+T10 FD: pause ............. yes / no / partly
+T10 FD: acceleration ...... yes / no / partly
+T10 FD: save .............. yes / no / partly
+T10 FD: player summary .... yes / no / partly
+T11 Flight recording ...... yes / no / partly
+T12 Extra ................. yes / no / partly / not done
 
 Remarks (what was done, what was seen, what was expected):
 
@@ -199,4 +250,6 @@ What was good / what was awkward:
 | "Not connected: rejected by host: no free player slots" | The player limit is reached (`MaxPlayers` on computer 1) |
 | The Earth is grey | No Earth textures — this is fine for the tests ([PACKAGE.md](PACKAGE.md), section 2, step 5) |
 | The other vessel twitches over Wi-Fi | Set `StateRate = 30`, `DisplayDelay = 0.1` (section 3, item 5) |
+| Time acceleration goes back to x1 for everybody at once | `C:\OLC\Orbiter.cfg` on all computers must have the line `VesselCollision = FALSE` (the package has it): otherwise Orbiter itself drops the acceleration while vessels are close |
+| Pause and acceleration do not work for the FD, no "flight director" message | The FD name must match the `Director` line on computer 1 (section 3, item 4) |
 | Orbiter crashed | Save `Orbiter.log` right away (section 5) and write down what was done before |

@@ -12,7 +12,7 @@ The archives are made by `tools/package/make-package.ps1` from a ready Orbiter i
 |---|---|---|
 | `olc-1-orbiter.zip` | about 160 MB | Orbiter of the base commit (x64) with D3D9Client, an empty `Textures\Earth` folder |
 | `olc-2-kernels.zip` | about 1.3 GB | SPICE kernels (the `Kernels` folder) — Orbiter does not start without them |
-| `olc-3-plugin.zip` | about 0.1 MB | The `OrbiterLanCoop.dll` plugin, the `Config\OrbiterLanCoop.cfg` template, the `Scenarios\OLC-test` scenarios, a starting `Orbiter.cfg` (D3D9Client and the plugin on, vessel collisions off) |
+| `olc-3-plugin.zip` | about 0.2 MB | The `OrbiterLanCoop.dll` plugin (version `0.2`), the `Config\OrbiterLanCoop.cfg` template, the `Scenarios\OLC-test` scenarios, a starting `Orbiter.cfg` (D3D9Client and the plugin on, vessel collisions off) |
 
 Earth textures are not in the archives (decision 50): the licenses of the texture packs are not
 confirmed, so they are installed from a link (section 2, step 5). Without them the Earth is grey,
@@ -34,9 +34,22 @@ the "Visual C++ 2015–2022 Redistributable x64" and the DirectX End-User Runtim
    port and player name. The same settings are in `Config\OrbiterLanCoop.cfg`; without the file the
    plugin does nothing. Then follow [QUICKSTART.md](QUICKSTART.md), section 6, and
    [PILOT-GUIDE.md](PILOT-GUIDE.md).
-5. Earth textures (optional): install Orbiter 2016 (link on the Orbiter forum, see
-   [TEXTURES.md](TEXTURES.md), section 2) and copy its `Textures\Earth` folder into the `Textures`
-   folder of your installation. Textures of the Moon and other bodies are installed the same way.
+5. Planet textures (optional; without them the Earth is grey, which does not hinder the tests). They
+   come from Orbiter 2016 (build 160828) and are not in our package (decision 50).
+   - **Orbiter 2016 is already installed** (for example in `C:\Orbiter2016`): nothing has to be
+     copied. Add the line `PlanetTexDir = C:\Orbiter2016\Textures` to `C:\OLC\Orbiter.cfg` (the path
+     to the `Textures` folder of your 2016 installation). Orbiter takes planet surfaces from there and
+     everything else from its own installation; the line is kept on exit.
+   - **No Orbiter 2016:** download the Orbiter 2016 archive (`Orbiter2016.zip`, about 2.4 GB) — the
+     official site `orbit.medphys.ucl.ac.uk` no longer opens, mirrors are collected on the Orbiter
+     forum (`orbiter-forum.com`, the topic "Orbiter 2016 – Verified Download Mirrors"). Unpack it into a
+     separate folder, for example `C:\Orbiter2016` (it does not have to be started), and do as in the
+     item above.
+   - A fallback is copying: copy everything from `C:\Orbiter2016\Textures` into `C:\OLC\Textures`
+     and answer "Skip" to the question about matching files: the package's own files must not be replaced.
+
+   We checked in the Orbiter sources that planet surfaces are read from `PlanetTexDir`
+   (`GraphicsAPI.cpp:197`); with a real 2016 installation it is not checked on a rig.
 6. Firewall: allow `Orbiter.exe` on the private network; the default host port is 47800 (TCP and UDP).
 
 Check: after a scenario starts with the plugin, `Orbiter.log` has the lines `OLC: session started`
@@ -64,3 +77,13 @@ picture — on Windows 11 ARM (Parallels, 3D): the package was unpacked by secti
 folder, `Orbiter.exe` started without switches, D3D9Client and the plugin came on from the starting
 `Orbiter.cfg`, "Connect" to a host without graphics with the `Two DG 20 m` scenario — the client is
 in the host's world, two DeltaGliders on the screen, "you fly 'GL-01'".
+
+## 5. Check of the round 2 package (2026-11-19)
+
+The archives with plugin `0.2` were built the same way (section 3) and unpacked by section 2 into an
+empty folder on Windows 11 ARM (Parallels, 3D): all three archives unpacked without errors, the starting
+`Orbiter.cfg` and the plugin are in place. This installation connected as client `FD` to a server without
+graphics (Windows 11 x64, `Director = FD`): the "flight director - view only" message, the player summary
+on the screen; `T` and `R` — the host set x10 and x1, `Ctrl+Alt+S` — a `save-...scn` file on the host,
+autosave is written; `Ctrl+C` — a recording in `Flights\` and `Scenarios\Playback\`, the recording
+scenario opens and runs with the plugin off. The archive checksums are in `SHA256SUMS.txt` next to them.
