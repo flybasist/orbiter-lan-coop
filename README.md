@@ -5,9 +5,11 @@
 Shared flights in the [Orbiter](https://github.com/orbitersim/orbiter) space flight simulator
 over a local network: several people in one simulation from different computers.
 
-> Status: prototype (stage 3). A pilot connects with a button in Launchpad, gets the host's world and
-> flies their own vessel from the client: engines, RCS, autopilots, gear; docking is repeated for everyone.
-> Checked on test rigs over the network between machines; docking of two pilots is yet to be checked by people.
+> Status: the first version for tests by people is being prepared. A pilot connects with a button in
+> Launchpad, gets the host's world and flies their own vessel; everyone sees the dockings and vessel
+> mechanisms; the flight director sets a shared pause and time acceleration, saves the world and records
+> the flight. Checked on test rigs over the network between machines; docking of two pilots and a lesson
+> are yet to be checked by people.
 
 ## How it works
 
@@ -15,22 +17,23 @@ OLC is a plugin for the standard Orbiter, not a modified version of the simulato
 
 | Role | What it does |
 |---|---|
-| Host (the flight director's computer) | Computes the physics of all vessels, controls time and pause |
+| Host (a server, with or without graphics) | Computes the physics of all vessels, controls time and pause |
 | Client (a pilot's computer) | Shows the host's world, sends the host commands for its own vessel |
+| Flight director (a client without a vessel) | Sees everyone, sets a shared pause and time acceleration, saves the world |
 
 There is one physics for everyone, so the participants' worlds do not drift apart, and docking
 the vessels of two players works the same way as in a single-player game.
 
 ## Requirements
 
-- Windows 10/11 x64 on all computers (Linux via Wine/Proton, as a client).
+- Windows 10/11 x64 on all computers (Linux via Wine or Proton is not checked).
 - The same Orbiter build and the same set of add-ons on all computers.
 - The computers are on one local network.
 
 ## Installation and running
 
-There is nothing to install yet. How to set up a developer environment is in
-[docs/QUICKSTART.md](docs/QUICKSTART.md), the work plan is in [docs/PLAN.md](docs/PLAN.md).
+Ready archives for testers and their installation — [docs/PACKAGE.md](docs/PACKAGE.md). Building from
+source — [docs/QUICKSTART.md](docs/QUICKSTART.md), the work plan — [docs/PLAN.md](docs/PLAN.md).
 
 ## Important
 

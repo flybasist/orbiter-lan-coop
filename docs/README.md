@@ -3,10 +3,11 @@
 # orbiter-lan-coop (OLC) documentation
 
 OLC is a plugin for the Orbiter space flight simulator that lets several people fly in one
-simulation from different computers on a local network. The prototype (stage 3) is under way:
-there is an architecture, a plan, a map of the Orbiter core, a smoothing model, a network core
-with tests and a plugin in which a pilot connects with a button in Launchpad, gets the host's world
-and flies their own vessel, while the host computes the physics. Testing happens on test rigs.
+simulation from different computers on a local network. The first version for tests by people is
+being prepared: a pilot connects with a button in Launchpad, gets the host's world and flies their own
+vessel, everyone sees the dockings and vessel mechanisms, the flight director sets a shared pause and
+time acceleration, saves the world and records the flight; the host computes the physics. What is done
+and what is next — `PLAN.md` and `CHANGELOG.md`.
 
 ## Contents
 
@@ -15,7 +16,7 @@ and flies their own vessel, while the host computes the physics. Testing happens
 | [QUICKSTART.md](QUICKSTART.md) | Setting up a developer environment and building Orbiter from source |
 | [PILOT-GUIDE.md](PILOT-GUIDE.md) | Pilot guide: checking the docking of two vessels, scenarios and controls |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the plugin is built and why it is done this way |
-| [PROTOCOL.md](PROTOCOL.md) | Network protocol: channels, messages, fields (draft) |
+| [PROTOCOL.md](PROTOCOL.md) | Network protocol version 7: channels, messages, fields |
 | [PLAN.md](PLAN.md) | Work stages, prototype criteria, test rigs |
 | [TEXTURES.md](TEXTURES.md) | Where textures and kernels come from, sizes, licenses and the contents of the test archive |
 | [PACKAGE.md](PACKAGE.md) | The test package: archive contents, installation, how to build |
@@ -47,7 +48,7 @@ Do not rescan the whole repository: the map below is enough.
 | `CMakeLists.txt` | Root CMake build. The build folder is always `orbiter-lan-coop.out`. |
 | `core/` | The `olc-core` network core: the protocol and everything that does not depend on Orbiter (`ARCHITECTURE.md`, section 6). |
 | `tests/` | Core tests on CTest without third-party libraries; checks are in `tests/check.h`. |
-| `plugin/` | The `OrbiterLanCoop.dll` plugin for Orbiter (Windows only): host and client roles (stage 3: connecting with a button, each pilot's own vessel, dockings), settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`). Build — `QUICKSTART.md`, section 5, running — section 6. |
+| `plugin/` | The `OrbiterLanCoop.dll` plugin for Orbiter (Windows only): host and client roles (connecting with a button, each pilot's own vessel, dockings, mechanisms and frequencies, the flight director), settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`). Build — `QUICKSTART.md`, section 5, running — section 6. |
 | `.github/workflows/build.yml` | GitHub Actions build: the Orbiter core from the base commit (cached), then the OLC core with tests and the plugin for Windows x64. |
 | `tools/smoothing/` | The `olc-smoothing` smoothing model: simulates host packets with delay and loss and compares ways of reconstructing motion on the client; `run-grid.sh` runs it over a parameter grid. Does not depend on Orbiter. Conclusions — `SMOOTHING.md`. |
 | `tools/netcheck/` | The `olc-netcheck` utility: a network check between two machines on the OLC network core — TCP handshake, UDP `PING`/`PONG`, loss and delay. How to use it — `STANDS.md`, section 10. |
@@ -83,7 +84,9 @@ changed in the same commit (decision 29).
 
 | What needs changing | Where to edit |
 |---|---|
-| Architecture, protocol, decisions | `docs/ru/ARCHITECTURE.md` |
+| How the plugin is made | `docs/ru/ARCHITECTURE.md` |
+| The protocol (together with `core/messages.h`) | `docs/ru/PROTOCOL.md` |
+| Decisions | `docs/ru/DECISIONS.md` |
 | Stages, criteria, test rigs | `docs/ru/PLAN.md` |
 | Facts about the Orbiter core, the base commit | `docs/ru/ORBITER-INTERNALS.md` and condition 3 above |
 | Environment setup | `docs/ru/QUICKSTART.md` |
@@ -112,7 +115,9 @@ changed in the same commit (decision 29).
   reboots itself (decision 27).
 - Git: until the first fixed release (around 0.1) the agent commits finished tasks
   itself and pushes them straight to `main` — with the owner's permission, in this project only.
-  After the release — work in branches. Commit messages are in English (decision 38).
+  After the release — work in branches. Commit messages are in English (decision 38). The version
+  number, tags, releases and branch merges are decided only by the owner (decision 59): the agent
+  does not invent numbers.
 - The check build folder is always the same — `orbiter-lan-coop.out` — and it is
   listed in `.gitignore`.
 

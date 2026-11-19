@@ -132,7 +132,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 
 - Orbiter built from `orbitersim/orbiter` at the base commit (see [README.md](README.md),
   condition 3), the same on all computers, with the same add-ons.
-- Windows 10/11 x64. Linux — via Wine/Proton, as a client.
+- Windows 10/11 x64. Linux via Wine or Proton is not checked (`STANDS.md`).
 - Vessel collisions are off on all machines (`VesselCollision = FALSE` in `Orbiter.cfg`, the package
   has it so): on a client the local calculation would argue with the host's states, and near vessels
   the core itself drops time acceleration to x1 ([ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), section 22).
