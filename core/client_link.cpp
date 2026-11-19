@@ -242,6 +242,24 @@ bool ClientLink::handleFrames(double now) {
                 docks_.push_back(dock);
                 break;
             }
+            case TcpType::AnimState: {
+                AnimState animState;
+                if (!readAnimState(reader, animState)) {
+                    close("broken ANIM_STATE message");
+                    break;
+                }
+                animStates_.push_back(animState);
+                break;
+            }
+            case TcpType::NavState: {
+                NavState navState;
+                if (!readNavState(reader, navState)) {
+                    close("broken NAV_STATE message");
+                    break;
+                }
+                navStates_.push_back(navState);
+                break;
+            }
             case TcpType::Bye: {
                 std::string reason;
                 if (!readBye(reader, reason)) {
@@ -613,6 +631,28 @@ std::vector<Dock> ClientLink::takeDocks() {
     std::vector<Dock> result;
     result.swap(docks_);
     return result;
+}
+
+std::vector<AnimState> ClientLink::takeAnimStates() {
+    std::vector<AnimState> result;
+    result.swap(animStates_);
+    return result;
+}
+
+std::vector<NavState> ClientLink::takeNavStates() {
+    std::vector<NavState> result;
+    result.swap(navStates_);
+    return result;
+}
+
+void ClientLink::sendNavState(const NavState& state) {
+    if (state_ != State::Ready) {
+        return;
+    }
+    Writer body;
+    if (writeNavState(body, state)) {
+        sendMessage(TcpType::NavState, body);
+    }
 }
 
 std::vector<Landed> ClientLink::takeLanded() {

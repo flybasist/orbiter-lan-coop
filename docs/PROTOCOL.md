@@ -58,6 +58,7 @@ Client                                   Host
   │◄──────────────────────────── BODIES ────│  number → name for planets and moons
   │◄──────────────────────────── VESSELS ───│  number → name, class for all vessels
   │◄────────────────────────── OWNERSHIP ───│  who controls which vessel (right after VESSELS)
+  │◄──────────────── DOCK, ANIM_STATE, NAV_STATE │  links, animations and frequencies now (only if there are any)
   │── CLASSES_MISSING ─────────────────────►│  which classes the client lacks (may be empty)
   │── UDP_READY (over TCP) ────────────────►│  the client's UDP port (both right on VESSELS)
   │◄═══════════════ WORLD_STATE (UDP) ══════│  up to 60 Hz, 60 by default
@@ -99,7 +100,7 @@ open, do not hold a place and a vessel forever.
 | Field | Type | Meaning |
 |---|---|---|
 | `magic` | 4 bytes | `O`, `L`, `C`, `0` |
-| `version` | `u16` | Protocol version, currently `4` |
+| `version` | `u16` | Protocol version, currently `7` |
 | `type` | `u8` | Message type (section 6) |
 | `session` | `u32` | Session number from `WELCOME`; foreign packets are dropped |
 | `seq` | `u32` | The sender's sequence number; old and repeated packets are dropped |
@@ -112,7 +113,7 @@ with the same `sim_time`.
 
 | Channel | Numbers |
 |---|---|
-| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED`, 18 `TIME_REQUEST`, 19 `PLAYERS`, 20 `SAVE_REQUEST` |
+| TCP | 1 `HELLO`, 2 `WELCOME`, 3 `REJECT`, 4 `SCENARIO`, 5 `BODIES`, 6 `VESSELS`, 7 `VESSEL_ADDED`, 8 `VESSEL_REMOVED`, 9 `CLASSES_MISSING`, 10 `OWNERSHIP`, 11 `UDP_READY`, 12 `KEY`, 13 `DOCK`, 14 `LANDED`, 15 `BYE`, 16 `OWNER_REQUEST`, 17 `OWNER_DENIED`, 18 `TIME_REQUEST`, 19 `PLAYERS`, 20 `SAVE_REQUEST`, 21 `ANIM_STATE`, 22 `NAV_STATE` |
 | UDP | 1 `WORLD_STATE`, 2 `INPUT`, 3 `PING`, 4 `PONG`, 5 `FUEL` |
 
 A message with extra bytes after the last field is treated as broken, the same as a truncated one.
@@ -140,6 +141,8 @@ A message with extra bytes after the last field is treated as broken, the same a
 | `TIME_REQUEST` | client → host | `paused: u8` (0 — running, 1 — paused), `warp: f64` (time acceleration, finite and above 0). The host applies the request only from the flight director; from anyone else it writes to the log and skips it. Everyone sees the result in `WORLD_STATE`. Another value of `paused` or `warp` makes the message broken |
 | `PLAYERS` | host → client | `count: u8`, then `client_id: u8` (0 — the host; a host without graphics does not play and is not listed), `player: str`, `flags: u8` (bit 0 — director, bit 1 — observer), `net_id: u16` (the player's vessel, 65535 — none), `rtt_ms: u16` (the player's round trip time to the host, ms; 65535 — unknown, 0 for the host). The host sends it on every join, leave and ownership change and every 2 s |
 | `SAVE_REQUEST` | client → host | Empty body. A request to save the world now; the host saves it to `Scenarios\OLC\Saves\` only for the flight director's request, and logs and skips anyone else's. Any body makes the message broken |
+| `ANIM_STATE` | host → client | `net_id: u16`, `count: u16`, then `count` pairs `index: u16`, `value: f32` (0…1) — the vessel's animations that changed by more than 0.01 (the plugin reads them with `GetAnimPtr` at most 5 times a second per vessel). A value outside 0…1 or NaN makes the message broken. The host remembers the latest value of every animation and sends them in one message to a client that joins later, after `DOCK`; when a vessel is removed they are forgotten. The numbers match only for the same vessel class from one package (decision 58) |
+| `NAV_STATE` | both ways | `net_id: u16`, `transponder: u16`, `count: u8` (at most 16), `channels: u16[count]` — steps of the transponder and of the NAV receivers (`SetTransponderChannel`, `SetNavChannel`). The owner is the source: a client sends it only for its own vessel, the host ignores it for any other (counted in the stats), applies it and sends it on to the other clients; for the host's own vessels the host sends it itself. The latest `NAV_STATE` of each vessel goes to a client that joins later, after `ANIM_STATE` |
 | `BYE` | any | `reason: str` |
 
 Ownership (decision 35): one client — one vessel, a vessel without an owner is free. If a client
@@ -274,6 +277,7 @@ differ from the host.
 
 - `version` in every UDP packet and `protocol` in `HELLO`. Different versions do not work together:
   the host answers `REJECT` with reason 1.
+- Version 7 (2026-11-19): 4A — `ANIM_STATE` and `NAV_STATE` (decision 58, task 4A.1).
 - Version 6 (2026-11-19): `SAVE_REQUEST` (decision 55, task 5.4).
 - Version 5 (2026-11-19): stage 5 — `flags` in `HELLO` and `WELCOME`, `TIME_REQUEST`, `PLAYERS`, `rtt_ms` in `PING`, reason 5 in `OWNER_DENIED` (decision 54, task 5.1).
 - Version 4 (2026-11-18): vessel ownership — `OWNERSHIP`, `OWNER_REQUEST`, `OWNER_DENIED` (task 3.1).

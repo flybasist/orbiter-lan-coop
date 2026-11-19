@@ -26,6 +26,10 @@
 //   HostConfig::director; the plugin applies the requests (takeTimeRequests). Other senders are
 //   logged and ignored. The director and clients that said so in HELLO are observers: they get
 //   OWNER_DENIED, reason Observer, when they ask for a vessel;
+// - sends ANIM_STATE (animations of every vessel, read by the plugin on the host) and NAV_STATE
+//   (radio frequencies) over TCP; keeps the latest values of each vessel and sends them to a client
+//   that joins later, after OWNERSHIP and DOCK. NAV_STATE from a client is accepted only for the
+//   vessel the client owns: the plugin applies it (takeNavStates) and the host sends it to the others;
 // - sends PLAYERS (who is in the session, whose vessel, how good the connection is) to everyone
 //   after a join, a leave or an ownership change and every kPlayersInterval seconds;
 // - removes a client that left (BYE, broken connection, no HELLO within kHelloTimeout, nothing heard
@@ -97,6 +101,8 @@ struct HostStats {
     uint64_t timeRequestsRejected = 0;  // TIME_REQUEST from anyone else
     uint64_t saveRequestsAccepted = 0;  // SAVE_REQUEST from the director, queued for the plugin
     uint64_t saveRequestsRejected = 0;  // SAVE_REQUEST from anyone else
+    uint64_t navStatesAccepted = 0;     // NAV_STATE from the owner of the vessel
+    uint64_t navStatesRejected = 0;     // NAV_STATE for a vessel the client does not own
 };
 
 class HostLink {
@@ -138,6 +144,20 @@ public:
     // Sends DOCK over TCP to all clients that finished the handshake. HostLink remembers the
     // links that are docked now and sends them to clients that join later, right after OWNERSHIP.
     void sendDock(const Dock& dock);
+
+    // Sends ANIM_STATE (the changed animations of one vessel) over TCP to all clients that finished
+    // the handshake. HostLink remembers the latest value of every animation and sends them to
+    // clients that join later. false - the message could not be built (nothing is sent).
+    bool sendAnimState(const AnimState& state);
+
+    // Sends NAV_STATE of a vessel the host owns (the host is the source of its frequencies) to all
+    // clients, and remembers it for clients that join later. false - the message could not be built.
+    bool sendNavState(const NavState& state);
+
+    // Takes the NAV_STATE messages accepted from clients since the last call, oldest first. The
+    // plugin applies them to its vessels (SetNavChannel, SetTransponderChannel); the host has
+    // already sent each one on to the other clients.
+    std::vector<NavState> takeNavStates();
 
     // A vessel appeared or was deleted during the session. The plugin first changes the session
     // table (addVessel, removeVessel), then calls these: clients that join later get the vessel
@@ -224,9 +244,12 @@ private:
     bool handleTimeRequest(Client& client, Reader& reader);
     // Handles SAVE_REQUEST of a welcomed client (the body is empty). false - the message is broken.
     bool handleSaveRequest(Client& client, Reader& reader);
+    // Handles NAV_STATE of a welcomed client. false - the message is broken.
+    bool handleNavState(Client& client, Reader& reader);
     // Handles OWNER_REQUEST of a welcomed client. false - the message is broken.
     bool handleOwnerRequest(Client& client, Reader& reader);
-    // Sends BODIES, VESSELS and OWNERSHIP to the client. false - a message could not be built.
+    // Sends BODIES, VESSELS, OWNERSHIP, DOCK, ANIM_STATE and NAV_STATE to the client. false - a
+    // message could not be built.
     bool sendWorldLists(Client& client);
     // Puts a TCP message into the client's queue.
     bool sendMessage(Client& client, TcpType type, const Writer& body);
@@ -253,6 +276,9 @@ private:
     std::vector<BodyEntry> bodies_;
     std::vector<Dock> docks_;     // links that are docked now (see sendDock)
     std::vector<KeyPress> keys_;  // accepted KEY presses, not yet taken by the plugin
+    std::map<uint16_t, std::map<uint16_t, float>> anims_;  // latest animations: net_id -> index -> value
+    std::map<uint16_t, NavState> navStates_;  // latest NAV_STATE by net_id
+    std::vector<NavState> navUpdates_;        // accepted from clients, not yet taken by the plugin
     int saveRequests_ = 0;  // accepted SAVE_REQUEST, not yet taken by the plugin
     std::vector<TimeRequest> timeRequests_;  // accepted TIME_REQUEST, not yet taken by the plugin
     double nextPlayers_ = 0.0;    // real time of the next periodic PLAYERS

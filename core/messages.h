@@ -38,6 +38,8 @@ enum class TcpType : uint8_t {
     TimeRequest = 18,
     Players = 19,
     SaveRequest = 20,
+    AnimState = 21,
+    NavState = 22,
 };
 
 // UDP message type numbers (section 6).
@@ -247,6 +249,40 @@ struct PlayerEntry {
 // writePlayers returns false if there are more than 255 items or a name is too long.
 bool writePlayers(Writer& writer, const std::vector<PlayerEntry>& players);
 bool readPlayers(Reader& reader, std::vector<PlayerEntry>& players);
+
+// One animation of a vessel: its number in the vessel's animation list and its state 0...1.
+struct AnimValue {
+    uint16_t index = 0;
+    float value = 0.0f;
+};
+
+// ANIM_STATE, host -> clients: animations of a vessel that changed (gear, doors, hatches). The numbers
+// match only if the vessel class is the same on every machine (one package, decision 58).
+struct AnimState {
+    uint16_t netId = 0;
+    std::vector<AnimValue> anims;
+};
+
+// The most NAV receivers one NAV_STATE may list. Orbiter vessels have a few (DeltaGlider: two).
+constexpr size_t kMaxNavChannels = 16;
+
+// NAV_STATE, both directions: radio frequencies of a vessel, as steps (the number Orbiter's
+// SetNavChannel and SetTransponderChannel take). A client sends it only for its own vessel;
+// the host checks the owner and sends it on to the others.
+struct NavState {
+    uint16_t netId = 0;
+    uint16_t transponder = 0;         // transponder step
+    std::vector<uint16_t> channels;   // step of each NAV receiver, in receiver order
+};
+
+// ANIM_STATE: writeAnimState returns false if there are more than 65535 items.
+bool writeAnimState(Writer& writer, const AnimState& message);
+bool readAnimState(Reader& reader, AnimState& message);
+
+// NAV_STATE: writeNavState returns false if there are more than kMaxNavChannels channels;
+// readNavState rejects such a message too.
+bool writeNavState(Writer& writer, const NavState& message);
+bool readNavState(Reader& reader, NavState& message);
 
 // Three f64 numbers: a vector or angles.
 struct Vec3 {

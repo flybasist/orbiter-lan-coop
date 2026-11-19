@@ -701,9 +701,78 @@ void testPlayers() {
     olc::Writer wl;
     CHECK(!olc::writePlayers(wl, players));
 }
+// ANIM_STATE and NAV_STATE: round trip, limits, broken messages.
+void testAnimAndNavState() {
+    olc::AnimState anim;
+    anim.netId = 5;
+    anim.anims = {{0, 0.25f}, {7, 1.0f}};
+    olc::Writer wa;
+    CHECK(olc::writeAnimState(wa, anim));
+    CHECK(wa.bytes().size() == 4 + 2 * 6);
+    olc::Reader ra(wa.bytes().data(), wa.bytes().size());
+    olc::AnimState animBack;
+    CHECK(olc::readAnimState(ra, animBack));
+    CHECK(animBack.netId == 5 && animBack.anims.size() == 2);
+    CHECK(animBack.anims[1].index == 7 && animBack.anims[1].value == 1.0f);
+
+    // A cut message, an extra byte and a count larger than the data are broken.
+    olc::Reader cut(wa.bytes().data(), wa.bytes().size() - 1);
+    CHECK(!olc::readAnimState(cut, animBack));
+    olc::Writer longer = wa;
+    longer.writeU8(0);
+    olc::Reader extra(longer.bytes().data(), longer.bytes().size());
+    CHECK(!olc::readAnimState(extra, animBack));
+    // Values outside 0...1 and NaN are refused.
+    for (float bad : {-0.5f, 1.5f, std::nanf("")}) {
+        olc::AnimState broken;
+        broken.netId = 1;
+        broken.anims = {{0, bad}};
+        olc::Writer wb;
+        CHECK(olc::writeAnimState(wb, broken));
+        olc::Reader rb(wb.bytes().data(), wb.bytes().size());
+        CHECK(!olc::readAnimState(rb, animBack));
+    }
+    // An empty list is legal.
+    olc::AnimState empty;
+    olc::Writer we;
+    CHECK(olc::writeAnimState(we, empty));
+    olc::Reader re(we.bytes().data(), we.bytes().size());
+    CHECK(olc::readAnimState(re, animBack) && animBack.anims.empty());
+
+    olc::NavState nav;
+    nav.netId = 9;
+    nav.transponder = 100;
+    nav.channels = {1, 2, 3};
+    olc::Writer wn;
+    CHECK(olc::writeNavState(wn, nav));
+    CHECK(wn.bytes().size() == 5 + 3 * 2);
+    olc::Reader rn(wn.bytes().data(), wn.bytes().size());
+    olc::NavState navBack;
+    CHECK(olc::readNavState(rn, navBack));
+    CHECK(navBack.netId == 9 && navBack.transponder == 100 &&
+          navBack.channels == std::vector<uint16_t>({1, 2, 3}));
+    olc::Reader cutNav(wn.bytes().data(), wn.bytes().size() - 1);
+    CHECK(!olc::readNavState(cutNav, navBack));
+
+    // More channels than kMaxNavChannels: not written, and not read from a foreign sender.
+    olc::NavState many;
+    many.channels.assign(olc::kMaxNavChannels + 1, 1);
+    olc::Writer wm;
+    CHECK(!olc::writeNavState(wm, many));
+    olc::Writer raw;
+    raw.writeU16(1);
+    raw.writeU16(0);
+    raw.writeU8(static_cast<uint8_t>(olc::kMaxNavChannels + 1));
+    for (size_t i = 0; i <= olc::kMaxNavChannels; i++) {
+        raw.writeU16(1);
+    }
+    olc::Reader rm(raw.bytes().data(), raw.bytes().size());
+    CHECK(!olc::readNavState(rm, navBack));
+}
 }  // namespace
 
 int main() {
+    testAnimAndNavState();
     testWelcomeFlags();
     testTimeRequest();
     testPlayers();

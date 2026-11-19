@@ -274,6 +274,11 @@ bool HostLink::handleFrames(Client& client) {
                     return false;
                 }
                 break;
+            case TcpType::NavState:
+                if (!handleNavState(client, reader)) {
+                    return false;
+                }
+                break;
             case TcpType::OwnerRequest:
                 if (!handleOwnerRequest(client, reader)) {
                     return false;
@@ -363,6 +368,36 @@ bool HostLink::handleSaveRequest(Client& client, Reader& reader) {
 int HostLink::takeSaveRequests() {
     const int result = saveRequests_;
     saveRequests_ = 0;
+    return result;
+}
+
+bool HostLink::handleNavState(Client& client, Reader& reader) {
+    NavState state;
+    if (!readNavState(reader, state)) {
+        client.leaveReason = "broken NAV_STATE";
+        return false;
+    }
+    // Frequencies are set by the pilot on his own copy of the vessel: only the owner is the source.
+    if (!table_.isControlledBy(state.netId, client.clientId)) {
+        stats_.navStatesRejected++;
+        return true;
+    }
+    stats_.navStatesAccepted++;
+    navStates_[state.netId] = state;
+    navUpdates_.push_back(state);
+    Writer body;
+    writeNavState(body, state);  // cannot fail: readNavState has accepted the same channel count
+    for (Client& other : clients_) {
+        if (other.welcomed && &other != &client) {
+            sendMessage(other, TcpType::NavState, body);
+        }
+    }
+    return true;
+}
+
+std::vector<NavState> HostLink::takeNavStates() {
+    std::vector<NavState> result;
+    result.swap(navUpdates_);
     return result;
 }
 
@@ -575,6 +610,27 @@ bool HostLink::sendWorldLists(Client& client) {
         Writer body;
         writeDock(body, dock);
         sendMessage(client, TcpType::Dock, body);
+    }
+
+    // The latest animations and frequencies: the new client starts with the same cabin state.
+    for (const auto& vessel : anims_) {
+        AnimState state;
+        state.netId = vessel.first;
+        for (const auto& anim : vessel.second) {
+            state.anims.push_back({anim.first, anim.second});
+        }
+        Writer body;
+        if (!writeAnimState(body, state)) {
+            return false;
+        }
+        sendMessage(client, TcpType::AnimState, body);
+    }
+    for (const auto& vessel : navStates_) {
+        Writer body;
+        if (!writeNavState(body, vessel.second)) {
+            return false;
+        }
+        sendMessage(client, TcpType::NavState, body);
     }
     return true;
 }
@@ -844,6 +900,36 @@ void HostLink::sendDock(const Dock& dock) {
     }
 }
 
+bool HostLink::sendAnimState(const AnimState& state) {
+    Writer body;
+    if (!writeAnimState(body, state)) {
+        return false;
+    }
+    for (const AnimValue& anim : state.anims) {
+        anims_[state.netId][anim.index] = anim.value;
+    }
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::AnimState, body);
+        }
+    }
+    return true;
+}
+
+bool HostLink::sendNavState(const NavState& state) {
+    Writer body;
+    if (!writeNavState(body, state)) {
+        return false;
+    }
+    navStates_[state.netId] = state;
+    for (Client& client : clients_) {
+        if (client.welcomed) {
+            sendMessage(client, TcpType::NavState, body);
+        }
+    }
+    return true;
+}
+
 void HostLink::sendLanded(const Landed& landed) {
     Writer body;
     writeLanded(body, landed);
@@ -872,6 +958,8 @@ bool HostLink::sendVesselAdded(const VesselAdded& added) {
 }
 
 void HostLink::sendVesselRemoved(uint16_t netId) {
+    anims_.erase(netId);
+    navStates_.erase(netId);
     Writer body;
     writeVesselRemoved(body, netId);
     for (Client& client : clients_) {

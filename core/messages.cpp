@@ -580,4 +580,71 @@ bool readScenario(Reader& reader, Scenario& message) {
     return finished(reader);
 }
 
+// ---------- ANIM_STATE and NAV_STATE ----------
+
+bool writeAnimState(Writer& writer, const AnimState& message) {
+    if (message.anims.size() > 65535) {
+        return false;
+    }
+    writer.writeU16(message.netId);
+    writer.writeU16(static_cast<uint16_t>(message.anims.size()));
+    for (const AnimValue& anim : message.anims) {
+        writer.writeU16(anim.index);
+        writer.writeF32(anim.value);
+    }
+    return true;
+}
+
+bool readAnimState(Reader& reader, AnimState& message) {
+    message.anims.clear();
+    uint16_t count = 0;
+    reader.readU16(message.netId);
+    reader.readU16(count);
+    // Every item takes 6 bytes: a count larger than the rest of the message is a broken message.
+    if (!reader.ok() || reader.remaining() != static_cast<size_t>(count) * 6) {
+        return false;
+    }
+    for (uint16_t i = 0; i < count; i++) {
+        AnimValue anim;
+        reader.readU16(anim.index);
+        reader.readF32(anim.value);
+        // NaN, infinity and values outside 0...1 are not an animation state.
+        if (!(anim.value >= 0.0f && anim.value <= 1.0f)) {
+            return false;
+        }
+        message.anims.push_back(anim);
+    }
+    return finished(reader);
+}
+
+bool writeNavState(Writer& writer, const NavState& message) {
+    if (message.channels.size() > kMaxNavChannels) {
+        return false;
+    }
+    writer.writeU16(message.netId);
+    writer.writeU16(message.transponder);
+    writer.writeU8(static_cast<uint8_t>(message.channels.size()));
+    for (uint16_t channel : message.channels) {
+        writer.writeU16(channel);
+    }
+    return true;
+}
+
+bool readNavState(Reader& reader, NavState& message) {
+    message.channels.clear();
+    uint8_t count = 0;
+    reader.readU16(message.netId);
+    reader.readU16(message.transponder);
+    reader.readU8(count);
+    if (!reader.ok() || count > kMaxNavChannels) {
+        return false;
+    }
+    for (uint8_t i = 0; i < count; i++) {
+        uint16_t channel = 0;
+        reader.readU16(channel);
+        message.channels.push_back(channel);
+    }
+    return finished(reader);
+}
+
 }  // namespace olc

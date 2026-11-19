@@ -727,6 +727,106 @@ void testKeyDelivery() {
     CHECK(host.link.takeKeys().empty());
 }
 
+// ANIM_STATE and NAV_STATE: the host sends animations and its own frequencies to all; a client's
+// NAV_STATE is accepted only for its own vessel, goes to the plugin and to the other clients;
+// a client that joins later gets the latest values of everything.
+void testAnimAndNavState() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+    olc::ClientLink owner;
+    CHECK(takeIss(host, owner));
+    olc::ClientLink other;
+    CHECK(other.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&owner, &other}, [&]() { return host.link.readyClientCount() == 2; }));
+
+    olc::AnimState first;
+    first.netId = 1;
+    first.anims = {{0, 0.5f}, {2, 1.0f}};
+    olc::AnimState second;
+    second.netId = 1;
+    second.anims = {{0, 1.0f}};
+    CHECK(host.link.sendAnimState(first));
+    CHECK(host.link.sendAnimState(second));
+    olc::NavState hostNav;
+    hostNav.netId = 1;
+    hostNav.transponder = 7;
+    hostNav.channels = {10, 20};
+    CHECK(host.link.sendNavState(hostNav));
+
+    std::vector<olc::AnimState> anims;
+    std::vector<olc::NavState> navs;
+    CHECK(waitFor(host.link, {&owner, &other}, [&]() {
+        std::vector<olc::AnimState> moreAnims = other.takeAnimStates();
+        anims.insert(anims.end(), moreAnims.begin(), moreAnims.end());
+        std::vector<olc::NavState> moreNavs = other.takeNavStates();
+        navs.insert(navs.end(), moreNavs.begin(), moreNavs.end());
+        return anims.size() >= 2 && !navs.empty();
+    }));
+    CHECK(anims.size() == 2 && anims[0].anims.size() == 2 && anims[1].anims.size() == 1);
+    CHECK(anims[1].netId == 1 && anims[1].anims[0].index == 0 && anims[1].anims[0].value == 1.0f);
+    CHECK(navs.size() == 1 && navs[0].netId == 1 && navs[0].transponder == 7 &&
+          navs[0].channels == std::vector<uint16_t>({10, 20}));
+
+    // The owner sends frequencies of its vessel (2) and of the host's vessel (1): the second is refused.
+    olc::NavState own;
+    own.netId = 2;
+    own.transponder = 3;
+    own.channels = {111, 222};
+    olc::NavState foreign = own;
+    foreign.netId = 1;
+    owner.sendNavState(foreign);
+    owner.sendNavState(own);
+    std::vector<olc::NavState> accepted;
+    navs.clear();
+    CHECK(waitFor(host.link, {&owner, &other}, [&]() {
+        std::vector<olc::NavState> more = host.link.takeNavStates();
+        accepted.insert(accepted.end(), more.begin(), more.end());
+        std::vector<olc::NavState> moreNavs = other.takeNavStates();
+        navs.insert(navs.end(), moreNavs.begin(), moreNavs.end());
+        return !accepted.empty() && !navs.empty();
+    }));
+    CHECK(accepted.size() == 1 && accepted[0].netId == 2 && accepted[0].transponder == 3);
+    CHECK(navs.size() == 1 && navs[0].netId == 2 && navs[0].channels.size() == 2);
+    CHECK(host.link.stats().navStatesAccepted == 1);
+    CHECK(host.link.stats().navStatesRejected == 1);
+    // The owner got only the host's NAV_STATE of vessel 1, not its own message back.
+    std::vector<olc::NavState> ownerNavs = owner.takeNavStates();
+    CHECK(ownerNavs.size() == 1 && ownerNavs[0].netId == 1);
+
+    // A late client gets one ANIM_STATE with the latest value of every animation and the latest
+    // NAV_STATE of both vessels.
+    olc::ClientLink late;
+    CHECK(late.start(makeClientConfig(host), now()));
+    std::vector<olc::AnimState> lateAnims;
+    std::vector<olc::NavState> lateNavs;
+    CHECK(waitFor(host.link, {&owner, &other, &late}, [&]() {
+        std::vector<olc::AnimState> moreAnims = late.takeAnimStates();
+        lateAnims.insert(lateAnims.end(), moreAnims.begin(), moreAnims.end());
+        std::vector<olc::NavState> moreNavs = late.takeNavStates();
+        lateNavs.insert(lateNavs.end(), moreNavs.begin(), moreNavs.end());
+        return !lateAnims.empty() && lateNavs.size() >= 2;
+    }));
+    CHECK(lateAnims.size() == 1 && lateAnims[0].netId == 1 && lateAnims[0].anims.size() == 2);
+    CHECK(lateAnims[0].anims[0].index == 0 && lateAnims[0].anims[0].value == 1.0f);
+    CHECK(lateAnims[0].anims[1].index == 2 && lateAnims[0].anims[1].value == 1.0f);
+    CHECK(lateNavs.size() == 2 && lateNavs[0].netId == 1 && lateNavs[1].netId == 2);
+
+    // A removed vessel is forgotten: the next client does not get its values.
+    host.link.sendVesselRemoved(1);
+    other.stop("test");  // a place for one more client
+    olc::ClientLink last;
+    CHECK(last.start(makeClientConfig(host), now()));
+    std::vector<olc::NavState> lastNavs;
+    CHECK(waitFor(host.link, {&owner, &late, &last}, [&]() {
+        std::vector<olc::NavState> more = last.takeNavStates();
+        lastNavs.insert(lastNavs.end(), more.begin(), more.end());
+        return !lastNavs.empty();
+    }));
+    CHECK(lastNavs.size() == 1 && lastNavs[0].netId == 2);
+    CHECK(last.takeAnimStates().empty());
+}
+
 // No more than kMaxInputRate packets per second: of ten calls with one time only the first goes out.
 void testInputRateLimit() {
     TestHost host;
@@ -1419,6 +1519,7 @@ int main() {
     testInputKeyBits();
     testKeyDelivery();
     testDock();
+    testAnimAndNavState();
     testBrokenOwnerRequest();
     testDirectorAndTimeRequests();
     testObserverFlag();
