@@ -285,6 +285,9 @@ reaches a vessel on the host"; [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md), sec
 | 3.25 | Research of hooks for PRs to Orbiter (decision 61): keys and cockpit clicks for a vessel not in focus, the warp reset near vessels, loading a scenario without Launchpad, a vessel "controlled from outside" — whether OLC needs it, what to change in the core, how small and safe | Mac | A section in `ORBITER-INTERNALS.md`; a decision for the owner | waiting (main session) |
 | 3.26 | Research of the Orbiter community's attitude (forum, GitHub) to AI PRs | Mac | A summary for the owner | waiting (main session) |
 | 3.27 | Building and testing the network core on Linux in GitHub Actions (instead of the Linux VMs) | Mac, CI | A green Linux build | waiting |
+| 3.28 | Research: Orbiter under Wine and Proton (with Steam and without: umu-launcher, Lutris, Heroic, Bottles), PortProton, Steam Deck and Mac (CrossOver, Wine) — what the community has done, known problems, what of it concerns OLC; the native Orbiter port is not duplicated (decision 61) | Mac | A summary for the owner and rig tasks | waiting (main session) |
+| 3.29 | Rig: the OLC server without graphics under Wine on Ubuntu x86 (Proxmox), the client — Windows | Ubuntu x86 | The client connects to the server under Wine, docking is repeated | waiting |
+| 3.30 | Rig: the OLC client with graphics under Wine, Proton or PortProton on the owner's Linux machine with a graphics card | The owner's Linux | A client with graphics in the host's world; waits for the owner's machine | waiting |
 
 **Results of task 3.0 (2026-11-18).** The wired Proxmox pair (host Windows 11, client Windows 10, without
 graphics), the recorded DeltaGlider flight, 180 s per set, RTT 0.3–0.5 ms:
