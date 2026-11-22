@@ -68,8 +68,9 @@ Smooth throttle (like `Vessel::IncMainRetroLevel`, `Vessel.cpp:2101`), `d = ±0.
 - `d < 0`: if main > 0 — decrease main by `|d|` (not below 0) and retro = 0;
   otherwise retro = min(retro + `|d|`, 1).
 
-What cannot be done: deliver held keys to `clbkConsumeDirectKey` of a vessel that is
-not in focus. Add-ons' own held keys will not work on the host.
+The core delivers held keys to `clbkConsumeDirectKey` only for the vessel in focus
+(`Orbiter.cpp:2231`). But the `VESSEL2` callbacks are public, and a plugin can call it itself for another
+vessel (`ORBITER-INTERNALS.md`, section 23); OLC does not do it yet, not checked on a rig.
 
 ### Intercepting input on the client
 

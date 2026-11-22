@@ -920,3 +920,22 @@ Rig check (host .163, FD on olc-win-arm, scenario `Two DG 20 m`): with `VesselCo
 in the `Orbiter.cfg` of host and client the x10 and x100 requests arrive and stay, the FD sim
 time error grows with the warp. For sessions that warp near vessels set
 `VesselCollision = FALSE` (the test package already does).
+
+
+## 23. What OLC can do without changing Orbiter and where a PR is needed (research 3.25)
+
+Task 3.25 (2026-11-23), reading the sources of the base commit; nothing was checked on a rig. Five places
+where the plugin lacked the SDK; for each — whether the plugin can do it and whether a PR to Orbiter is needed.
+
+| Place | What Orbiter does | Can the plugin do it? | PR |
+|---|---|---|---|
+| An add-on's held keys for a vessel not in focus | The core calls `clbkConsumeDirectKey` only for the vessel in focus (`Orbiter.cpp:2231`) | **Yes.** The `VESSEL2` callbacks are public (`VesselAPI.h:5459`); the host can call `clbkConsumeDirectKey(kstate)` of the pilot's vessel itself, with the pilot's key state. That is how Shuttle-A uses `Ctrl+Num0`/`Ctrl+Num.` (pod tilt, `ShuttleA.cpp:1806`) and DeltaGlider `Alt+Num+` (scramjet thrust, `ScramSubsys.cpp:236`) | Not needed |
+| Cockpit clicks of a vessel not in focus | The core passes a click only to the vessel in focus (`Pane.cpp:574, 587, 601`); plugins have no click callback | **Half.** The host can call the public `clbkVCMouseEvent(id, event, p)` itself: in DeltaGlider the element is found by number without a loaded cockpit (`Instrument.cpp:417-423`). But the client cannot **learn** about the pilot's click: a plugin does not see it. A 2D panel click comes with a `context` pointer from the client's process — meaningless on the host | **A small one is needed:** tell plugin modules about a panel or cockpit click (vessel, area number, event, point) — in those three places of `Pane.cpp`. Needed for 4B (navigator) and the retro doors on a client |
+| The warp reset near vessels | `Vessel::ResolveCollisionWith` sets x1 while vessels are closer than the sum of their sizes plus 5 m (`Vessel.cpp:6227`) | A workaround exists: `VesselCollision = FALSE` | Not needed now. The behaviour is meant to protect the collision computation; changing it is a question for the Orbiter team, not a fix. Return to it if the host suffers without collisions |
+| Loading a scenario at runtime | No such function in the SDK | The workaround works (section 18): 10 connections in a row without failures | Not needed now; `oapiLoadScenario` would be handy, but it is a session rebuild in the core — a big PR |
+| A vessel "controlled from outside", without its own physics | Inside there is a similar recording playback mode (`bFRplayback`), not available from the SDK | Imposing the state every frame (`DefSetStateEx`) gives a drift of millimetres | Not needed now; return to it if we hit performance or collisions on the client |
+
+Conclusion: of the five places a PR is needed in one — notifying plugins about panel and cockpit clicks.
+The rest is done by the plugin or already worked around. Calling vessel callbacks directly is legitimate
+SDK use (the methods are public), but a vessel module may expect to be in focus (for example, Shuttle-A
+redraws an area of panel 0); every such use is checked on a rig.

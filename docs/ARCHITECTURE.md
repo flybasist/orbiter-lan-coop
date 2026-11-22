@@ -106,7 +106,7 @@ The detailed key table is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 | Held RCS, full throttle and brake keys | `IncThrusterGroupLevel_SingleStep` every frame while the key is held — the same as the core does for the focus vessel |
 | Smooth throttle, hover, trim, wheel brakes | `Set/IncThrusterGroupLevel`, `SetControlSurfaceLevel`, `SetWheelbrakeLevel` with the same logic as in the core |
 | Joystick | The client sends axis deflections; the host turns them into RCS group and main engine levels |
-| Add-ons' own held keys | Not supported: the SDK cannot deliver them to a vessel that is not in focus |
+| Add-ons' own held keys | Not supported yet: the core sends them only to the vessel in focus; a plugin can call `clbkConsumeDirectKey` itself (`ORBITER-INTERNALS.md`, section 23) |
 | Clicks in the cockpit and on panels | Later, the "Crew" stage |
 
 ### Communication channels
