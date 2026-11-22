@@ -1,4 +1,5 @@
-# OLC build for Windows x64: the network core with tests and the OrbiterLanCoop.dll plugin.
+# OLC build. Windows x64: the network core with tests and the OrbiterLanCoop.dll plugin.
+# Linux: only the network core with its tests (the plugin is Windows-only).
 #
 # The plugin needs Orbiter.lib and Orbitersdk.lib - they appear only after Orbiter is
 # built. So the workflow builds the Orbiter core from the base commit (decision 25 in
@@ -95,3 +96,22 @@ jobs:
         name: OrbiterLanCoop-x64
         path: orbiter-lan-coop.out/plugin/OrbiterLanCoop.dll
         retention-days: 14
+
+  # The network core does not depend on Orbiter, so Linux needs no SDK.
+  linux:
+    name: Linux core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout OLC
+      uses: actions/checkout@v7
+
+    - name: Configure OLC
+      run: cmake -S . -B orbiter-lan-coop.out -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build OLC core
+      run: cmake --build orbiter-lan-coop.out
+
+    - name: Test OLC core
+      run: ctest --test-dir orbiter-lan-coop.out --output-on-failure
