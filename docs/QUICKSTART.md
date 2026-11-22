@@ -97,7 +97,7 @@ The finished plugin is `orbiter-lan-coop.out\plugin\OrbiterLanCoop.dll`. Copy it
 section 6.
 
 The GitHub Actions build (`.github/workflows/build.yml`) does the same: it builds the
-Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x64` artifact.
+Orbiter core from the base commit and publishes the DLL as the `OrbiterLanCoop-x64` artifact. A separate Linux job builds and tests only the network core.
 
 ## 6. Running the host and the client
 

@@ -50,7 +50,7 @@ Do not rescan the whole repository: the map below is enough.
 | `core/` | The `olc-core` network core: the protocol and everything that does not depend on Orbiter (`ARCHITECTURE.md`, section 6). |
 | `tests/` | Core tests on CTest without third-party libraries; checks are in `tests/check.h`. |
 | `plugin/` | The `OrbiterLanCoop.dll` plugin for Orbiter (Windows only): host and client roles (connecting with a button, each pilot's own vessel, dockings, mechanisms and frequencies, the flight director), settings from `Config\OrbiterLanCoop.cfg` (example — `plugin/OrbiterLanCoop.cfg`). Build — `QUICKSTART.md`, section 5, running — section 6. |
-| `.github/workflows/build.yml` | GitHub Actions build: the Orbiter core from the base commit (cached), then the OLC core with tests and the plugin for Windows x64. |
+| `.github/workflows/build.yml` | GitHub Actions build: the Orbiter core from the base commit (cached), then the OLC core with tests and the plugin for Windows x64; a separate Linux job builds and tests the OLC core only. |
 | `tools/smoothing/` | The `olc-smoothing` smoothing model: simulates host packets with delay and loss and compares ways of reconstructing motion on the client; `run-grid.sh` runs it over a parameter grid. Does not depend on Orbiter. Conclusions — `SMOOTHING.md`. |
 | `tools/netcheck/` | The `olc-netcheck` utility: a network check between two machines on the OLC network core — TCP handshake, UDP `PING`/`PONG`, loss and delay. How to use it — `STANDS.md`, section 10. |
 | `tools/doccheck/` | The `olc-doccheck` check: every document has a version in the other language and the structure of the pair matches (headings, tables, code blocks). Runs in CI. |

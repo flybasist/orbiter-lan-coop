@@ -97,7 +97,7 @@ ctest --test-dir orbiter-lan-coop.out
 раздел 6.
 
 То же самое делает сборка в GitHub Actions (`.github/workflows/build.yml`): она собирает
-ядро Orbiter из базового коммита и выкладывает DLL как артефакт `OrbiterLanCoop-x64`.
+ядро Orbiter из базового коммита и выкладывает DLL как артефакт `OrbiterLanCoop-x64`. Отдельное задание на Linux собирает и проверяет только сетевое ядро.
 
 ## 6. Запуск хоста и клиента
 
