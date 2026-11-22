@@ -70,7 +70,7 @@ The Orbiter source code is not part of this repository. A separate clone of
 2. **The Orbiter clone is read-only.** Nothing is changed in it and nothing is built "for us".
    The only allowed action is updating from GitHub (`git pull --ff-only`) during an upstream
    check. The core map and all conclusions about it live here, in `docs/ORBITER-INTERNALS.md`.
-3. **The Orbiter base commit is the last checked commit of `main`:** currently `a7a3396e`
+3. **The Orbiter base commit is the last checked commit of `main`:** currently `48c30c77`
    (2026-11-12). All references to core code in the documentation are for it. The base commit
    moves forward after every upstream check (the "Check against Orbiter" section in
    `docs/ORBITER-INTERNALS.md`), so that OLC does not get stuck between releases.

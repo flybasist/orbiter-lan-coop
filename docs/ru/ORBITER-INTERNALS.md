@@ -4,8 +4,8 @@
 
 Здесь описано только то, на что опирается OLC. Это не полное описание Orbiter.
 
-- **Базовый коммит:** `a7a3396e6c3104a05fd5ac55736de75e4c0e921f` (main, 2026-11-12).
-  Все ссылки вида `Src/Orbiter/Orbiter.cpp:1089` — пути и строки в этом коммите.
+- **Базовый коммит:** `48c30c77750587f6af8f59c3a7077161f838d378` (main, 2026-11-22).
+  Все ссылки вида `Src/Orbiter/Orbiter.cpp:1113` — пути и строки в этом коммите.
 - **Где читать:** клон `orbitersim/orbiter` (у владельца — `~/Documents/github/orbiter`).
   Клон только для чтения: ничего в нём не меняем, только обновляем из GitHub.
 - **При смене базового коммита** строки сверяются заново, а этот файл обновляется
@@ -38,22 +38,22 @@
 
 ## 3. Кадр симуляции
 
-`Orbiter::SingleFrame` — `Src/Orbiter/Orbiter.cpp:1089`:
+`Orbiter::SingleFrame` — `Src/Orbiter/Orbiter.cpp:1113`:
 
-1. `BeginTimeStep` (`Orbiter.cpp:1740`): обработать запрос паузы, посчитать шаг.
-   `td.BeginStep` (`:1774`) вычисляет новое время `SimT1 = SimT0 + SimDT`.
-2. `UpdateWorld` (`Orbiter.cpp:1946`):
-   1. `ModulePreStep` (`:1949`, реализация `:1916`) — `clbkPreStep` кораблей, затем плагинов.
+1. `BeginTimeStep` (`Orbiter.cpp:1764`): обработать запрос паузы, посчитать шаг.
+   `td.BeginStep` (`:1798`) вычисляет новое время `SimT1 = SimT0 + SimDT`.
+2. `UpdateWorld` (`Orbiter.cpp:1971`):
+   1. `ModulePreStep` (`:1974`, реализация `:1941`) — `clbkPreStep` кораблей, затем плагинов.
       `g_bStateUpdate = false`;
    2. `g_bStateUpdate = true`; при воспроизведении записи — `FRecorder_Play`;
    3. `PlanetarySystem::Update` (`Src/Orbiter/Psys.cpp:815`) — тела, силы, корабли;
-   4. `ModulePostStep` (`:1960`, реализация `:1931`) — `clbkPostStep` кораблей, затем плагинов.
+   4. `ModulePostStep` (`:1985`, реализация `:1956`) — `clbkPostStep` кораблей, затем плагинов.
       **Ещё внутри фазы обновления**;
    5. `g_bStateUpdate = false`, `KillVessels` — удаление кораблей, помеченных на удаление.
-3. `EndTimeStep` (`Orbiter.cpp:1782`): `FinaliseUpdate` (`Psys.cpp:827`) — смена буферов
+3. `EndTimeStep` (`Orbiter.cpp:1806`): `FinaliseUpdate` (`Psys.cpp:827`) — смена буферов
    состояния, проверка касания и посадки, столкновения кораблей, автостыковка, запись полёта.
-   `td.EndStep` (`:1790`) — `SimT0 = SimT1`.
-4. `UserInput` (`Orbiter.cpp:1980`) — клавиатура, мышь, джойстик (раздел 7).
+   `td.EndStep` (`:1814`) — `SimT0 = SimT1`.
+4. `UserInput` (`Orbiter.cpp:2005`) — клавиатура, мышь, джойстик (раздел 7).
 5. Отрисовка.
 
 Ввод обрабатывается **после** физики, то есть влияет на следующий кадр.
@@ -86,18 +86,18 @@
 
 ## 4. Время
 
-- Шаг берётся из реальных часов (`std::chrono::steady_clock`) — `Orbiter.cpp:1740`.
+- Шаг берётся из реальных часов (`std::chrono::steady_clock`) — `Orbiter.cpp:1764`.
   Первые три кадра после загрузки — фиксированные 10 мс, шаг ограничен сверху 0,1 с.
   Поэтому два компьютера никогда не считают одинаково: детерминированный lockstep невозможен.
 - `oapiGetSysTime` — сумма этих шагов (`td.SysT0`, `OrbiterAPI.cpp:994`), поэтому кадр длиннее
   0,1 с в нём считается за 0,1 с; замерам задержки нужны настоящие часы.
-- Ускорение — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1363`) → `TimeData::SetWarp`
+- Ускорение — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1387`) → `TimeData::SetWarp`
   (`TimeData.h:31`). Плавный переход (`TWarpDelay`, `TimeData.cpp:55-63`) только при
   ненулевой задержке; `oapiSetTimeAcceleration` передаёт задержку 0 (`OrbiterAPI.cpp:1034-1037`),
   то есть меняет ускорение сразу (проверено на стенде 2026-11-17).
-- Пауза — `Orbiter::Pause` (`Orbiter.cpp:1189`): запрос применяется в начале следующего кадра.
-  На паузе `clbkPreStep` и `clbkPostStep` не вызываются (`Orbiter.cpp:1949, 1960`).
-- Прыжок во времени — `Orbiter::Timejump` (`Orbiter.cpp:1820`), для кораблей —
+- Пауза — `Orbiter::Pause` (`Orbiter.cpp:1213`): запрос применяется в начале следующего кадра.
+  На паузе `clbkPreStep` и `clbkPostStep` не вызываются (`Orbiter.cpp:1974, 1985`).
+- Прыжок во времени — `Orbiter::Timejump` (`Orbiter.cpp:1844`), для кораблей —
   `PlanetarySystem::Timejump` (`Psys.cpp:835`).
 
 Функции SDK (`Orbitersdk/include/OrbiterAPI.h`):
@@ -208,23 +208,23 @@
 
 ### Порядок обработки
 
-`Orbiter::UserInput` (`Orbiter.cpp:1980`):
+`Orbiter::UserInput` (`Orbiter.cpp:2005`):
 
-1. Очистить `simkstate` и массивы `ctrlKeyboard`, `ctrlJoystick` (`:1989-1990`).
-2. Прочитать клавиатуру DirectInput в `simkstate` (`:2014`).
-3. `clbkProcessKeyboardImmediate` всех плагинов (`BroadcastImmediateKeyboardEvent`, `:2015`, реализация `:2480`).
+1. Очистить `simkstate` и массивы `ctrlKeyboard`, `ctrlJoystick` (`:2014-2015`).
+2. Прочитать клавиатуру DirectInput в `simkstate` (`:2039`).
+3. `clbkProcessKeyboardImmediate` всех плагинов (`BroadcastImmediateKeyboardEvent`, `:2040`, реализация `:2505`).
    Передаётся сам `simkstate`, не копия. Если хоть один вернул `true`, стандартная обработка
-   удерживаемых клавиш пропускается **на весь кадр** (`:2015-2019`).
-4. Разовые нажатия: `clbkProcessKeyboardBuffered` плагинов (`:2026`, реализация `:2491`) только на нажатие;
+   удерживаемых клавиш пропускается **на весь кадр** (`:2040-2044`).
+4. Разовые нажатия: `clbkProcessKeyboardBuffered` плагинов (`:2051`, реализация `:2516`) только на нажатие;
    поглощённая клавиша убирается из очереди.
-5. Джойстик: `PollJoystick`, затем `UserJoyInput_OnRunning` (`:2039`, `:2413`).
-6. Сумма клавиатуры и джойстика → `g_focusobj->ApplyUserAttitudeControls` (`:2048`).
+5. Джойстик: `PollJoystick`, затем `UserJoyInput_OnRunning` (`:2064`, `:2438`).
+6. Сумма клавиатуры и джойстика → `g_focusobj->ApplyUserAttitudeControls` (`:2073`).
 
 Всё стандартное управление адресовано **только кораблю в фокусе**.
 
 ### Удерживаемые клавиши
 
-`KbdInputImmediate_OnRunning` (`Orbiter.cpp:2204`) сначала отдаёт клавиши кораблю
+`KbdInputImmediate_OnRunning` (`Orbiter.cpp:2229`) сначала отдаёт клавиши кораблю
 (`ConsumeDirectKey` → `VESSEL2::clbkConsumeDirectKey`), и только потом обрабатывает сам.
 Таблица соответствия клавиш вызовам SDK — в [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), раздел 3.
 
@@ -260,7 +260,7 @@
   `VESSEL::GetManualControlLevel (группа, MANCTRL_ANYMODE, MANCTRL_JOYSTICK)` возвращает
   отклонение ручки по группам RCS (`VesselAPI.h:3093`, `Vessel.cpp:8587`).
   Ручка газа ставит постоянный уровень главного двигателя фокусного корабля
-  (`Orbiter.cpp:2435-2445`), его видно через `GetThrusterGroupLevel`.
+  (`Orbiter.cpp:2460-2470`), его видно через `GetThrusterGroupLevel`.
 - Свой опрос DirectInput в плагине при включённом джойстике ядра, скорее всего, не получит
   устройство (эксклюзивный режим). Не проверено.
 
@@ -281,11 +281,11 @@
 
 ### Сценарии
 
-- `oapiSaveScenario (fname, desc)` (`OrbiterAPI.h:6375`, `Orbiter.cpp:1453`) пишет **только в
+- `oapiSaveScenario (fname, desc)` (`OrbiterAPI.h:6375`, `Orbiter.cpp:1477`) пишет **только в
   файл** в каталоге `Scenarios`. Содержимое: описание, система и дата, фокус, камера, панель,
   все корабли (`Vessel::Write`, `Vessel.cpp:8309`: имя, класс, строки `clbkSaveState`).
 - **Загрузить сценарий из плагина во время работы через SDK нельзя.** Функции нет;
-  внутренний `Orbiter::Launch` (`Orbiter.cpp:679`) вызывается только из Launchpad и из
+  внутренний `Orbiter::Launch` (`Orbiter.cpp:703`) вызывается только из Launchpad и из
   командной строки (`-s`). `oapiExitOrbiter` просто завершает процесс. Но плагин может
   закрыть сессию и нажать «Launch» в Launchpad сам — проверено на стенде, раздел 18.
 
@@ -294,10 +294,10 @@
 - Плагины загружаются один раз при старте Orbiter и живут между сессиями. Каждая сессия —
   пара `clbkSimulationStart` / `clbkSimulationEnd` на том же объекте модуля. Всё состояние
   сессии (handle кораблей, таблицы) сбрасывать в этих колбэках.
-- `clbkSimulationEnd` вызывается **после** уничтожения мира (`Orbiter.cpp:933`, после
+- `clbkSimulationEnd` вызывается **после** уничтожения мира (`Orbiter.cpp:957`, после
   `DestroyWorld`), вопреки описанию в `ModuleAPI.h:127`. Корабли в нём трогать нельзя.
 - `clbkNewVessel` не вызывается для кораблей из сценария, только для созданных во время
-  работы, причём до окончания их настройки (`Orbiter.cpp:1253-1270`).
+  работы, причём до окончания их настройки (`Orbiter.cpp:1277-1294`).
 
 ### Создание и удаление
 
@@ -309,7 +309,7 @@
 - Внутреннее состояние дополнения (строки `clbkSaveState`) новому кораблю передать нельзя:
   `clbkLoadStateEx` вызывается только при чтении сценария.
 - `oapiDeleteVessel` (`OrbiterAPI.h:2886`) только помечает корабль; удаление — в конце кадра
-  (`KillVessels`, `Orbiter.cpp:1277`). Удаление последнего корабля, который может быть в
+  (`KillVessels`, `Orbiter.cpp:1301`). Удаление последнего корабля, который может быть в
   фокусе, закрывает сессию.
 
 ### Как опознать «тот же корабль»
@@ -364,7 +364,7 @@
   отключается стабилизация (`SuperVessel.cpp:790-798`); проверка пересечений при
   навязывании состояния стала отложенной (раздел 5).
 - Включается параметром `VesselCollision` в `Orbiter.cfg`, по умолчанию включено
-  (`Src/Orbiter/Config.cpp:50`, `:610`).
+  (`Src/Orbiter/Config.cpp:50`, `:617`).
 - Есть модульные тесты: `Tests/Collision.CollisionCore.cpp`.
 
 Для OLC: на хосте столкновения — часть общей физики. На клиенте их нужно выключать, чтобы
@@ -436,6 +436,7 @@ Orbiter развивается, и OLC должен идти за ним к сл
 | 2026-11-17 | `a7a3396e..a7a3396e` | Новых коммитов нет; новых тегов и релизов нет | Нет | `a7a3396e` |
 | 2026-11-18 | `a7a3396e..a7a3396e` | Новых коммитов нет; новых тегов и релизов нет | Нет | `a7a3396e` |
 | 2026-11-19 | `a7a3396e..a7a3396e` | Новых коммитов нет; новых тегов и релизов нет | Нет | `a7a3396e` |
+| 2026-11-23 | `a7a3396e..48c30c77` | 7 коммитов: `New CLI options (#721)` — `cmdline.cpp/.h`, `Config.cpp/.h`, `Orbiter.cpp/.h`, `TabVideo.cpp/.h` (новые ключи `-n --cfgname`, `-o`, `-O`, `-I`, `-i`, `-P`, `-R`, `-G`; `Config.cpp` переписан под чтение и запись из потоков); `Fix incorrect menu command ID assignment (#741)` — `RegisterMenuCmd` возвращал идентификатор на единицу больше выданного; `Don't error when several menu items have the same name` — `MenuInfoBar.cpp`; D3D9 `Mesh.cpp` (флаг обновления оболочки после правки группы) | Затронута карта: ссылки на строки `Orbiter.cpp` пересчитаны (+24 до 1100, +25 после; проверено по именам функций), `Config.cpp` — `:617`; раздел 15 о командной строке переписан: теперь есть выбор файла настроек (`-n`), запрет записи (`-o`), старт на паузе (`-P`) и без графики (`-G`). SDK не менялся. Концепцию OLC не меняет: ключи — возможное улучшение запуска нескольких экземпляров, решение за владельцем; `RegisterMenuCmd` плагином OLC не используется | `48c30c77` |
 
 ## 14. Плагин вне кадра: пауза, окна, потоки
 
@@ -443,7 +444,7 @@ Orbiter развивается, и OLC должен идти за ним к сл
 
 ### Главный цикл
 
-`Orbiter::Run` (`Orbiter.cpp:1027-1087`) за один оборот делает одно из двух:
+`Orbiter::Run` (`Orbiter.cpp:1051-1111`) за один оборот делает одно из двух:
 
 - если в очереди Windows есть сообщение — обрабатывает его (`DispatchMessage`);
 - иначе, во время сессии, делает шаг: `BeginTimeStep` → `UpdateWorld` → `EndTimeStep` →
@@ -458,9 +459,9 @@ Orbiter развивается, и OLC должен идти за ним к сл
 
 | Колбэк | На паузе |
 |---|---|
-| `clbkPreStep`, `clbkPostStep` | Нет: только при `bRunning` (`Orbiter.cpp:1949, 1960`) |
+| `clbkPreStep`, `clbkPostStep` | Нет: только при `bRunning` (`Orbiter.cpp:1974, 1985`) |
 | `clbkProcessKeyboard*` | Да, но только у активного окна |
-| `clbkDeleteVessel` | Может прийти: удаление кораблей выполняется каждый кадр (`Orbiter.cpp:1964`) |
+| `clbkDeleteVessel` | Может прийти: удаление кораблей выполняется каждый кадр (`Orbiter.cpp:1989`) |
 | Отрисовка окон ImGui (`ImGuiDialog::OnDraw`) | Да, если есть графический клиент и окно открыто |
 | Сообщения своему окну Windows (`WM_TIMER`, `WM_APP`) | Да, всегда: на паузе, при неактивном окне, в консольном режиме |
 
@@ -471,10 +472,10 @@ Orbiter развивается, и OLC должен идти за ним к сл
 ### Как применяются команды времени
 
 - `oapiSetPause` только запоминает запрос; пауза меняется в начале следующего шага, там же
-  вызывается `clbkPause` (`Orbiter.cpp:1189-1193, 1742-1751`).
+  вызывается `clbkPause` (`Orbiter.cpp:1213-1217, 1766-1775`).
 - `oapiSetTimeAcceleration` срабатывает сразу, в том числе на паузе, и сразу вызывает
   `clbkTimeAccChanged`. Ошибка ядра: оба аргумента колбэка — новое значение
-  (`Orbiter.cpp:1418-1422`), прежнее ускорение плагин должен помнить сам.
+  (`Orbiter.cpp:1442-1446`), прежнее ускорение плагин должен помнить сам.
 - `oapiSetSimMJD` сразу выполняет прыжок во времени и вызывает `clbkTimeJump`.
 
 ### Потоки
@@ -506,12 +507,18 @@ Orbiter развивается, и OLC должен идти за ним к сл
   `Interpreter.cpp:70`), поиска окна другой копии нет.
 - **Корень — текущий каталог процесса**, а не каталог exe. Все пути относительные:
   `Orbiter.cfg`, `Orbiter.log`, `Config\`, `Scenarios\`, `Modules\Plugin\`
-  (`Orbiter.cpp:72, 207, 396, 443`, `Config.cpp:35-42`).
-- **Ключей командной строки для выбора конфигурации или каталогов нет.** Все ключи
-  (`cmdline.cpp:166-178`): `-S/--scenario`, `-s/--scenariox` (сценарий и выход после
+  (`Orbiter.cpp:74, 209, 398, 455`, `Config.cpp:35-42`). Имя файла настроек теперь можно сменить ключом `-n/--cfgname` (см. ниже).
+- **Ключей для выбора каталогов нет, но имя файла настроек выбрать можно** (с 2026-11-23, #721).
+  Все ключи (`cmdline.cpp:165-188`): `-S/--scenario`, `-s/--scenariox` (сценарий и выход после
   сессии), `-x/--fastexit`, `-v/--openvideotab`, `-l/--keeplog`, `-f/--fixedstep`,
   `-T/--maxsystime`, `-t/--maxsimtime`, `--maxframes`, `-p/--plugin` (включить плагин
-  `Modules\Plugin\<имя>.dll`), `-h/--help`.
+  `Modules\Plugin\<имя>.dll`), `-h/--help`; новые: `-n/--cfgname=<имя>` (файл настроек вместо
+  `Orbiter.cfg`), `-o/--cfgreadonly` (не писать настройки), `-O/--cfgcoutonly` (писать в stdout),
+  `-I/--cfgcinonly` и `-i/--cfgcinadd` (читать настройки из stdin), `-P/--paused` и
+  `-R/--unpaused` (старт на паузе или нет; `-t` и `--maxframes` сами включают «без паузы»),
+  `-G/--nographics` (не загружать графический клиент, только консольный режим).
+  Эти ключи OLC пока не использует; `-n` и `-o` позволили бы запускать несколько экземпляров
+  с разными настройками из одного каталога (раздел ниже), решение — за владельцем.
 - **Из одного каталога два экземпляра мешают друг другу:**
   - `Orbiter.cfg` перезаписывается;
   - `Orbiter.log` обрезается вторым экземпляром;
@@ -547,7 +554,7 @@ DirectInput и D3D9 при двух процессах, проверяется �
 - Окно пункта — обычный модальный диалог Win32 из ресурсов DLL: ImGui в Launchpad нет,
   он создаётся только на сессию. Образцы: `Orbitersdk/samples/LaunchpadParamTemplate`,
   `Src/Plugin/LaunchpadExtensions/AtmConfig`.
-- `clbkWriteConfig` вызывается перед запуском каждой сессии (`Orbiter.cpp:685-686`): это
+- `clbkWriteConfig` вызывается перед запуском каждой сессии (`Orbiter.cpp:709-710`): это
   единственный момент «сейчас стартует сценарий», отменить запуск из него нельзя.
 - **Публичного API для запуска сценария нет**, но Launchpad — обычный диалог Win32 в том же
   процессе, и плагин может выбрать сценарий и нажать «Launch» сам (раздел 18, проверено на
@@ -558,12 +565,12 @@ DirectInput и D3D9 при двух процессах, проверяется �
 
 - Класс `ImGuiDialog` (переопределяется `OnDraw`), открытие — `oapiOpenDialog(ImGuiDialog*)`.
   Отрисовка идёт из `Render3DEnvironment` каждый кадр, в том числе на паузе
-  (`Orbiter.cpp:997-1006`).
+  (`Orbiter.cpp:1021-1030`).
 - Образец — `Src/Plugin/Framerate/Framerate.cpp`: модуль наследует и `Module`, и
   `ImGuiDialog`. Плагин подключает `imgui.h` и линкуется с ImGui из сборки Orbiter.
 - Открыть окно игроку: `oapiRegisterCustomCmd` (список по Ctrl+F4) и
   `oapiRegisterCustomMenuCmd` (кнопка в меню). Пока фокус в окне ImGui, оно забирает
-  клавиатуру (`Orbiter.cpp:2523-2531`).
+  клавиатуру (`Orbiter.cpp:2548-2556`).
 - Подвохи: `oapiOpenDialog` вне сессии падает — менеджера окон нет
   (`OrbiterAPI.cpp:2182-2186`); менеджер окон пересоздаётся в каждой сессии; без
   графического клиента ImGui нет.
@@ -576,7 +583,7 @@ DirectInput и D3D9 при двух процессах, проверяется �
 - `oapiCreateAnnotation` — постоянный текст на экране, только в сессии и с графическим
   клиентом. С коммита `dabade26` надпись рисуется через ImGui: `DialogManager::ImGuiNewFrame`
   обходит все надписи (`DlgMgr.cpp:571-573`), поэтому она видна и на паузе, но пропадает
-  вместе с окнами, когда интерфейс скрыт (`Orbiter.cpp:1000-1001`). Текст ожидается в UTF-8;
+  вместе с окнами, когда интерфейс скрыт (`Orbiter.cpp:1024-1025`). Текст ожидается в UTF-8;
   строка, которая не является корректным UTF-8, считается Windows-1252 и перекодируется
   (`ScreenAnnotation::SetText`, `GraphicsAPI.cpp:837`). Вызов SDK и ABI прежние; `GraphicsClient::clbkCreateAnnotation`
   помечен устаревшим и больше не используется ядром.
@@ -649,13 +656,13 @@ DirectInput и D3D9 при двух процессах, проверяется �
 Разведка 2026-11-17: главный риск этапа 2 — сможет ли плагин клиента запустить мир,
 присланный хостом. Проверено одноразовым плагином на стенде (Windows 11 ARM, D3D9Client).
 
-**Что делает ядро при закрытии сессии** (`Orbiter::CloseSession`, `Orbiter.cpp:889`), по
+**Что делает ядро при закрытии сессии** (`Orbiter::CloseSession`, `Orbiter.cpp:913`), по
 порядку:
 
-1. сохраняет мир в `Scenarios\(Current state).scn` (`Orbiter.cpp:898`);
+1. сохраняет мир в `Scenarios\(Current state).scn` (`Orbiter.cpp:922`);
 2. показывает Launchpad — тот при показе выделяет в списке `(Current state)`
    (`TabScenario.cpp:252`, `RefreshList`);
-3. удаляет мир и только потом вызывает `clbkSimulationEnd` у плагинов (`Orbiter.cpp:933`).
+3. удаляет мир и только потом вызывает `clbkSimulationEnd` у плагинов (`Orbiter.cpp:957`).
 
 Кнопка «Launch» (`IDLAUNCH = 1000`, `resource.h:135`) берёт выделенный в списке сценарий
 (`IDC_SCN_LIST = 1090`) и вызывает `Orbiter::Launch` (`Launchpad.cpp:339-342`). Launchpad —
@@ -771,14 +778,14 @@ DirectInput и D3D9 при двух процессах, проверяется �
 
 ### Как устроена запись
 
-- Запись включает только `Orbiter::ToggleRecorder` (`Orbiter.cpp:1550`): клавиша Ctrl+C
-  (`Keymap.cpp:214`, `Orbiter.cpp:2297`) или диалог `DlgRecorder` (`DlgRecorder.cpp:38-52`).
+- Запись включает только `Orbiter::ToggleRecorder` (`Orbiter.cpp:1574`): клавиша Ctrl+C
+  (`Keymap.cpp:214`, `Orbiter.cpp:2322`) или диалог `DlgRecorder` (`DlgRecorder.cpp:38-52`).
   Функции SDK для включения записи нет; метод класса `Orbiter` из плагина не вызвать. В SDK есть
   только чтение признака `VESSEL::Recording`/`Playback` и `VESSEL::RecordEvent`
   (`VesselAPI.h:4117-4141`, `Vessel.cpp:10244-10257`), которые работают, если запись уже идёт.
 - Клавиша приходит из окна рендера, поэтому на сервере без графики включить запись штатно нечем.
   Передать клавишу ядру из плагина SDK не позволяет (`SendBufferedKey` действует на корабль,
-  `VesselAPI.h:3265`). Запись во время воспроизведения запрещена (`Orbiter.cpp:1552`).
+  `VesselAPI.h:3265`). Запись во время воспроизведения запрещена (`Orbiter.cpp:1576`).
 - Каждый корабль в каждом кадре вызывает `Vessel::FRecorder_Save` (`Vessel.cpp:7236`), если у него
   `bFRrecord`; признак выставляет только `ToggleRecorder`.
 
@@ -793,7 +800,7 @@ DirectInput и D3D9 при двух процессах, проверяется �
 | `<корабль>.att` | `STARTMJD`, `REF`, `FRM ECLIPTIC` или `HORIZON`; строки «время a0 a1 a2» (углы Эйлера) |
 | `<корабль>.atc` | События корабля: «время ENG 0:0.50 1:…» (уровни двигателей), `NAVMODE`, `RCSMODE`, `UNDOCK`, `ATTACH`, `DETACH`, `LANDED`, `TAKEOFF`, `LIGHTSOURCE` и собственные события `RecordEvent` |
 | `system.dat` | События мира: `TACC` (ускорение времени), `CAMERA`, `FOCUS`, `NOTE`, `JUMPTOTIME`, `ENDSESSION` |
-| `Playback\<имя>.scn` | Сценарий начала записи (`SavePlaybackScn`, `Orbiter.cpp:1533`); у записываемых кораблей в нём строка `FLIGHTDATA` (`Vessel.cpp:8403`) |
+| `Playback\<имя>.scn` | Сценарий начала записи (`SavePlaybackScn`, `Orbiter.cpp:1557`); у записываемых кораблей в нём строка `FLIGHTDATA` (`Vessel.cpp:8403`) |
 
 - Частота выборки: в свободном полёте строка `.pos` не реже чем раз в 2 с (`max_step`), чаще при
   повороте вектора скорости больше чем на 0,5° (`cddir < 0.995`), и при смене состояния (посадка,
@@ -801,7 +808,7 @@ DirectInput и D3D9 при двух процессах, проверяется �
   скорости (`FlightRecorder.cpp:479+`), поэтому плотнее писать не требуется.
 - Воспроизведение начинается, когда в сценарии есть строка `Playback <имя>` (`State.cpp:94`) и у
   кораблей `FLIGHTDATA`: корабли читают свои файлы (`FRecorder_Read`, `Vessel.cpp:764`), ядро
-  открывает `system.dat` (`Orbiter.cpp:810-812`). Корабли в воспроизведении ядро ведёт само и
+  открывает `system.dat` (`Orbiter.cpp:834-836`). Корабли в воспроизведении ядро ведёт само и
   игнорирует их физику и ввод (`bFRplayback`); по окончании файла воспроизведение завершается
   (`FRecorder_CheckEnd`).
 - Формат без версии и без проверки сумм; неизвестные строки `.atc` передаются модулю корабля через

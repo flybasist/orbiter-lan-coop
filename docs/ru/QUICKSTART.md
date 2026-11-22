@@ -38,7 +38,7 @@
 ```bat
 git clone https://github.com/orbitersim/orbiter.git
 cd orbiter
-git checkout a7a3396e
+git checkout 48c30c77
 cmake --preset windows-x64-release
 cmake --build --preset windows-x64-release
 ```

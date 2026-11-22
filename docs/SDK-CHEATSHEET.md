@@ -5,7 +5,7 @@
 "What to call in order to…" — only the functions OLC needs. Why exactly so and what is inside — in
 [ORBITER-INTERNALS.md](ORBITER-INTERNALS.md). Headers: `Orbitersdk/include/OrbiterAPI.h`
 (`oapi*` functions), `VesselAPI.h` (the `VESSEL` class), `ModuleAPI.h` (the `oapi::Module` class).
-The base commit is `a7a3396e`. Everything was obtained by reading the code; behaviour is checked on the rigs as the stages go.
+The base commit is `48c30c77`. Everything was obtained by reading the code; behaviour is checked on the rigs as the stages go.
 
 ## 1. Plugin life cycle
 

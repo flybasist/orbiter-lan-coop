@@ -4,8 +4,8 @@
 
 This describes only what OLC relies on. It is not a full description of Orbiter.
 
-- **Base commit:** `a7a3396e6c3104a05fd5ac55736de75e4c0e921f` (main, 2026-11-12).
-  All references like `Src/Orbiter/Orbiter.cpp:1089` are paths and lines in this commit.
+- **Base commit:** `48c30c77750587f6af8f59c3a7077161f838d378` (main, 2026-11-22).
+  All references like `Src/Orbiter/Orbiter.cpp:1113` are paths and lines in this commit.
 - **Where to read:** a clone of `orbitersim/orbiter` (the owner's is `~/Documents/github/orbiter`).
   The clone is read-only: nothing is changed in it, it is only updated from GitHub.
 - **When the base commit changes**, the lines are checked again and this file is updated
@@ -38,22 +38,22 @@ The core is built on global variables. Important for the plugin:
 
 ## 3. The simulation frame
 
-`Orbiter::SingleFrame` — `Src/Orbiter/Orbiter.cpp:1089`:
+`Orbiter::SingleFrame` — `Src/Orbiter/Orbiter.cpp:1113`:
 
-1. `BeginTimeStep` (`Orbiter.cpp:1740`): handle a pause request, compute the step.
-   `td.BeginStep` (`:1774`) computes the new time `SimT1 = SimT0 + SimDT`.
-2. `UpdateWorld` (`Orbiter.cpp:1946`):
-   1. `ModulePreStep` (`:1949`, implementation `:1916`) — `clbkPreStep` of vessels, then of plugins.
+1. `BeginTimeStep` (`Orbiter.cpp:1764`): handle a pause request, compute the step.
+   `td.BeginStep` (`:1798`) computes the new time `SimT1 = SimT0 + SimDT`.
+2. `UpdateWorld` (`Orbiter.cpp:1971`):
+   1. `ModulePreStep` (`:1974`, implementation `:1941`) — `clbkPreStep` of vessels, then of plugins.
       `g_bStateUpdate = false`;
    2. `g_bStateUpdate = true`; during recording playback — `FRecorder_Play`;
    3. `PlanetarySystem::Update` (`Src/Orbiter/Psys.cpp:815`) — bodies, forces, vessels;
-   4. `ModulePostStep` (`:1960`, implementation `:1931`) — `clbkPostStep` of vessels, then of plugins.
+   4. `ModulePostStep` (`:1985`, implementation `:1956`) — `clbkPostStep` of vessels, then of plugins.
       **Still inside the update phase**;
    5. `g_bStateUpdate = false`, `KillVessels` — deleting vessels marked for deletion.
-3. `EndTimeStep` (`Orbiter.cpp:1782`): `FinaliseUpdate` (`Psys.cpp:827`) — swapping the state
+3. `EndTimeStep` (`Orbiter.cpp:1806`): `FinaliseUpdate` (`Psys.cpp:827`) — swapping the state
    buffers, touchdown and landing checks, vessel collisions, auto-docking, flight recording.
-   `td.EndStep` (`:1790`) — `SimT0 = SimT1`.
-4. `UserInput` (`Orbiter.cpp:1980`) — keyboard, mouse, joystick (section 7).
+   `td.EndStep` (`:1814`) — `SimT0 = SimT1`.
+4. `UserInput` (`Orbiter.cpp:2005`) — keyboard, mouse, joystick (section 7).
 5. Rendering.
 
 Input is processed **after** the physics, so it affects the next frame.
@@ -86,18 +86,18 @@ Check at stage 1.
 
 ## 4. Time
 
-- The step comes from the real clock (`std::chrono::steady_clock`) — `Orbiter.cpp:1740`.
+- The step comes from the real clock (`std::chrono::steady_clock`) — `Orbiter.cpp:1764`.
   The first three frames after loading are a fixed 10 ms, the step is capped at 0.1 s.
   So two computers never compute the same way: deterministic lockstep is impossible.
 - `oapiGetSysTime` is the sum of these steps (`td.SysT0`, `OrbiterAPI.cpp:994`), so a frame longer
   than 0.1 s counts as 0.1 s there; latency measurements need the real clock.
-- Warp — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1363`) → `TimeData::SetWarp`
+- Warp — `Orbiter::SetWarpFactor` (`Orbiter.cpp:1387`) → `TimeData::SetWarp`
   (`TimeData.h:31`). A smooth transition (`TWarpDelay`, `TimeData.cpp:55-63`) happens only with
   a non-zero delay; `oapiSetTimeAcceleration` passes a delay of 0 (`OrbiterAPI.cpp:1034-1037`),
   that is, it changes the warp at once (checked on a test rig on 2026-11-17).
-- Pause — `Orbiter::Pause` (`Orbiter.cpp:1189`): the request is applied at the start of the next frame.
-  While paused, `clbkPreStep` and `clbkPostStep` are not called (`Orbiter.cpp:1949, 1960`).
-- A time jump — `Orbiter::Timejump` (`Orbiter.cpp:1820`), for vessels —
+- Pause — `Orbiter::Pause` (`Orbiter.cpp:1213`): the request is applied at the start of the next frame.
+  While paused, `clbkPreStep` and `clbkPostStep` are not called (`Orbiter.cpp:1974, 1985`).
+- A time jump — `Orbiter::Timejump` (`Orbiter.cpp:1844`), for vessels —
   `PlanetarySystem::Timejump` (`Psys.cpp:835`).
 
 SDK functions (`Orbitersdk/include/OrbiterAPI.h`):
@@ -208,23 +208,23 @@ For OLC:
 
 ### Processing order
 
-`Orbiter::UserInput` (`Orbiter.cpp:1980`):
+`Orbiter::UserInput` (`Orbiter.cpp:2005`):
 
-1. Clear `simkstate` and the `ctrlKeyboard`, `ctrlJoystick` arrays (`:1989-1990`).
-2. Read the DirectInput keyboard into `simkstate` (`:2014`).
-3. `clbkProcessKeyboardImmediate` of all plugins (`BroadcastImmediateKeyboardEvent`, `:2015`, implementation `:2480`).
+1. Clear `simkstate` and the `ctrlKeyboard`, `ctrlJoystick` arrays (`:2014-2015`).
+2. Read the DirectInput keyboard into `simkstate` (`:2039`).
+3. `clbkProcessKeyboardImmediate` of all plugins (`BroadcastImmediateKeyboardEvent`, `:2040`, implementation `:2505`).
    `simkstate` itself is passed, not a copy. If at least one returned `true`, standard processing
-   of held keys is skipped **for the whole frame** (`:2015-2019`).
-4. Single presses: `clbkProcessKeyboardBuffered` of plugins (`:2026`, implementation `:2491`), on press only;
+   of held keys is skipped **for the whole frame** (`:2040-2044`).
+4. Single presses: `clbkProcessKeyboardBuffered` of plugins (`:2051`, implementation `:2516`), on press only;
    a consumed key is removed from the queue.
-5. Joystick: `PollJoystick`, then `UserJoyInput_OnRunning` (`:2039`, `:2413`).
-6. The sum of keyboard and joystick → `g_focusobj->ApplyUserAttitudeControls` (`:2048`).
+5. Joystick: `PollJoystick`, then `UserJoyInput_OnRunning` (`:2064`, `:2438`).
+6. The sum of keyboard and joystick → `g_focusobj->ApplyUserAttitudeControls` (`:2073`).
 
 All standard control is addressed **only to the vessel in focus**.
 
 ### Held keys
 
-`KbdInputImmediate_OnRunning` (`Orbiter.cpp:2204`) first gives the keys to the vessel
+`KbdInputImmediate_OnRunning` (`Orbiter.cpp:2229`) first gives the keys to the vessel
 (`ConsumeDirectKey` → `VESSEL2::clbkConsumeDirectKey`), and only then processes them itself.
 The table mapping keys to SDK calls is in [SDK-CHEATSHEET.md](SDK-CHEATSHEET.md), section 3.
 
@@ -260,7 +260,7 @@ Important details:
   `VESSEL::GetManualControlLevel (group, MANCTRL_ANYMODE, MANCTRL_JOYSTICK)` returns
   the stick deflection per RCS group (`VesselAPI.h:3093`, `Vessel.cpp:8587`).
   The throttle lever sets a permanent main engine level of the focus vessel
-  (`Orbiter.cpp:2435-2445`), it is visible through `GetThrusterGroupLevel`.
+  (`Orbiter.cpp:2460-2470`), it is visible through `GetThrusterGroupLevel`.
 - A plugin's own DirectInput polling will most likely not get the device while the core's joystick
   is on (exclusive mode). Not checked.
 
@@ -281,11 +281,11 @@ Empty when an ImGui window has taken the keyboard.
 
 ### Scenarios
 
-- `oapiSaveScenario (fname, desc)` (`OrbiterAPI.h:6375`, `Orbiter.cpp:1453`) writes **only to
+- `oapiSaveScenario (fname, desc)` (`OrbiterAPI.h:6375`, `Orbiter.cpp:1477`) writes **only to
   a file** in the `Scenarios` folder. Contents: description, system and date, focus, camera, panel,
   all vessels (`Vessel::Write`, `Vessel.cpp:8309`: name, class, `clbkSaveState` lines).
 - **A scenario cannot be loaded from a plugin at run time through the SDK.** There is no function;
-  the internal `Orbiter::Launch` (`Orbiter.cpp:679`) is called only from Launchpad and from the
+  the internal `Orbiter::Launch` (`Orbiter.cpp:703`) is called only from Launchpad and from the
   command line (`-s`). `oapiExitOrbiter` simply ends the process. But the plugin can
   close the session and press "Launch" in Launchpad itself — checked on a test rig, section 18.
 
@@ -294,10 +294,10 @@ Empty when an ImGui window has taken the keyboard.
 - Plugins are loaded once when Orbiter starts and live between sessions. Every session is
   a pair of `clbkSimulationStart` / `clbkSimulationEnd` on the same module object. All session
   state (vessel handles, tables) is reset in these callbacks.
-- `clbkSimulationEnd` is called **after** the world is destroyed (`Orbiter.cpp:933`, after
+- `clbkSimulationEnd` is called **after** the world is destroyed (`Orbiter.cpp:957`, after
   `DestroyWorld`), contrary to the description in `ModuleAPI.h:127`. Vessels must not be touched in it.
 - `clbkNewVessel` is not called for vessels from the scenario, only for those created at
-  run time, and before their setup is finished (`Orbiter.cpp:1253-1270`).
+  run time, and before their setup is finished (`Orbiter.cpp:1277-1294`).
 
 ### Creating and deleting
 
@@ -309,7 +309,7 @@ Empty when an ImGui window has taken the keyboard.
 - An add-on's internal state (the `clbkSaveState` lines) cannot be passed to a new vessel:
   `clbkLoadStateEx` is called only when a scenario is read.
 - `oapiDeleteVessel` (`OrbiterAPI.h:2886`) only marks the vessel; deletion happens at the end of the frame
-  (`KillVessels`, `Orbiter.cpp:1277`). Deleting the last vessel that can have the
+  (`KillVessels`, `Orbiter.cpp:1301`). Deleting the last vessel that can have the
   focus closes the session.
 
 ### How to recognize "the same vessel"
@@ -364,7 +364,7 @@ source" modelled on playback.
   (`SuperVessel.cpp:790-798`); the overlap check when
   imposing a state became deferred (section 5).
 - Turned on by the `VesselCollision` parameter in `Orbiter.cfg`, on by default
-  (`Src/Orbiter/Config.cpp:50`, `:610`).
+  (`Src/Orbiter/Config.cpp:50`, `:617`).
 - There are unit tests: `Tests/Collision.CollisionCore.cpp`.
 
 For OLC: on the host collisions are part of the shared physics. On the client they must be turned off so that
@@ -436,6 +436,7 @@ get stuck on a random commit between releases. So the main project is checked re
 | 2026-11-17 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 | 2026-11-18 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 | 2026-11-19 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
+| 2026-11-23 | `a7a3396e..48c30c77` | 7 commits: `New CLI options (#721)` — `cmdline.cpp/.h`, `Config.cpp/.h`, `Orbiter.cpp/.h`, `TabVideo.cpp/.h` (new switches `-n --cfgname`, `-o`, `-O`, `-I`, `-i`, `-P`, `-R`, `-G`; `Config.cpp` rewritten to read and write streams); `Fix incorrect menu command ID assignment (#741)` — `RegisterMenuCmd` returned an id one greater than the one issued; `Don't error when several menu items have the same name` — `MenuInfoBar.cpp`; D3D9 `Mesh.cpp` (update flag for the bounding box after a group edit) | The map is affected: line references into `Orbiter.cpp` recalculated (+24 before 1100, +25 after; checked by function names), `Config.cpp` — `:617`; section 15 on the command line rewritten: there is now a settings file choice (`-n`), write protection (`-o`), start paused (`-P`) and without graphics (`-G`). SDK unchanged. Does not change the OLC concept: the switches are a possible improvement for running several instances, the decision is the owner's; `RegisterMenuCmd` is not used by the OLC plugin | `48c30c77` |
 
 ## 14. The plugin outside the frame: pause, windows, threads
 
@@ -443,7 +444,7 @@ Research I1 (2026-11-07).
 
 ### The main loop
 
-`Orbiter::Run` (`Orbiter.cpp:1027-1087`) does one of two things per iteration:
+`Orbiter::Run` (`Orbiter.cpp:1051-1111`) does one of two things per iteration:
 
 - if the Windows queue has a message, it processes it (`DispatchMessage`);
 - otherwise, during a session, it makes a step: `BeginTimeStep` → `UpdateWorld` → `EndTimeStep` →
@@ -458,9 +459,9 @@ sending states to 20–30 Hz. In Launchpad the loop waits for messages (`GetMess
 
 | Callback | While paused |
 |---|---|
-| `clbkPreStep`, `clbkPostStep` | No: only with `bRunning` (`Orbiter.cpp:1949, 1960`) |
+| `clbkPreStep`, `clbkPostStep` | No: only with `bRunning` (`Orbiter.cpp:1974, 1985`) |
 | `clbkProcessKeyboard*` | Yes, but only for the active window |
-| `clbkDeleteVessel` | May come: vessel deletion runs every frame (`Orbiter.cpp:1964`) |
+| `clbkDeleteVessel` | May come: vessel deletion runs every frame (`Orbiter.cpp:1989`) |
 | Drawing ImGui windows (`ImGuiDialog::OnDraw`) | Yes, if there is a graphics client and the window is open |
 | Messages to your own Windows window (`WM_TIMER`, `WM_APP`) | Yes, always: while paused, with an inactive window, in console mode |
 
@@ -471,10 +472,10 @@ The reliable way is the plugin's own hidden window (`HWND_MESSAGE`) with a timer
 ### How time commands are applied
 
 - `oapiSetPause` only remembers the request; the pause changes at the start of the next step, where
-  `clbkPause` is also called (`Orbiter.cpp:1189-1193, 1742-1751`).
+  `clbkPause` is also called (`Orbiter.cpp:1213-1217, 1766-1775`).
 - `oapiSetTimeAcceleration` takes effect at once, including while paused, and calls
   `clbkTimeAccChanged` at once. A core bug: both callback arguments are the new value
-  (`Orbiter.cpp:1418-1422`), so the plugin must remember the previous warp itself.
+  (`Orbiter.cpp:1442-1446`), so the plugin must remember the previous warp itself.
 - `oapiSetSimMJD` performs the time jump at once and calls `clbkTimeJump`.
 
 ### Threads
@@ -506,12 +507,18 @@ Research I2 (2026-11-07).
   `Interpreter.cpp:70`), there is no search for another copy's window.
 - **The root is the process's current folder**, not the exe folder. All paths are relative:
   `Orbiter.cfg`, `Orbiter.log`, `Config\`, `Scenarios\`, `Modules\Plugin\`
-  (`Orbiter.cpp:72, 207, 396, 443`, `Config.cpp:35-42`).
-- **There are no command line switches to choose a configuration or folders.** All switches
-  (`cmdline.cpp:166-178`): `-S/--scenario`, `-s/--scenariox` (a scenario and exit after the
+  (`Orbiter.cpp:74, 209, 398, 455`, `Config.cpp:35-42`). The settings file name can now be changed with `-n/--cfgname` (see below).
+- **There are no switches to choose folders, but the settings file name can be chosen** (since 2026-11-23, #721).
+  All switches (`cmdline.cpp:165-188`): `-S/--scenario`, `-s/--scenariox` (a scenario and exit after the
   session), `-x/--fastexit`, `-v/--openvideotab`, `-l/--keeplog`, `-f/--fixedstep`,
   `-T/--maxsystime`, `-t/--maxsimtime`, `--maxframes`, `-p/--plugin` (enable the plugin
-  `Modules\Plugin\<name>.dll`), `-h/--help`.
+  `Modules\Plugin\<name>.dll`), `-h/--help`; new ones: `-n/--cfgname=<name>` (settings file instead of
+  `Orbiter.cfg`), `-o/--cfgreadonly` (do not write settings), `-O/--cfgcoutonly` (write to stdout),
+  `-I/--cfgcinonly` and `-i/--cfgcinadd` (read settings from stdin), `-P/--paused` and
+  `-R/--unpaused` (start paused or not; `-t` and `--maxframes` imply "unpaused"),
+  `-G/--nographics` (do not load a graphics client, console mode only).
+  OLC does not use these switches yet; `-n` and `-o` would allow several instances with
+  different settings from one folder (see the next item); the decision is the owner's.
 - **Two instances from one folder get in each other's way:**
   - `Orbiter.cfg` is overwritten;
   - `Orbiter.log` is truncated by the second instance;
@@ -547,7 +554,7 @@ Research I4 (2026-11-07).
 - The item's window is an ordinary modal Win32 dialog from the DLL resources: there is no ImGui in Launchpad,
   it is created only for a session. Examples: `Orbitersdk/samples/LaunchpadParamTemplate`,
   `Src/Plugin/LaunchpadExtensions/AtmConfig`.
-- `clbkWriteConfig` is called before every session starts (`Orbiter.cpp:685-686`): this is
+- `clbkWriteConfig` is called before every session starts (`Orbiter.cpp:709-710`): this is
   the only "a scenario is starting now" moment, and the start cannot be cancelled from it.
 - **There is no public API to start a scenario**, but Launchpad is an ordinary Win32 dialog in the same
   process, and the plugin can select a scenario and press "Launch" itself (section 18, checked on a
@@ -558,12 +565,12 @@ Research I4 (2026-11-07).
 
 - The `ImGuiDialog` class (`OnDraw` is overridden), opened with `oapiOpenDialog(ImGuiDialog*)`.
   Drawing happens from `Render3DEnvironment` every frame, including while paused
-  (`Orbiter.cpp:997-1006`).
+  (`Orbiter.cpp:1021-1030`).
 - The example is `Src/Plugin/Framerate/Framerate.cpp`: the module inherits both `Module` and
   `ImGuiDialog`. The plugin includes `imgui.h` and links with ImGui from the Orbiter build.
 - Opening a window for the player: `oapiRegisterCustomCmd` (the Ctrl+F4 list) and
   `oapiRegisterCustomMenuCmd` (a menu button). While an ImGui window has focus, it takes the
-  keyboard (`Orbiter.cpp:2523-2531`).
+  keyboard (`Orbiter.cpp:2548-2556`).
 - Catches: `oapiOpenDialog` crashes outside a session — there is no window manager
   (`OrbiterAPI.cpp:2182-2186`); the window manager is recreated in every session; without a
   graphics client there is no ImGui.
@@ -576,7 +583,7 @@ Research I4 (2026-11-07).
 - `oapiCreateAnnotation` — permanent text on screen, only in a session and with a graphics
   client. Since commit `dabade26` the label is drawn through ImGui: `DialogManager::ImGuiNewFrame`
   goes over all labels (`DlgMgr.cpp:571-573`), so it is visible while paused too, but disappears
-  together with the windows when the interface is hidden (`Orbiter.cpp:1000-1001`). The text is expected in UTF-8;
+  together with the windows when the interface is hidden (`Orbiter.cpp:1024-1025`). The text is expected in UTF-8;
   a string that is not valid UTF-8 is treated as Windows-1252 and converted
   (`ScreenAnnotation::SetText`, `GraphicsAPI.cpp:837`). The SDK call and the ABI are the same; `GraphicsClient::clbkCreateAnnotation`
   is marked deprecated and no longer used by the core.
@@ -649,13 +656,13 @@ there is no standard way to load it into an already living vessel on the client.
 Reconnaissance on 2026-11-17: the main risk of stage 2 is whether the client plugin can start the world
 sent by the host. Checked with a throwaway plugin on a test rig (Windows 11 ARM, D3D9Client).
 
-**What the core does when a session closes** (`Orbiter::CloseSession`, `Orbiter.cpp:889`), in
+**What the core does when a session closes** (`Orbiter::CloseSession`, `Orbiter.cpp:913`), in
 order:
 
-1. saves the world to `Scenarios\(Current state).scn` (`Orbiter.cpp:898`);
+1. saves the world to `Scenarios\(Current state).scn` (`Orbiter.cpp:922`);
 2. shows Launchpad — when shown, it selects `(Current state)` in the list
    (`TabScenario.cpp:252`, `RefreshList`);
-3. deletes the world and only then calls `clbkSimulationEnd` of the plugins (`Orbiter.cpp:933`).
+3. deletes the world and only then calls `clbkSimulationEnd` of the plugins (`Orbiter.cpp:957`).
 
 The "Launch" button (`IDLAUNCH = 1000`, `resource.h:135`) takes the scenario selected in the list
 (`IDC_SCN_LIST = 1090`) and calls `Orbiter::Launch` (`Launchpad.cpp:339-342`). Launchpad is
@@ -772,15 +779,15 @@ Orbiter's stock playback.
 
 ### How recording works
 
-- Recording is started only by `Orbiter::ToggleRecorder` (`Orbiter.cpp:1550`): the Ctrl+C key
-  (`Keymap.cpp:214`, `Orbiter.cpp:2297`) or the `DlgRecorder` dialog (`DlgRecorder.cpp:38-52`).
+- Recording is started only by `Orbiter::ToggleRecorder` (`Orbiter.cpp:1574`): the Ctrl+C key
+  (`Keymap.cpp:214`, `Orbiter.cpp:2322`) or the `DlgRecorder` dialog (`DlgRecorder.cpp:38-52`).
   The SDK has no function to start recording, and a plugin cannot call a method of class `Orbiter`.
   The SDK only offers `VESSEL::Recording`/`Playback` and `VESSEL::RecordEvent`
   (`VesselAPI.h:4117-4141`, `Vessel.cpp:10244-10257`), which work when a recording is already
   running.
 - The key arrives from the render window, so a server without graphics has nothing to start the
   stock recording with. The SDK does not let a plugin pass a key to the core (`SendBufferedKey`
-  acts on a vessel, `VesselAPI.h:3265`). Recording during playback is forbidden (`Orbiter.cpp:1552`).
+  acts on a vessel, `VesselAPI.h:3265`). Recording during playback is forbidden (`Orbiter.cpp:1576`).
 - Every vessel calls `Vessel::FRecorder_Save` each frame (`Vessel.cpp:7236`) if it has `bFRrecord`;
   only `ToggleRecorder` sets that flag.
 
@@ -795,7 +802,7 @@ Directory `Flights\<name>\` (`FlightRecorder.cpp:776-790`), all files are text. 
 | `<vessel>.att` | `STARTMJD`, `REF`, `FRM ECLIPTIC` or `HORIZON`; lines "time a0 a1 a2" (Euler angles) |
 | `<vessel>.atc` | Vessel events: "time ENG 0:0.50 1:…" (engine levels), `NAVMODE`, `RCSMODE`, `UNDOCK`, `ATTACH`, `DETACH`, `LANDED`, `TAKEOFF`, `LIGHTSOURCE` and custom `RecordEvent` events |
 | `system.dat` | World events: `TACC` (time acceleration), `CAMERA`, `FOCUS`, `NOTE`, `JUMPTOTIME`, `ENDSESSION` |
-| `Playback\<name>.scn` | The scenario at the start of the recording (`SavePlaybackScn`, `Orbiter.cpp:1533`); recorded vessels carry a `FLIGHTDATA` line in it (`Vessel.cpp:8403`) |
+| `Playback\<name>.scn` | The scenario at the start of the recording (`SavePlaybackScn`, `Orbiter.cpp:1557`); recorded vessels carry a `FLIGHTDATA` line in it (`Vessel.cpp:8403`) |
 
 - Sampling rate: in free flight a `.pos` line at least every 2 s (`max_step`), more often when the
   velocity vector turns by more than 0.5° (`cddir < 0.995`), and on a state change (landing,
@@ -803,7 +810,7 @@ Directory `Flights\<name>\` (`FlightRecorder.cpp:776-790`), all files are text. 
   velocity (`FlightRecorder.cpp:479+`), so denser writing is not required.
 - Playback starts when the scenario has a `Playback <name>` line (`State.cpp:94`) and the vessels
   have `FLIGHTDATA`: vessels read their files (`FRecorder_Read`, `Vessel.cpp:764`), the core
-  opens `system.dat` (`Orbiter.cpp:810-812`). The core drives vessels in playback itself and
+  opens `system.dat` (`Orbiter.cpp:834-836`). The core drives vessels in playback itself and
   ignores their physics and input (`bFRplayback`); playback ends with the end of the file
   (`FRecorder_CheckEnd`).
 - The format has no version and no checksums; unknown `.atc` lines are passed to the vessel

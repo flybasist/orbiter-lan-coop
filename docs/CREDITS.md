@@ -9,7 +9,7 @@ people's work and on what terms.
 
 - **What it is:** headers and libraries for Orbiter add-ons (`Orbitersdk/include`,
   `orbiter.lib`, `Orbitersdk.lib`).
-- **Where from:** https://github.com/orbitersim/orbiter, base commit `a7a3396e`.
+- **Where from:** https://github.com/orbitersim/orbiter, base commit `48c30c77`.
 - **Terms:** MIT License, © Martin Schweiger. `Orbitersdk.lib` is static and its code goes into
   the plugin DLL. `Orbitersdk.lib` also contains Dear ImGui (MIT, © Omar Cornut) and ImPlot
   (MIT, © Evan Pezent). The texts of all three licenses are in `tools/package/THIRD-PARTY-NOTICES.txt`
