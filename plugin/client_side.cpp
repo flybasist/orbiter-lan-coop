@@ -7,7 +7,6 @@
 #include <sstream>
 
 #include "player_summary.h"
-#include "protocol.h"
 #include "scenario_launch.h"
 #include "vessel_control.h"
 #include "wall_clock.h"

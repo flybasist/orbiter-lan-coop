@@ -6,7 +6,7 @@ OLC is a plugin for the Orbiter space flight simulator that lets several people 
 simulation from different computers on a local network. Version 0.1 (the `v0.1` tag) is the first
 version for tests by people: a pilot connects with a button in Launchpad, gets the host's world and flies their own
 vessel, everyone sees the dockings and vessel mechanisms, the flight director sets a shared pause and
-time acceleration, saves the world and records the flight; the host computes the physics. What is done
+time acceleration, saves the world and records the flight with the stock Orbiter recorder; the host computes the physics. What is done
 and what is next — `PLAN.md` and `CHANGELOG.md`.
 
 ## Contents
@@ -54,7 +54,7 @@ Do not rescan the whole repository: the map below is enough.
 | `tools/smoothing/` | The `olc-smoothing` smoothing model: simulates host packets with delay and loss and compares ways of reconstructing motion on the client; `run-grid.sh` runs it over a parameter grid. Does not depend on Orbiter. Conclusions — `SMOOTHING.md`. |
 | `tools/netcheck/` | The `olc-netcheck` utility: a network check between two machines on the OLC network core — TCP handshake, UDP `PING`/`PONG`, loss and delay. How to use it — `STANDS.md`, section 10. |
 | `tools/doccheck/` | The `olc-doccheck` check: every document has a version in the other language and the structure of the pair matches (headings, tables, code blocks). Runs in CI. |
-| `tools/scenarios/` | Scenarios for the docking check by people (`Station approach`, `Two DG 20 m`, `Two DG 3 km`); copy them to `Scenarios\OLC-test` on the host. Described in `PILOT-GUIDE.md`. |
+| `tools/scenarios/` | Scenarios for the docking check by people (`Station approach`, `Two DG 20 m`, `Two DG 3 km`) and the extra `Two Shuttle-A Moon`; copy them to `Scenarios\OLC-test` on the host. Described in `PILOT-GUIDE.md`. |
 | `tools/rigtest/` | The helper plugin `OlcRigTest.dll` for test rigs, not part of OLC: creates, deletes and docks vessels and moves the focus on a schedule from `Config\OlcRigTest.cfg`. How to use it — `STANDS.md`, section 11. |
 | `tools/stands/` | Scripts for a Windows test rig: `setup-windows.ps1` — preparation for building Orbiter and OLC (Git, Visual Studio, DirectX SDK, firewall); `setup-autologon.ps1` — automatic sign-in of the user (the owner types the password); `register-run-task.ps1` and `run-orbiter.ps1` — starting Orbiter on the visible desktop on a command from SSH, with screenshots and presses in windows (Launchpad, the OLC dialog); `console-send.ps1` — console commands for Orbiter without graphics (pause, time acceleration). Test rig layout — `STANDS.md`. |
 | `tools/package/` | The `make-package.ps1` script builds the test package archives from a ready Orbiter installation ([PACKAGE.md](PACKAGE.md)). |
@@ -71,7 +71,7 @@ The Orbiter source code is not part of this repository. A separate clone of
    The only allowed action is updating from GitHub (`git pull --ff-only`) during an upstream
    check. The core map and all conclusions about it live here, in `docs/ORBITER-INTERNALS.md`.
 3. **The Orbiter base commit is the last checked commit of `main`:** currently `48c30c77`
-   (2026-11-12). All references to core code in the documentation are for it. The base commit
+   (2026-11-22). All references to core code in the documentation are for it. The base commit
    moves forward after every upstream check (the "Check against Orbiter" section in
    `docs/ORBITER-INTERNALS.md`), so that OLC does not get stuck between releases.
 4. **Only the host computes physics.** The client makes no decisions about vessel motion: it

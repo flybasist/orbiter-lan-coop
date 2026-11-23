@@ -420,7 +420,7 @@ get stuck on a random commit between releases. So the main project is checked re
      breaking compatibility; a maintainers' decision contradicting the OLC plan) — a question
      to the owner in `QUESTIONS.md` and an entry in `DECISIONS.md` after the answer.
 5. Moving the base commit: replace the hash in both language versions of `README.md` from `docs/`
-   (condition 3), this file, `SDK-CHEATSHEET.md`, `QUICKSTART.md`, `CREDITS.md`, the `ORBITER_COMMIT` variable in
+   (condition 3), this file, `SDK-CHEATSHEET.md`, `QUICKSTART.md`, `CREDITS.md`, `tools/package/THIRD-PARTY-NOTICES.txt`, the `ORBITER_COMMIT` variable in
    `.github/workflows/build.yml` (the full hash) and add a line to the log below.
 
 ### Check log

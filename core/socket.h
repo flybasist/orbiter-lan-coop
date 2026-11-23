@@ -97,7 +97,7 @@ public:
     ~TcpConnection();
     TcpConnection(const TcpConnection&) = delete;
     TcpConnection& operator=(const TcpConnection&) = delete;
-    // Move is needed so that accept can hand over a connection and connections can live in a vector.
+    // Move is needed so that HostLink can take over an accepted connection and keep connections in a vector.
     TcpConnection(TcpConnection&& other) noexcept;
     TcpConnection& operator=(TcpConnection&& other) noexcept;
 

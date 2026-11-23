@@ -944,8 +944,6 @@ void requestScenario(TestHost& host, olc::ClientLink& client) {
                   [&]() { return client.state() == olc::ClientLink::State::Closed; }));
 }
 
-// HELLO without a scenario number: the host sends its world as a file and closes the connection.
-// The file is close to the limit, so it goes out over many polls.
 // Finds a player in a PLAYERS list by name; nullptr if there is none.
 const olc::PlayerEntry* findPlayer(const std::vector<olc::PlayerEntry>& players,
                                    const std::string& name) {
@@ -1115,6 +1113,8 @@ void testPlayersList() {
     CHECK(findPlayer(boss.players(), "Ann") == nullptr);
 }
 
+// HELLO without a scenario number: the host sends its world as a file and closes the connection.
+// The file is close to the limit, so it goes out over many polls.
 void testScenarioRequest() {
     std::vector<uint8_t> world(olc::kMaxScenarioSize);
     for (size_t i = 0; i < world.size(); i++) {

@@ -80,7 +80,7 @@ private:
 
     void buildBodies();
     void buildShips();
-    // The number of the vessel the host flies; kNoVessel - none.
+    // The number of the vessel the host flies; olc::kNoVessel - none.
     uint16_t hostVessel() const;
     // Takes this vessel for the host if the host has none and the vessel is free.
     void takeHostVessel(OBJHANDLE vessel);
@@ -109,8 +109,6 @@ private:
     void logStats();
     void flushLog();
 
-    // hostVessel: "no vessel". net_id are handed out from 0, 65535 is never reached in practice.
-    static constexpr uint16_t kNoVessel = 0xFFFF;
 
     Config config_;
     bool headless_;

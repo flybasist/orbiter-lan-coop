@@ -44,8 +44,8 @@
 
 ## 3. Linux и macOS
 
-- **Linux через Wine/DXVK/Proton** уже работает (сообщество, OrbiterWiki). Проверим на
-  Steam Deck и Linux x86.
+- **Linux через Wine/DXVK/Proton** уже работает (сообщество, OrbiterWiki). Сервер OLC
+  без графики под Wine на Linux x86 проверен (задача 3.29); клиент с картинкой и Steam Deck — нет.
 - **Нативный Linux** делает сообщество: ветка `linux` (Gondos, по сообщениям на форуме) и PR #561 с переходом на SDL3
   (открыт с февраля 2025, +7,9/−10,6 тыс. строк). В `CMakePresets.json` есть пресеты сборки
   через `winegcc`. В рамках OLC нативный порт не делаем.

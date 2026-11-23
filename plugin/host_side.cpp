@@ -618,7 +618,8 @@ void HostSide::detectDocking() {
                 if (b.handle != mate || b.netId < a.netId) {
                     continue;  // each link is found once, from the side with the smaller net_id
                 }
-                // The SDK tells which vessel is docked to a port, but not to which of its ports.
+                // GetDockStatus tells which vessel is docked to a port, but not to which of its
+                // ports (that index is only in the VESSELSTATUS2 dock list, which is not read here).
                 // With two links between one pair, ports are matched in order, each port of b once:
                 // the pair may come out crossed, but there are exactly two links, not four.
                 VESSEL* vesselB = oapiGetVesselInterface(b.handle);
@@ -689,11 +690,11 @@ uint16_t HostSide::hostVessel() const {
             return ship.netId;
         }
     }
-    return kNoVessel;
+    return olc::kNoVessel;
 }
 
 void HostSide::takeHostVessel(OBJHANDLE vessel) {
-    if (headless_ || hostVessel() != kNoVessel) {
+    if (headless_ || hostVessel() != olc::kNoVessel) {
         return;  // the host keeps its vessel until it releases it (Ctrl+Alt+U)
     }
     for (const Ship& ship : ships_) {
@@ -720,7 +721,7 @@ void HostSide::onFocusChanged(OBJHANDLE vessel) {
 
 void HostSide::releaseHostVessel() {
     const uint16_t netId = hostVessel();
-    if (netId == kNoVessel) {
+    if (netId == olc::kNoVessel) {
         return;
     }
     table_.setOwner(netId, olc::kNoOwner);

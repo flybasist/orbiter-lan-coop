@@ -49,11 +49,11 @@ the host repeats them itself. `dt` is `oapiGetSimStep()`.
 | Numpad2/8/1/3/4/6 — RCS rotation (RCS mode 1) | `IncThrusterGroupLevel_SingleStep (THGROUP_ATT_PITCHUP…BANKRIGHT, 1.0)` every frame while held |
 | Numpad2/8/1/3/6/9 — RCS translation (RCS mode 2) | `IncThrusterGroupLevel_SingleStep (THGROUP_ATT_UP…BACK, 1.0)` |
 | Ctrl + the same — low RCS power | The same with `0.1` |
-| Numpad+ / Numpad- — full main / retro while held | `IncThrusterGroupLevel_SingleStep (THGROUP_MAIN, 1.0)` and `(THGROUP_RETRO, -1.0)`; the other way round for retro |
+| Numpad+ / Numpad- — full main / retro while held | `IncThrusterGroupLevel_SingleStep (THGROUP_MAIN, 1.0)` and `(THGROUP_RETRO, 1.0)`; for the focus vessel the core calls `OverrideMainLevel (±1.0)` |
 | Ctrl+Numpad+ / Ctrl+Numpad- — smooth throttle | Our own logic using `Get/SetThrusterGroupLevel` (below), step `0.2 * dt` |
 | Numpad* — kill main and retro | `SetThrusterGroupLevel (THGROUP_MAIN, 0)`, `(THGROUP_RETRO, 0)` |
 | Numpad0 / Numpad. — hover up / down | `IncThrusterGroupLevel (THGROUP_HOVER, ±0.2 * dt)` |
-| Delete / Insert — trim | Our own accumulator `trim ± 0.25 * dt` within ±1, then `SetControlSurfaceLevel` |
+| Delete / Insert — trim | `SetControlSurfaceLevel (AIRCTRL_ELEVATORTRIM, level ± 0.25 * dt, false)` within ±1, like `Vessel::IncTrim` in the core |
 | Comma / Period — left / right wheel brake | `SetWheelbrakeLevel (1.0, 1 or 2, false)` every frame while held |
 | Single keys: autopilots, RCS on/mode, undocking, add-on keys | `VESSEL::SendBufferedKey (key, true, kstate)` |
 | HUD keys | Do not forward: they act on the HUD of the host's focus vessel |
@@ -79,7 +79,7 @@ vessel (`ORBITER-INTERNALS.md`, section 23); OLC does not do it yet, not checked
 | Held keys | `clbkProcessKeyboardImmediate (kstate, simRunning)` | `true` turns off standard processing for the whole frame, including vessel keys |
 | Single presses | `clbkProcessKeyboardBuffered (key, kstate, simRunning)` | Press only; `true` removes the key from the queue |
 | Joystick: RCS | `GetManualControlLevel (group, MANCTRL_ANYMODE, MANCTRL_JOYSTICK)` | Values of the previous frame; works only if the joystick is enabled in Orbiter |
-| Joystick: throttle | `GetThrusterGroupLevel (THGROUP_MAIN)` of the focus vessel | The throttle lever sets a constant level |
+| Joystick: throttle | `GetThrusterGroupLevel (THGROUP_MAIN)` of the focus vessel | The throttle lever sets a constant level; the OLC client does not read it yet |
 | Keyboard outside callbacks | `oapiGetKeyState` | The state of the previous frame; empty when an ImGui window took the keyboard |
 | Mouse | `clbkProcessMouse` | `true` hides the event from the core |
 

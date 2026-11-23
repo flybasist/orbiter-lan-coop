@@ -38,7 +38,7 @@ What this means in practice:
 
 - **In look and controls** it is the same Orbiter: Launchpad, scenarios, MFDs, keys, DeltaGlider.
 - **Add-ons from 2016 most likely will not work in our build:** 32-bit modules do not load in a 64-bit
-  Orbiter. The tests do not need add-ons — only the stock DeltaGlider and the ISS.
+  Orbiter. The tests do not need add-ons — only stock vessels (DeltaGlider, Shuttle-A) and the ISS.
 - **There is no need to remove Orbiter 2016.** Our build goes into a separate folder (for example `C:\OLC`)
   and does not touch 2016. The planet textures can even be taken from the 2016 installation with one
   settings line (PACKAGE.md).

@@ -238,7 +238,7 @@ DLLCLBK void InitModule(HINSTANCE hDLL) {
 
 // Exit point: Orbiter calls it when unloading the DLL.
 // The core does not delete a module registered with oapiRegisterModule
-// (Orbiter.cpp:617, 656), so we delete it here.
+// (Orbiter::LoadModule and Orbiter::UnloadModule in Src/Orbiter/Orbiter.cpp), so we delete it here.
 DLLCLBK void ExitModule(HINSTANCE hDLL) {
     (void)hDLL;
     delete g_module;

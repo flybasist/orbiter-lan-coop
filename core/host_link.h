@@ -189,9 +189,8 @@ public:
     // The plugin saves the world once if it is not zero.
     int takeSaveRequests();
 
-    // Sends PLAYERS to all clients that finished the handshake. HostLink calls it itself; the
-    // plugin calls it after it changes the host's own vessel (together with broadcastOwnership,
-    // which already includes it).
+    // Sends PLAYERS to all clients that finished the handshake. HostLink calls it itself, and
+    // broadcastOwnership includes it.
     void broadcastPlayers();
 
     // How many clients finished the handshake (got WELCOME).

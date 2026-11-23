@@ -44,8 +44,8 @@ hooks can be proposed; a narrow goal — a LAN, 2–4 people.
 
 ## 3. Linux and macOS
 
-- **Linux via Wine/DXVK/Proton** already works (community, OrbiterWiki). We will check it on
-  a Steam Deck and Linux x86.
+- **Linux via Wine/DXVK/Proton** already works (community, OrbiterWiki). The OLC server
+  without graphics under Wine on Linux x86 is checked (task 3.29); a client with graphics and a Steam Deck are not.
 - **Native Linux** is being done by the community: the `linux` branch (Gondos, according to forum posts) and PR #561 moving to SDL3
   (open since February 2025, +7.9/−10.6 k lines). `CMakePresets.json` has build presets
   using `winegcc`. A native port is not part of OLC.

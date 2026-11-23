@@ -420,7 +420,7 @@ Orbiter развивается, и OLC должен идти за ним к сл
      ломающее совместимость; решение мейнтейнеров, противоречащее плану OLC) — вопрос
      владельцу в `QUESTIONS.md` и запись в `DECISIONS.md` после ответа.
 5. Перенос базового коммита: заменить хеш в обеих языковых версиях `README.md` из `docs/`
-   (условие 3), этого файла, `SDK-CHEATSHEET.md`, `QUICKSTART.md`, `CREDITS.md`, переменную `ORBITER_COMMIT` в
+   (условие 3), этого файла, `SDK-CHEATSHEET.md`, `QUICKSTART.md`, `CREDITS.md`, `tools/package/THIRD-PARTY-NOTICES.txt`, переменную `ORBITER_COMMIT` в
    `.github/workflows/build.yml` (полный хеш) и добавить строку в журнал ниже.
 
 ### Журнал сверок

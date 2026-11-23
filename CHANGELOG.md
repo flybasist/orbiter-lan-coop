@@ -2,6 +2,20 @@
 
 # CHANGELOG
 
+## Unreleased (branch `dev-0.2`)
+
+Changes after `v0.1`. The plugin code, the network core and the protocol have not changed: the round 1
+package stays current.
+
+- **Orbiter base commit** — `48c30c77` (check of 2026-11-23): the new Orbiter command line options are
+  described in `docs/ORBITER-INTERNALS.md`, section 15.
+- **Core build on Linux in GitHub Actions:** the `linux` job builds `olc-core` and runs the tests.
+- **The OLC server without graphics under Wine** on Linux x86 is checked with docking (task 3.29).
+- **Scenario** `tools/scenarios/Two Shuttle-A Moon.scn` — two Shuttle-A on the Moon; not part of the
+  round 1 package.
+- **Documents:** `docs/ORBITER-VERSIONS.md` (Orbiter 2016, 2024 and the OLC build for the testers),
+  agent permissions for autonomous work (`docs/README.md`), a check of the documents against the code.
+
 ## v0.1 — The first version for tests by people (2026-11-19)
 
 The `v0.1` tag on GitHub. This version goes to the space club: the round 1 test package and the

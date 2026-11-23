@@ -8,7 +8,7 @@ over a local network: several people in one simulation from different computers.
 > Status: version 0.1 — the first version for tests by people. A pilot connects with a button in
 > Launchpad, gets the host's world and flies their own vessel; everyone sees the dockings and vessel
 > mechanisms; the flight director sets a shared pause and time acceleration, saves the world and records
-> the flight. Checked on test rigs over the network between machines; docking of two pilots and a lesson
+> the flight with the stock Orbiter recorder. Checked on test rigs over the network between machines; docking of two pilots and a lesson
 > are yet to be checked by people.
 
 ## How it works
@@ -26,7 +26,7 @@ the vessels of two players works the same way as in a single-player game.
 
 ## Requirements
 
-- Windows 10/11 x64 on all computers (Linux via Wine or Proton is not checked).
+- Windows 10/11 x64 on all computers (on Linux via Wine only the server without graphics is checked).
 - The same Orbiter build and the same set of add-ons on all computers.
 - The computers are on one local network.
 

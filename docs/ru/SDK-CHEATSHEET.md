@@ -49,11 +49,11 @@
 | Numpad2/8/1/3/4/6 — RCS вращение (режим RCS 1) | `IncThrusterGroupLevel_SingleStep (THGROUP_ATT_PITCHUP…BANKRIGHT, 1.0)` каждый кадр, пока нажата |
 | Numpad2/8/1/3/6/9 — RCS перемещение (режим RCS 2) | `IncThrusterGroupLevel_SingleStep (THGROUP_ATT_UP…BACK, 1.0)` |
 | Ctrl + те же — малая мощность RCS | То же с `0.1` |
-| Numpad+ / Numpad- — полный главный / тормозной, пока нажата | `IncThrusterGroupLevel_SingleStep (THGROUP_MAIN, 1.0)` и `(THGROUP_RETRO, -1.0)`; для тормозного наоборот |
+| Numpad+ / Numpad- — полный главный / тормозной, пока нажата | `IncThrusterGroupLevel_SingleStep (THGROUP_MAIN, 1.0)` и `(THGROUP_RETRO, 1.0)`; ядро для корабля в фокусе вызывает `OverrideMainLevel (±1.0)` |
 | Ctrl+Numpad+ / Ctrl+Numpad- — газ плавно | Своя логика по `Get/SetThrusterGroupLevel` (ниже), шаг `0.2 * dt` |
 | Numpad* — выключить главный и тормозной | `SetThrusterGroupLevel (THGROUP_MAIN, 0)`, `(THGROUP_RETRO, 0)` |
 | Numpad0 / Numpad. — зависание больше / меньше | `IncThrusterGroupLevel (THGROUP_HOVER, ±0.2 * dt)` |
-| Delete / Insert — триммер | Свой накопитель `trim ± 0.25 * dt` в пределах ±1, затем `SetControlSurfaceLevel` |
+| Delete / Insert — триммер | `SetControlSurfaceLevel (AIRCTRL_ELEVATORTRIM, уровень ± 0.25 * dt, false)` в пределах ±1, как `Vessel::IncTrim` в ядре |
 | Comma / Period — тормоз левого / правого колеса | `SetWheelbrakeLevel (1.0, 1 или 2, false)` каждый кадр, пока нажата |
 | Разовые клавиши: автопилоты, RCS вкл/режим, расстыковка, клавиши дополнений | `VESSEL::SendBufferedKey (key, true, kstate)` |
 | Клавиши HUD | Не пересылать: действуют на HUD фокусного корабля хоста |
@@ -79,7 +79,7 @@
 | Удерживаемые клавиши | `clbkProcessKeyboardImmediate (kstate, simRunning)` | `true` отключает стандартную обработку на весь кадр, в том числе клавиши корабля |
 | Разовые нажатия | `clbkProcessKeyboardBuffered (key, kstate, simRunning)` | Только нажатие; `true` убирает клавишу из очереди |
 | Джойстик: RCS | `GetManualControlLevel (группа, MANCTRL_ANYMODE, MANCTRL_JOYSTICK)` | Значения прошлого кадра; работает, только если джойстик включён в Orbiter |
-| Джойстик: газ | `GetThrusterGroupLevel (THGROUP_MAIN)` фокусного корабля | Ручка газа ставит постоянный уровень |
+| Джойстик: газ | `GetThrusterGroupLevel (THGROUP_MAIN)` фокусного корабля | Ручка газа ставит постоянный уровень; клиент OLC её пока не читает |
 | Клавиатура вне колбэков | `oapiGetKeyState` | Состояние прошлого кадра; пусто, когда клавиатуру забрало окно ImGui |
 | Мышь | `clbkProcessMouse` | `true` скрывает событие от ядра |
 

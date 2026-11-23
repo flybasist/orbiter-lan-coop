@@ -195,7 +195,7 @@ controls a vessel; the host applies the latest one received.
 | `keys` | `u32` | Keys held right now, bits — section 7 |
 | `rot` | 3 × `f32` | Joystick: pitch, yaw, bank, −1…1 |
 | `lin` | 3 × `f32` | Joystick: translation up-down, left-right, forward-back, −1…1 |
-| `throttle` | `f32` | Throttle lever 0…1; −1 — no lever or it has not moved |
+| `throttle` | `f32` | Throttle lever 0…1; −1 — no lever or it has not moved. The version 0.1 client does not read the lever and always sends −1 |
 
 The client sends at most 60 packets per second. The host accepts `INPUT` only from the UDP
 address of the client that owns the vessel (`net_id`); input for someone else's vessel is dropped.

@@ -56,7 +56,7 @@ If the connection is lost, the vessel stays with the pilot for 60 seconds and th
 
 **Preparation.** On the host machine `Config\OrbiterLanCoop.cfg` has the line `Director = <FD name>`;
 the FD connects as a client with graphics under this name. The FD has no vessel: F3 selects any vessel
-for viewing only (the "observer - view only" message), the control keys go nowhere. Vessel collisions
+for viewing only (the "flight director - view only" message), the control keys go nowhere. Vessel collisions
 must be off everywhere (`VesselCollision = FALSE` in `Orbiter.cfg`, the package has it so): otherwise
 Orbiter itself sets the time acceleration back to x1 while vessels are close.
 

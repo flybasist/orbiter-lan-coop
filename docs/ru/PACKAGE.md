@@ -64,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File tools\package\make-package.ps1 -Orbiter
 ```
 
 Скрипт не берёт из установки то, что относится к одной машине: `Orbiter.cfg`, журналы, трассы,
-рабочие сценарии `OLC` и `OLC-test`, плагин `OlcRigTest`, SDK; начальный `Orbiter.cfg` он пишет сам. Архивы лежат в `OutDir`.
+рабочие сценарии `OLC` и `OLC-test`, плагин `OlcRigTest`, SDK и остатки сборки (`*.lib`, `CMakeLists.txt`); начальный `Orbiter.cfg` он пишет сам. Архивы лежат в `OutDir`.
 
 ## 4. Проверка 2026-11-18
 
@@ -84,4 +84,4 @@ Windows 11 ARM (Parallels, 3D): все три архива распаковал�
 `Director = FD`): надпись «flight director - view only», сводка игроков на экране; `T` и `R` — хост
 поставил ×10 и ×1, `Ctrl+Alt+S` — файл `save-...scn` на хосте, автосохранение пишется; `Ctrl+C` —
 запись в `Flights\` и `Scenarios\Playback\`, сценарий записи открывается и идёт при выключенном
-плагине. Контрольные суммы архивов — файл `SHA256SUMS.txt` рядом с ними.
+плагине. Контрольные суммы архивов — файл `SHA256SUMS.txt` рядом с ними; скрипт его не пишет, суммы посчитаны отдельно (`shasum -a 256 olc-*.zip`).

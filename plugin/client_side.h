@@ -63,7 +63,6 @@ public:
 
     void onDeleteVessel(OBJHANDLE vessel);
 
-
     // The focus changed (F3): take the new vessel if the pilot has none and it is free.
     void onFocusChanged(OBJHANDLE vessel);
 

@@ -30,7 +30,7 @@ Orbiter is a Windows x64 program. Everything else runs it through emulation or W
 |---|---|---|
 | Windows 10/11 x64 | Everything: build, host, client, host without graphics | The reference. At least one is needed |
 | Windows 11 ARM (a virtual machine on a Mac) | Everything, but Orbiter x64 runs through emulation | Convenient for development; FPS and smoothness are not meaningful |
-| Linux x64 + Wine or Proton (including Steam Deck) | Not checked; by the Orbiter Wiki Orbiter runs, so client and host; not the plugin build | Checking clients on Linux |
+| Linux x64 + Wine or Proton (including Steam Deck) | The OLC server without graphics under Wine 10 is checked (task 3.29); a client with graphics, Proton and Steam Deck are not checked; not the plugin build | A server without graphics; checking clients on Linux |
 | Linux x64 or ARM without Wine | Building and testing the `olc-core` network core | A second machine for network tests; Orbiter does not run |
 | macOS | Building and testing `olc-core`, the agent's session | Orbiter does not run natively; the project does not check Wine on Mac |
 | FreeBSD, other systems, 32-bit Windows | — | Supported by neither Orbiter nor OLC. Makes no sense |
@@ -248,7 +248,7 @@ orbiter-lan-coop.out/tools/netcheck/olc-netcheck client 192.168.1.10 47800 300 3
 
 The client goes through the `HELLO` → `WELCOME` handshake over TCP, then sends UDP `PING` at the
 `WORLD_STATE` rate and prints the loss, the round trip time (RTT: minimum, mean, percentiles
-50/95/99, maximum), the jitter and the share of replies later than 100 and 200 ms. Precision is about 1 ms: the polling
+50/95/99, maximum), the jitter and the share of replies later than 60 and 200 ms. Precision is about 1 ms: the polling
 loop sleeps for 1 ms.
 
 **How to read it.** The one-way delay is roughly half the RTT. The smoothing buffer on the

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <utility>
 
 #include "protocol.h"
 #include "serialize.h"
@@ -150,7 +149,7 @@ void ClientLink::poll(double now) {
                   std::to_string(static_cast<int>(kSilenceTimeout)) + " s");
             return;
         }
-        if (state_ == State::Ready && now >= nextPing_) {
+        if (now >= nextPing_) {
             sendPing(now);
         }
     }

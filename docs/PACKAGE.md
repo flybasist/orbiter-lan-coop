@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File tools\package\make-package.ps1 -Orbiter
 ```
 
 The script leaves out everything that belongs to one machine: `Orbiter.cfg`, logs, traces, the
-working `OLC` and `OLC-test` scenarios, the `OlcRigTest` plugin, the SDK; it writes the starting `Orbiter.cfg` itself. The archives are in `OutDir`.
+working `OLC` and `OLC-test` scenarios, the `OlcRigTest` plugin, the SDK and build leftovers (`*.lib`, `CMakeLists.txt`); it writes the starting `Orbiter.cfg` itself. The archives are in `OutDir`.
 
 ## 4. Check of 2026-11-18
 
@@ -86,4 +86,4 @@ empty folder on Windows 11 ARM (Parallels, 3D): all three archives unpacked with
 graphics (Windows 11 x64, `Director = FD`): the "flight director - view only" message, the player summary
 on the screen; `T` and `R` — the host set x10 and x1, `Ctrl+Alt+S` — a `save-...scn` file on the host,
 autosave is written; `Ctrl+C` — a recording in `Flights\` and `Scenarios\Playback\`, the recording
-scenario opens and runs with the plugin off. The archive checksums are in `SHA256SUMS.txt` next to them.
+scenario opens and runs with the plugin off. The archive checksums are in `SHA256SUMS.txt` next to them; the script does not write it, the sums were computed separately (`shasum -a 256 olc-*.zip`).

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <string>
 
-#include "protocol.h"
 #include "resource.h"
 #include "scenario_launch.h"
 #include "socket.h"

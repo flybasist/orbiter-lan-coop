@@ -1,7 +1,7 @@
 Third-party notices for OrbiterLanCoop.dll
 
 The plugin links Orbitersdk.lib of Orbiter (https://github.com/orbitersim/orbiter, base commit
-a7a3396e). That library contains code of Orbiter, Dear ImGui and ImPlot. Their licenses follow.
+48c30c77). That library contains code of Orbiter, Dear ImGui and ImPlot. Their licenses follow.
 
 ==============================================================================
 Orbiter SDK
