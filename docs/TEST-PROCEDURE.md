@@ -23,8 +23,8 @@ director mode: shared pause and time acceleration, saving the world and recordin
 | Role | Who | What they do |
 |---|---|---|
 | **Flight director (FD)** | The lesson leader | Keeps the order of the tests and the time, fills in the form (section 6), collects the logs |
-| **Pilot 1** | A student at computer 1 | Starts the server (`host`) with graphics and flies `GL-01` |
-| **Pilot 2** | A student at computer 2 | Connects (`client`) and flies `GL-02` |
+| **Pilot 1** | At computer 1 | Starts the server (`host`) with graphics and flies `GL-01` |
+| **Pilot 2** | At computer 2 | Connects (`client`) and flies `GL-02` |
 
 The minimum is two computers and two people: the FD can be one of the pilots. If there are more
 pairs, each pair goes through the tests separately, with its own server.
