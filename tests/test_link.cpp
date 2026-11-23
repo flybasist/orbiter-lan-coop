@@ -1395,6 +1395,29 @@ void testClientStop() {
     CHECK(hasLine(host.link.takeLog(), "OLC host: client 1 left (test finished)"));
 }
 
+// The host sends a message that the client does not read, then the client stops. Closing a
+// socket with unread data sends RST, and the host would lose BYE ("connection lost").
+void testClientStopWithUnreadData() {
+    TestHost host;
+    CHECK(host.start());
+    fillHost(host);
+
+    olc::ClientLink client;
+    CHECK(client.start(makeClientConfig(host), now()));
+    CHECK(waitFor(host.link, {&client}, [&]() { return host.link.readyClientCount() == 1; }));
+
+    olc::VesselAdded added;
+    added.name = "GL-NEW";
+    added.className = "DeltaGlider";
+    CHECK(host.table.addVessel(added.name, added.className, added.state.netId));
+    CHECK(host.link.sendVesselAdded(added));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));  // the data reaches the client socket
+
+    client.stop("test finished");  // no poll in between: the message stays unread
+    CHECK(waitFor(host.link, {}, [&]() { return host.link.clientCount() == 0; }));
+    CHECK(hasLine(host.link.takeLog(), "OLC host: client 1 left (test finished)"));
+}
+
 void testHostStop() {
     TestHost host;
     CHECK(host.start());
@@ -1532,6 +1555,7 @@ int main() {
     testPingPong();
     testUdpAddressFromPing();
     testClientStop();
+    testClientStopWithUnreadData();
     testHostStop();
     testBadUdp();
     testSilence();

@@ -72,6 +72,10 @@ void ClientLink::stop(const std::string& reason) {
         sendMessage(TcpType::Bye, body);
     }
     tcp_.flush();
+    // Read and drop what the host has sent: closing a socket with unread data makes
+    // Windows send RST instead of FIN, and then the host loses the BYE we just sent.
+    TcpFrameReader unread;
+    tcp_.receive(unread);
     close(reason);
 }
 

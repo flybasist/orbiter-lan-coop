@@ -10,6 +10,10 @@ Changes after `v0.1`. The protocol has not changed: the round 1 package works wi
   described in `docs/ORBITER-INTERNALS.md`, section 15.
 - **Core build on Linux in GitHub Actions:** the `linux` job builds `olc-core` and runs the tests.
 - **The OLC server without graphics under Wine** on Linux x86 is checked with docking (task 3.29).
+- **Clean client exit** (task 3.33): after `BYE`, `ClientLink::stop` reads and drops the incoming TCP
+  data, then closes the socket. Windows sends RST when a socket with unread data is closed, and the host
+  lost `BYE` ("client left (connection lost)" instead of "client session ended"). The test
+  `testClientStopWithUnreadData` failed on Windows before the fix and passes after it.
 - **The plugin version in the host log** (task 3.32): the line about a joining player now reads
   `player 'Ann' joined as client 1 (own scenario, plugin 0.1)` — the log shows who came with a different package.
 - **No code duplicates** (task 3.31): building a UDP packet, comparing `DOCK` links, what the host and
