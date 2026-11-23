@@ -184,3 +184,12 @@ the owner approved. Rules:
 10. **Git.** The agent commits a finished task to the branch of the next version and pushes it to
    GitHub (see "Rules for working on the project"); it does not commit to `main`; unfinished work
    does not go into a commit.
+11. **Agent permissions** (2026-11-23). The agent's sessions run in `auto` mode: a command without an explicit
+   permission is judged by Claude Code's automatic permission check, and it may refuse a scheduled run even
+   what the owner has allowed in words. So the owner writes the permissions for autonomous work into their own
+   `~/.claude/settings.json` (not into the repository): ssh and scp to the rigs given to the agent entirely,
+   `git add`, `git commit`, `git push origin dev-*` are allowed; a push to `main`, a push with `--force` and
+   docker are hard-denied; the owner's machine (`access: limited`) goes through the check. The agent does not
+   change its own permissions: it prepares the text, the owner pastes it. Commands are written in the form the
+   rule is written for (`ssh <machine> '<command>'`, with no options before the machine name). A refusal of the
+   check is no reason to work around it: a "stopped" note, a report to the main session, another task.
