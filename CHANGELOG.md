@@ -4,13 +4,16 @@
 
 ## Unreleased (branch `dev-0.2`)
 
-Changes after `v0.1`. The plugin code, the network core and the protocol have not changed: the round 1
-package stays current.
+Changes after `v0.1`. The protocol and the plugin's behaviour have not changed: the round 1 package
+stays current.
 
 - **Orbiter base commit** — `48c30c77` (check of 2026-11-23): the new Orbiter command line options are
   described in `docs/ORBITER-INTERNALS.md`, section 15.
 - **Core build on Linux in GitHub Actions:** the `linux` job builds `olc-core` and runs the tests.
 - **The OLC server without graphics under Wine** on Linux x86 is checked with docking (task 3.29).
+- **No code duplicates** (task 3.31): building a UDP packet, comparing `DOCK` links, what the host and
+  the client share in the plugin (`plugin/common.h`), the settings defaults come from the core
+  constants. The behaviour is the same, checked on the rig.
 - **Scenario** `tools/scenarios/Two Shuttle-A Moon.scn` — two Shuttle-A on the Moon; not part of the
   round 1 package.
 - **Documents:** `docs/ORBITER-VERSIONS.md` (Orbiter 2016, 2024 and the OLC build for the testers),
