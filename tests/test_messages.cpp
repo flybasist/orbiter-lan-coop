@@ -218,6 +218,16 @@ void testShortMessages() {
     CHECK(olc::readDock(rd, dockBack));
     CHECK(dockBack.a == 10 && dockBack.b == 11 && dockBack.portB == 1 && dockBack.docked == 1);
 
+    // The same link given in the other order, with another docked flag, is the same link.
+    olc::Dock swapped;
+    swapped.a = 11;
+    swapped.portA = 1;
+    swapped.b = 10;
+    swapped.portB = 0;
+    CHECK(olc::sameDockLink(dock, swapped));
+    swapped.portA = 0;  // another port of vessel 11
+    CHECK(!olc::sameDockLink(dock, swapped));
+
     olc::Landed landed;
     landed.netId = 10;
     landed.longitude = -1.4122;

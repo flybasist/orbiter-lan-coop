@@ -37,6 +37,10 @@ void writeUdpHeader(Writer& writer, const UdpHeader& header);
 // The session number and seq are not checked here: only the receiver knows them.
 UdpHeaderResult readUdpHeader(Reader& reader, UdpHeader& header);
 
+// Builds a UDP packet: the header (type, session, seq) followed by a ready message body.
+std::vector<uint8_t> makeUdpPacket(uint8_t type, uint32_t session, uint32_t seq,
+                                   const std::vector<uint8_t>& body);
+
 // Builds a TCP frame: length (u32), type (u8) and message body.
 // The length counts the type and the body, but not itself.
 std::vector<uint8_t> makeTcpFrame(uint8_t type, const std::vector<uint8_t>& body);

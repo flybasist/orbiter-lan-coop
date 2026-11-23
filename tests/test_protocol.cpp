@@ -33,8 +33,6 @@ void testSequenceNewer() {
     CHECK(!olc::isSequenceNewer(0x80000000u, 0));
 }
 
-}  // namespace
-
 // The next send time counts from the planned time, and from now after a long frame.
 void testNextSendTime() {
     const double period = 1.0 / 60.0;
@@ -59,6 +57,8 @@ void testNextSendTime() {
     }
     CHECK(sent >= 58);
 }
+
+}  // namespace
 
 int main() {
     testConstants();

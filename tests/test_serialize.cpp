@@ -133,8 +133,6 @@ void testBrokenString() {
     CHECK(p.remaining() == 3);
 }
 
-}  // namespace
-
 void testBytes() {
     olc::Writer w;
     w.writeBytes({1, 2, 3});
@@ -155,6 +153,8 @@ void testBytes() {
     CHECK(value == std::vector<uint8_t>({5}));
     CHECK(!r.ok());
 }
+
+}  // namespace
 
 int main() {
     testByteOrder();

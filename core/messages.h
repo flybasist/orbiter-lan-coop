@@ -169,6 +169,10 @@ struct Dock {
     uint8_t docked = 0;  // 1 - docked, 0 - undocked
 };
 
+// Whether two DOCK messages name the same link: the same pair of ports, in either order
+// (vessel a with b or b with a). The docked flag is not compared.
+bool sameDockLink(const Dock& x, const Dock& y);
+
 // LANDED, host → client: a vessel has come to rest on a surface.
 struct Landed {
     uint16_t netId = 0;

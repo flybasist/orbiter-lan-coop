@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "common.h"
 #include "player_summary.h"
 #include "scenario_launch.h"
 #include "vessel_control.h"
@@ -31,11 +32,6 @@ constexpr double kPauseRequestPause = 0.5;
 // host's values again, seconds.
 constexpr double kDirectorAnswerWait = 1.0;
 
-constexpr double kStatsInterval = 10.0;
-
-// NAV_STATE (decision 58): how often the client checks the frequencies of its own vessel, seconds.
-constexpr double kNavScan = 0.5;
-
 // A latency measurement is dropped after this many seconds without thrust.
 constexpr double kLatencyGiveUp = 2.0;
 
@@ -59,12 +55,6 @@ bool hasThrust(const olc::VesselState& state) {
 // Milliseconds from start to end for the latency log; -1 if the step was not reached.
 double stepMs(double start, double end) {
     return end >= 0.0 ? (end - start) * 1000.0 : -1.0;
-}
-
-std::string objectName(OBJHANDLE object) {
-    char name[256] = {};
-    oapiGetObjectName(object, name, sizeof(name));
-    return name;
 }
 
 }  // namespace
@@ -292,10 +282,7 @@ void ClientSide::applyDocks(double now) {
     }
     while (!pendingDocks_.empty() && pendingDocks_.front().applyAt <= now) {
         const olc::Dock dock = pendingDocks_.front().dock;
-        auto sameLink = [&dock](const olc::Dock& other) {
-            return other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
-                   other.portB == dock.portB;
-        };
+        auto sameLink = [&dock](const olc::Dock& other) { return olc::sameDockLink(other, dock); };
         // The link is forgotten even if a vessel is already gone: an undocked pair is no bundle.
         dockedLinks_.erase(std::remove_if(dockedLinks_.begin(), dockedLinks_.end(), sameLink),
                            dockedLinks_.end());

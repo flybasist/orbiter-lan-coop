@@ -7,6 +7,10 @@
 
 #include <string>
 
+#include "client_clock.h"
+#include "protocol.h"
+#include "session_table.h"
+
 namespace olcplugin {
 
 // Plugin version: goes into HELLO.
@@ -21,9 +25,9 @@ enum class Role {
 struct Config {
     Role role = Role::Off;
     std::string hostAddress = "127.0.0.1";  // client: host address
-    int port = 47800;                       // host and client
+    int port = olc::kDefaultPort;           // host and client
     std::string player = "player";          // player name (the host's one goes into PLAYERS)
-    int maxPlayers = 4;                     // host: player limit, the host is a player too
+    int maxPlayers = olc::kDefaultMaxPlayers;  // host: player limit, the host is a player too
     int stateRateHz = 60;                   // host: WORLD_STATE rate (decision 36)
     // Host: name of the flight director (decision 46). A client with this player name may pause and
     // warp time for everybody and never takes a vessel. Empty - there is no director.
@@ -31,7 +35,7 @@ struct Config {
     // Host: the world is saved to Scenarios\OLC\Saves\autosave.scn every this many minutes of real
     // time (task 5.4). 0 - no autosave. The director's key (Ctrl+Alt+S) saves a separate file.
     int autosaveMinutes = 10;
-    double displayDelay = 0.03;             // client: display delay, seconds (decision 36)
+    double displayDelay = olc::kDefaultDisplayDelay;  // client: display delay, seconds (decision 36)
     // Client: sim time error against the host (seconds × warp) after which
     // the client time catches up with a jump.
     double timeSyncThreshold = 0.1;

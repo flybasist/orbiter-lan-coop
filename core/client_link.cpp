@@ -24,19 +24,6 @@ bool equalsIgnoreCase(const std::string& a, const std::string& b) {
     return true;
 }
 
-// Builds a UDP packet: header and a ready body.
-std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
-                                   const std::vector<uint8_t>& body) {
-    UdpHeader header;
-    header.type = static_cast<uint8_t>(type);
-    header.session = session;
-    header.seq = seq;
-    Writer writer;
-    writeUdpHeader(writer, header);
-    writer.writeBytes(body);
-    return writer.bytes();
-}
-
 }  // namespace
 
 ClientLink::~ClientLink() {
@@ -512,7 +499,8 @@ void ClientLink::sendPing(double now) {
     Writer body;
     writePing(body, ping);
     udp_.sendTo(config_.host,
-                makeUdpPacket(UdpType::Ping, session_, pingSeq_++, body.bytes()));
+                makeUdpPacket(static_cast<uint8_t>(UdpType::Ping), session_, pingSeq_++,
+                              body.bytes()));
     nextPing_ = now + kPingInterval;
 }
 
@@ -523,7 +511,8 @@ bool ClientLink::sendInput(const Input& input, double now) {
     Writer body;
     writeInput(body, input);
     udp_.sendTo(config_.host,
-                makeUdpPacket(UdpType::Input, session_, inputSeq_++, body.bytes()));
+                makeUdpPacket(static_cast<uint8_t>(UdpType::Input), session_, inputSeq_++,
+                              body.bytes()));
     nextInput_ = nextSendTime(nextInput_, now, 1.0 / kMaxInputRate);
     stats_.inputPackets++;
     return true;

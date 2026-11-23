@@ -8,6 +8,7 @@
 #include <iterator>
 #include <random>
 
+#include "common.h"
 #include "protocol.h"
 #include "vessel_control.h"
 #include "wall_clock.h"
@@ -26,12 +27,6 @@ constexpr double kLandedRepeat = 2.0;
 // send, and a vessel is scanned at most this many times per second.
 constexpr float kAnimThreshold = 0.01f;
 constexpr double kAnimRate = 5.0;
-
-// NAV_STATE (decision 58): how often the host checks the frequencies of its own vessel, seconds.
-constexpr double kNavScan = 0.5;
-
-// How often to write statistics to the log, seconds.
-constexpr double kStatsInterval = 10.0;
 
 // A latency probe is dropped after this many seconds without thrust (no fuel, engine off).
 constexpr double kProbeGiveUp = 2.0;
@@ -76,10 +71,14 @@ std::string timestampedSaveName() {
     return name;
 }
 
-std::string objectName(OBJHANDLE object) {
-    char name[256] = {};
-    oapiGetObjectName(object, name, sizeof(name));
-    return name;
+// LANDED for a vessel at rest on a surface: where it stands and where it points.
+olc::Landed landedMessage(uint16_t netId, const VESSELSTATUS2& status) {
+    olc::Landed message;
+    message.netId = netId;
+    message.longitude = status.surf_lng;
+    message.latitude = status.surf_lat;
+    message.heading = status.surf_hdg;
+    return message;
 }
 
 olc::Vec3 toVec3(const VECTOR3& v) {
@@ -399,12 +398,7 @@ void HostSide::sendWorld(bool paused) {
         if (landed && !ship.landed) {
             // The vessel just came to rest: the client puts it down once (ORBITER-INTERNALS.md,
             // section 6).
-            olc::Landed message;
-            message.netId = ship.netId;
-            message.longitude = status.surf_lng;
-            message.latitude = status.surf_lat;
-            message.heading = status.surf_hdg;
-            link_.sendLanded(message);
+            link_.sendLanded(landedMessage(ship.netId, status));
         }
         ship.landed = landed;
         if (ship.probeAt >= 0.0) {
@@ -535,12 +529,7 @@ void HostSide::repeatLanded() {
         if (status.status != 1) {
             continue;  // already took off - we learn it at the next capture
         }
-        olc::Landed message;
-        message.netId = ship.netId;
-        message.longitude = status.surf_lng;
-        message.latitude = status.surf_lat;
-        message.heading = status.surf_hdg;
-        link_.sendLanded(message);
+        link_.sendLanded(landedMessage(ship.netId, status));
     }
 }
 
@@ -644,12 +633,9 @@ void HostSide::detectDocking() {
         }
     }
 
-    auto sameLink = [](const olc::Dock& x, const olc::Dock& y) {
-        return x.a == y.a && x.portA == y.portA && x.b == y.b && x.portB == y.portB;
-    };
-    auto contains = [&sameLink](const std::vector<olc::Dock>& list, const olc::Dock& link) {
+    auto contains = [](const std::vector<olc::Dock>& list, const olc::Dock& link) {
         return std::any_of(list.begin(), list.end(),
-                           [&](const olc::Dock& other) { return sameLink(other, link); });
+                           [&](const olc::Dock& other) { return olc::sameDockLink(other, link); });
     };
     for (const olc::Dock& link : docked_) {
         if (!contains(current, link)) {

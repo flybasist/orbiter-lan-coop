@@ -19,19 +19,6 @@ constexpr int kPortAttempts = 20;
 constexpr uint16_t kRandomPortFirst = 20000;
 constexpr uint16_t kRandomPortLast = 60000;
 
-// Builds a UDP packet: header and a ready body.
-std::vector<uint8_t> makeUdpPacket(UdpType type, uint32_t session, uint32_t seq,
-                                   const std::vector<uint8_t>& body) {
-    UdpHeader header;
-    header.type = static_cast<uint8_t>(type);
-    header.session = session;
-    header.seq = seq;
-    Writer writer;
-    writeUdpHeader(writer, header);
-    writer.writeBytes(body);
-    return writer.bytes();
-}
-
 }  // namespace
 
 HostLink::HostLink(SessionTable& table) : table_(table) {}
@@ -698,8 +685,8 @@ void HostLink::handleUdp() {
             // PONG goes to whoever sent the PING, with the same body.
             Writer body;
             writePing(body, ping);
-            if (udp_.sendTo(from, makeUdpPacket(UdpType::Pong, config_.session, seq_++,
-                                                body.bytes()))) {
+            if (udp_.sendTo(from, makeUdpPacket(static_cast<uint8_t>(UdpType::Pong),
+                                                config_.session, seq_++, body.bytes()))) {
                 stats_.udpPacketsSent++;
             }
         }
@@ -785,7 +772,7 @@ void HostLink::learnUdpAddress(uint8_t clientId, const Endpoint& from, uint16_t 
 
 void HostLink::sendUdpToReady(uint8_t type, const std::vector<uint8_t>& body) {
     std::vector<uint8_t> packet =
-        makeUdpPacket(static_cast<UdpType>(type), config_.session, seq_++, body);
+        makeUdpPacket(type, config_.session, seq_++, body);
     for (const Client& client : clients_) {
         if (client.udpReady && udp_.sendTo(client.udp, packet)) {
             stats_.udpPacketsSent++;
@@ -885,13 +872,7 @@ void HostLink::sendFuel(const Fuel& fuel) {
 }
 
 void HostLink::sendDock(const Dock& dock) {
-    // The same link may be given in either order: vessel a with b or b with a.
-    auto sameLink = [&dock](const Dock& other) {
-        return (other.a == dock.a && other.portA == dock.portA && other.b == dock.b &&
-                other.portB == dock.portB) ||
-               (other.a == dock.b && other.portA == dock.portB && other.b == dock.a &&
-                other.portB == dock.portA);
-    };
+    auto sameLink = [&dock](const Dock& other) { return sameDockLink(other, dock); };
     docks_.erase(std::remove_if(docks_.begin(), docks_.end(), sameLink), docks_.end());
     if (dock.docked) {
         docks_.push_back(dock);

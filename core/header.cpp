@@ -14,6 +14,18 @@ void writeUdpHeader(Writer& writer, const UdpHeader& header) {
     writer.writeU32(header.seq);
 }
 
+std::vector<uint8_t> makeUdpPacket(uint8_t type, uint32_t session, uint32_t seq,
+                                   const std::vector<uint8_t>& body) {
+    UdpHeader header;
+    header.type = type;
+    header.session = session;
+    header.seq = seq;
+    Writer writer;
+    writeUdpHeader(writer, header);
+    writer.writeBytes(body);
+    return writer.bytes();
+}
+
 UdpHeaderResult readUdpHeader(Reader& reader, UdpHeader& header) {
     if (reader.remaining() > kMaxUdpPacketSize) {
         return UdpHeaderResult::TooLong;

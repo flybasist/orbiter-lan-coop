@@ -1462,8 +1462,6 @@ void testConnectionRefused() {
     CHECK(contains(client.closeReason(), "connection refused"));
 }
 
-}  // namespace
-
 // A side that hears nothing for kSilenceTimeout drops the other one: a frozen computer or a pulled
 // cable leaves the TCP connection open. The test polls with a time kSilenceTimeout ahead instead of
 // waiting.
@@ -1500,6 +1498,8 @@ void testSilence() {
     CHECK(second.state() == olc::ClientLink::State::Closed);
     CHECK(contains(second.closeReason(), "nothing heard from the host"));
 }
+
+}  // namespace
 
 int main() {
     CHECK(olc::startNetwork());

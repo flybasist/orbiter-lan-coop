@@ -247,6 +247,12 @@ void writeDock(Writer& writer, const Dock& message) {
     writer.writeU8(message.docked);
 }
 
+bool sameDockLink(const Dock& x, const Dock& y) {
+    const bool direct = x.a == y.a && x.portA == y.portA && x.b == y.b && x.portB == y.portB;
+    const bool swapped = x.a == y.b && x.portA == y.portB && x.b == y.a && x.portB == y.portA;
+    return direct || swapped;
+}
+
 bool readDock(Reader& reader, Dock& message) {
     reader.readU16(message.a);
     reader.readU8(message.portA);
