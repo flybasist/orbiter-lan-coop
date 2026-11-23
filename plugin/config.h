@@ -13,7 +13,7 @@
 
 namespace olcplugin {
 
-// Plugin version: goes into HELLO.
+// Plugin version: goes into HELLO, the host writes it to its log when the player joins.
 constexpr char kPluginVersion[] = "0.1";
 
 enum class Role {

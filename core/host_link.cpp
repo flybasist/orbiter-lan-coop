@@ -536,8 +536,9 @@ bool HostLink::handleHello(Client& client, Reader& reader) {
     std::string scenario = hello.scenarioId == kOwnScenario
                                ? "own scenario"
                                : "scenario #" + std::to_string(hello.scenarioId);
+    // The plugin version shows in the log who came with a different package.
     log("OLC host: player '" + hello.player + "' joined as client " + std::to_string(clientId) +
-        " (" + scenario + ")");
+        " (" + scenario + ", plugin " + hello.pluginVersion + ")");
     if (restored) {
         log("OLC host: player '" + hello.player + "' got their vessel back");
         broadcastOwnership();  // includes PLAYERS
