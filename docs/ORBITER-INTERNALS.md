@@ -438,6 +438,7 @@ get stuck on a random commit between releases. So the main project is checked re
 | 2026-11-19 | `a7a3396e..a7a3396e` | No new commits; no new tags or releases | None | `a7a3396e` |
 | 2026-11-23 | `a7a3396e..48c30c77` | 7 commits: `New CLI options (#721)` — `cmdline.cpp/.h`, `Config.cpp/.h`, `Orbiter.cpp/.h`, `TabVideo.cpp/.h` (new switches `-n --cfgname`, `-o`, `-O`, `-I`, `-i`, `-P`, `-R`, `-G`; `Config.cpp` rewritten to read and write streams); `Fix incorrect menu command ID assignment (#741)` — `RegisterMenuCmd` returned an id one greater than the one issued; `Don't error when several menu items have the same name` — `MenuInfoBar.cpp`; D3D9 `Mesh.cpp` (update flag for the bounding box after a group edit) | The map is affected: line references into `Orbiter.cpp` recalculated (+24 before 1100, +25 after; checked by function names), `Config.cpp` — `:617`; section 15 on the command line rewritten: there is now a settings file choice (`-n`), write protection (`-o`), start paused (`-P`) and without graphics (`-G`). SDK unchanged. Does not change the OLC concept: the switches are a possible improvement for running several instances, the decision is the owner's; `RegisterMenuCmd` is not used by the OLC plugin | `48c30c77` |
 | 2026-11-24 | `48c30c77..48c30c77` | No new commits; no new tags or releases | None | `48c30c77` |
+| 2026-11-25 | `48c30c77..48c30c77` | No new commits; no new tags or releases | None | `48c30c77` |
 
 ## 14. The plugin outside the frame: pause, windows, threads
 
